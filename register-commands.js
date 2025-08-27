@@ -83,6 +83,41 @@ const commands = [
         .addStringOption(o => o.setName('word').setDescription('Your guess (5 letters)').setRequired(true))
     ),
 
+  // --- Birthdays ---
+new SlashCommandBuilder()
+  .setName('birthday')
+  .setDescription('Manage birthdays')
+  .addSubcommand(sc =>
+    sc.setName('set')
+      .setDescription('Set your birthday (stores day & month only)')
+      .addStringOption(o =>
+        o.setName('date')
+         .setDescription('Format: YYYY-MM-DD or DD.MM or MM-DD')
+         .setRequired(true)
+      )
+  )
+  .addSubcommand(sc =>
+    sc.setName('remove')
+      .setDescription('Remove your stored birthday')
+  )
+  .addSubcommand(sc =>
+    sc.setName('show')
+      .setDescription('Show a birthday')
+      .addUserOption(o =>
+        o.setName('user')
+         .setDescription('User (optional, default: you)')
+      )
+  ),
+new SlashCommandBuilder()
+  .setName('setbirthdaychannel')
+  .setDescription('Set the channel for birthday announcements')
+  .addChannelOption(o =>
+    o.setName('channel')
+     .setDescription('#birthday channel')
+     .setRequired(true)
+  )
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+
   // Shop
   new SlashCommandBuilder()
     .setName('shop')

@@ -6,6 +6,7 @@ export function cfg(gid) {
   if (g.config.sassChance  === undefined) g.config.sassChance  = 25;
   if (!g.config.wordle) g.config.wordle = { date: null, answer: null, bonus: 5, solvedBy: [] };
   if (!g.config.shop)   g.config.shop   = { items: [] };
+  if (!g.config.birthdays) g.config.birthdays = { channelId: null, hour: 9, lastAnnounced: null };
   return g.config;
 }
 
@@ -46,4 +47,12 @@ export function setShop(gid, items) {
   c.shop.items = items;
   save();
   return c.shop.items;
+}
+
+/* ---- Birthday config ---- */
+export function setBirthdayChannel(gid, channelId) {
+  const c = cfg(gid);
+  c.birthdays.channelId = channelId;
+  save();
+  return c.birthdays;
 }
