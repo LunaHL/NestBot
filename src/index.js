@@ -8,6 +8,7 @@ import { setupCallouts } from './features/callouts.js';
 import { setupWordle } from './features/wordle.js';
 import { setupShop } from './features/shop.js';
 import { startWebServer } from './web/server.js';
+import { setupBirthdays } from './features/birthdays.js';
 
 await startClient();
 
@@ -19,6 +20,7 @@ setupSass(client);
 setupCallouts(client);
 setupWordle(client);
 setupShop(client);
+setupBirthdays(client);
 
 // Start admin dashboard (Express)
 startWebServer();
