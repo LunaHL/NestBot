@@ -9,6 +9,9 @@ import { setupWordle } from './features/wordle.js';
 import { setupShop } from './features/shop.js';
 import { startWebServer } from './web/server.js';
 import { setupBirthdays } from './features/birthdays.js';
+import { setupPraiseBellie } from './features/praisebellie.js';
+
+
 
 await startClient();
 
@@ -21,6 +24,8 @@ setupCallouts(client);
 setupWordle(client);
 setupShop(client);
 setupBirthdays(client);
+setupPraiseBellie(client);
+
 
 // Start admin dashboard (Express)
 startWebServer();
