@@ -20,3 +20,4 @@ db.json
 *.swp
 .idea/
 .vscode/
+.env
