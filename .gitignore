@@ -22,3 +22,6 @@ db.json
 .vscode/
 .env
 db.json
+
+# Local deploy scripts
+deploy.sh
