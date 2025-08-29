@@ -1,27 +1,14 @@
-# Node
+# dependencies
 node_modules/
+
+# env files (never commit)
+.env
+.env.*
+!.env.example
+
+# logs / misc
 npm-debug.log*
-yarn-error.log*
-dist/
-coverage/
-
-# Runtime/Cache
-*.log
-*.sqlite
-*.db
 .DS_Store
-
-# Environment / local config
-.env
-.env.local
-db.json
-
-# OS/Editor
-*.swp
-.idea/
-.vscode/
-.env
-db.json
 
 # Local deploy scripts
 deploy.sh
