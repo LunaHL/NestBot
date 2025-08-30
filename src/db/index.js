@@ -1,0 +1,10 @@
+﻿import Database from "better-sqlite3";
+import { logger } from "../lib/logger.js";
+import fs from "node:fs";
+import path from "node:path";
+const DATA_DIR = path.resolve("data");
+const DB_FILE = path.join(DATA_DIR, "bot.db");
+fs.mkdirSync(DATA_DIR, { recursive: true });
+export const db = new Database(DB_FILE);
+db.pragma("journal_mode = WAL");
+logger.info({ DB_FILE }, "SQLite database opened");
