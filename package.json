@@ -4,9 +4,10 @@
     "type": "module",
     "main": "src/index.js",
     "scripts": {
-    "start": "node src/bot.js",
     "dev": "cross-env NODE_ENV=development node src/bot.js",
-    "register": "cross-env NODE_ENV=development node scripts/register-commands.js",
+    "dev:register": "cross-env NODE_ENV=development node scripts/register-commands.js",
+    "register": "cross-env NODE_ENV=production node scripts/register-commands.js",
+    "start": "node src/bot.js",
     "lint": "eslint ."
     },
     "dependencies": {
