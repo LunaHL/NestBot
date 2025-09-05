@@ -10,6 +10,7 @@ import { setupShop } from './features/shop.js';
 import { startWebServer } from './web/server.js';
 import { setupBirthdays } from './features/birthdays.js';
 import { setupPraiseBellie } from './features/praisebellie.js';
+import { setupNsfwQuota } from './features/nsfwQuota.js';
 
 
 
@@ -25,6 +26,7 @@ setupWordle(client);
 setupShop(client);
 setupBirthdays(client);
 setupPraiseBellie(client);
+setupNsfwQuota(client);
 
 
 // Start admin dashboard (Express)
