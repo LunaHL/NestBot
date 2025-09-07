@@ -6,8 +6,6 @@ import {
   SlashCommandBuilder,
   EmbedBuilder,
   ChannelType,
-  REST,
-  Routes,
 } from "discord.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,7 +81,7 @@ function imagesInMessage(message) {
   return count;
 }
 
-const command = new SlashCommandBuilder()
+const commandData = new SlashCommandBuilder()
   .setName("nsfw-quota")
   .setDescription("Collective Submissive picture quota for #NSFW-Picture-fun")
   .addSubcommand(sc => sc.setName("ping").setDescription("Health check"))
@@ -107,40 +105,35 @@ const command = new SlashCommandBuilder()
   .addSubcommand(sc => sc.setName("reset").setDescription("Reset/clear the current quota (Mistress only)"))
   .toJSON();
 
-async function registerCommandsForGuild(guildId) {
-  const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
-  const route = Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId);
-  const res = await rest.put(route, { body: [command] });
-  console.log(`[nsfwQuota] Registered commands for guild ${guildId}. (${Array.isArray(res) ? res.length : "?"} cmd)`);
-}
-
 function deadlineText(ms) { return ms ? `<t:${Math.floor(ms/1000)}:R>` : "not set"; }
 
 export function setupNsfwQuota(client) {
+  // 1) Register on each guild directly (no REST/envs needed)
   client.once("ready", async () => {
-    try {
-      const guildIds = [];
-      if (process.env.GUILD_ID) {
-        guildIds.push(process.env.GUILD_ID);
-      } else {
-        client.guilds.cache.forEach(g => guildIds.push(g.id));
-      }
-      if (guildIds.length === 0) {
-        console.warn("[nsfwQuota] No guilds cached on ready. Are you sure the bot is in a server?");
-      }
-      for (const gid of guildIds) {
-        try { await registerCommandsForGuild(gid); }
-        catch (e) {
-          console.error(`[nsfwQuota] Failed to register for guild ${gid}:`, e?.code || e?.status || "", e?.message || e);
-        }
-      }
-      startTicker(client);
-      console.log("[nsfwQuota] Ticker started.");
-    } catch (e) {
-      console.error("[nsfwQuota] Registration failure:", e);
+    const guilds = [...client.guilds.cache.values()];
+    if (guilds.length === 0) {
+      console.warn("[nsfwQuota] No guilds cached on ready. Is the bot in a server?");
     }
+    for (const g of guilds) {
+      try {
+        // Upsert: if a command named nsfw-quota already exists, edit it; else create it
+        const existing = await g.commands.fetch().then(col => col.find(c => c.name === "nsfw-quota"));
+        if (existing) {
+          await g.commands.edit(existing.id, commandData);
+          console.log(`[nsfwQuota] Updated command in guild ${g.id} (${g.name}).`);
+        } else {
+          await g.commands.create(commandData);
+          console.log(`[nsfwQuota] Created command in guild ${g.id} (${g.name}).`);
+        }
+      } catch (e) {
+        console.error(`[nsfwQuota] Guild command upsert failed for ${g.id} (${g.name}):`, e?.code || "", e?.message || e);
+      }
+    }
+    startTicker(client);
+    console.log("[nsfwQuota] Ticker started.");
   });
 
+  // 2) Interactions
   client.on("interactionCreate", async (interaction) => {
     try {
       if (!interaction.isChatInputCommand()) return;
@@ -218,6 +211,7 @@ export function setupNsfwQuota(client) {
     }
   });
 
+  // 3) Message counter
   client.on("messageCreate", async (message) => {
     try {
       if (!message.guild || message.author.bot) return;
