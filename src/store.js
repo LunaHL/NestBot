@@ -14,8 +14,15 @@ export function gstore(gid) {
     },
     users: {}
   };
+
+  // Ensure external birthdays storage exists
+  if (!DB.guilds[gid].externalBirthdays) {
+    DB.guilds[gid].externalBirthdays = [];
+  }
+
   return DB.guilds[gid];
 }
+
 export function ustore(gid, uid) {
   const g = gstore(gid);
   if (!g.users[uid]) {
@@ -24,7 +31,7 @@ export function ustore(gid, uid) {
       paws: 0,
       pain: 0,
       lastDaily: 0,
-      inventory: []   // <--- add this
+      inventory: []
     };
   } else if (!Array.isArray(g.users[uid].inventory)) {
     g.users[uid].inventory = [];   // <--- fix old users

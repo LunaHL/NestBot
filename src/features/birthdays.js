@@ -28,10 +28,8 @@ function parseBirthdayInput(str) {
   if (m) {
     const dd = String(Number(m[1])).padStart(2, '0');
     const mm = String(Number(m[2])).padStart(2, '0');
-    // If user gave DD.MM, convert to MM-DD (store as month-day)
-    // Heuristik: Wenn erster Teil > 12, ist es sicher DD.MM
+    // If first part > 12, it's definitely DD.MM; otherwise assume DD.MM (DACH habit)
     if (Number(m[1]) > 12) return `${mm}-${dd}`;
-    // Sonst: Ambig — nehmen wir an DD.MM, wie im DACH üblich
     return `${mm}-${dd}`;
   }
 
@@ -52,7 +50,18 @@ function prettyMD(md) {
   return `${String(dd).padStart(2,'0')} ${monthNames[mm-1]}`;
 }
 
-// --- Daily announcer ---
+// --- Permissions helper ---
+function isMistressOrAdmin(interaction) {
+  const guild = interaction.guild;
+  if (!guild) return false;
+  const hasAdmin = interaction.memberPermissions?.has?.(PermissionFlagsBits.Administrator);
+  const isOwner = guild.ownerId === interaction.user.id;
+  const mistressRole = guild.roles.cache.find(r => r.name.toLowerCase() === 'mistress');
+  const hasMistress = mistressRole && interaction.member?.roles?.cache?.has(mistressRole.id);
+  return Boolean(hasMistress || hasAdmin || isOwner);
+}
+
+// --- Daily announcer (includes externals) ---
 function startBirthdayTicker(client) {
   setInterval(async () => {
     try {
@@ -66,14 +75,19 @@ function startBirthdayTicker(client) {
         if (hour < (bconf.hour ?? 9)) continue; // wait until configured hour
         if (bconf.lastAnnounced === iso) continue; // already announced today
 
-        // Find all users with matching birthday (MM-DD)
         const g = gstore(gid);
-        const matches = [];
+
+        // Collect matches: Discord users
+        const userIds = [];
         for (const uid of Object.keys(g.users || {})) {
           const u = g.users[uid];
-          if (u?.birthday === md) matches.push(uid);
+          if (u?.birthday === md) userIds.push(uid);
         }
-        if (matches.length === 0) {
+
+        // Collect matches: External birthdays
+        const externals = (g.externalBirthdays || []).filter(e => e?.md === md && e?.name);
+
+        if (userIds.length === 0 && externals.length === 0) {
           // Mark as done to avoid spamming later the same day
           bconf.lastAnnounced = iso; save();
           continue;
@@ -83,8 +97,11 @@ function startBirthdayTicker(client) {
         const ch = guild.channels.cache.get(bconf.channelId);
         if (!ch?.isTextBased()) continue;
 
-        // Bot needs "Mention Everyone" permission in that channel to ping @everyone
-        const content = `@everyone 🎂 **Happy Birthday** to ${matches.map(id => `<@${id}>`).join(', ')} — make a wish! 🎉`;
+        const parts = [];
+        if (userIds.length) parts.push(userIds.map(id => `<@${id}>`).join(', '));
+        if (externals.length) parts.push(externals.map(e => `**${e.name}**`).join(', '));
+
+        const content = `@everyone 🎂 **Happy Birthday** to ${parts.join(' and ')} — make a wish! 🎉`;
         await ch.send({ content, allowedMentions: { parse: ['everyone', 'users'] } }).catch(() => {});
         bconf.lastAnnounced = iso; save();
       }
@@ -112,6 +129,7 @@ export function setupBirthdays(client) {
     if (i.commandName === 'birthday') {
       const sub = i.options.getSubcommand();
 
+      // User self-set
       if (sub === 'set') {
         const input = i.options.getString('date');
         const md = parseBirthdayInput(input);
@@ -141,6 +159,100 @@ export function setupBirthdays(client) {
         const days = Math.ceil((next - now) / (1000*60*60*24));
 
         return i.reply({ content: `🎉 **${user.username}** → ${prettyMD(u.birthday)} (${days} day(s) to go)`, ephemeral: true });
+      }
+
+      // Admin/Mistress: set birthday for another member
+      if (sub === 'set-for') {
+        if (!isMistressOrAdmin(i)) {
+          return i.reply({ content: 'Only Mistress/Admin may set birthdays for others.', ephemeral: true });
+        }
+        const target = i.options.getMember('user');
+        const input = i.options.getString('date');
+        const md = parseBirthdayInput(input);
+        if (!md) return i.reply({ content: 'Invalid date. Use YYYY-MM-DD, DD.MM, or MM-DD.', ephemeral: true });
+
+        const u = ustore(i.guildId, target.id);
+        u.birthday = md; save();
+        return i.reply({ content: `Saved **${prettyMD(md)}** for ${target}.`, ephemeral: false });
+      }
+
+      // Admin/Mistress: add an external (non-Discord) birthday
+      if (sub === 'add-external') {
+        if (!isMistressOrAdmin(i)) {
+          return i.reply({ content: 'Only Mistress/Admin may add external birthdays.', ephemeral: true });
+        }
+        const name = i.options.getString('name')?.trim();
+        const input = i.options.getString('date');
+        const year = i.options.getInteger('year') ?? null;
+        const note = i.options.getString('note') ?? null;
+
+        const md = parseBirthdayInput(input);
+        if (!md) {
+          return i.reply({ content: 'Invalid date. Use **YYYY-MM-DD**, **DD.MM**, or **MM-DD**.', ephemeral: true });
+        }
+
+        const g = gstore(i.guildId);
+        if (!g.externalBirthdays) g.externalBirthdays = [];
+        g.externalBirthdays.push({ name, md, year, note });
+        save();
+
+        return i.reply({ content: `Added external: **${name}** — **${prettyMD(md)}**${note ? ` (${note})` : ''}.` });
+      }
+
+      // Admin/Mistress: remove an external by name
+      if (sub === 'remove-external') {
+        if (!isMistressOrAdmin(i)) {
+          return i.reply({ content: 'Only Mistress/Admin may remove external birthdays.', ephemeral: true });
+        }
+        const name = (i.options.getString('name') || '').trim().toLowerCase();
+        const g = gstore(i.guildId);
+        const before = (g.externalBirthdays || []).length;
+        g.externalBirthdays = (g.externalBirthdays || []).filter(e => (e.name || '').toLowerCase() !== name);
+        save();
+        const removed = before - g.externalBirthdays.length;
+        return i.reply({
+          content: removed
+            ? `Removed ${removed} entr${removed > 1 ? 'ies' : 'y'} for "${name}".`
+            : `No entries found for "${name}".`
+        });
+      }
+
+      // List all Birthdays (Discord + external)
+      if (sub === 'list') {
+        const g = gstore(i.guildId);
+
+        // Discord users with birthdays
+        const users = Object.entries(g.users || {})
+          .filter(([, u]) => u.birthday)
+          .map(([uid, u]) => ({ uid, md: u.birthday }));
+
+        // External birthdays
+        const externals = (g.externalBirthdays || []).filter(e => e?.md && e?.name)
+          .map(e => ({ name: e.name, md: e.md, note: e.note ?? null }));
+
+        if (users.length === 0 && externals.length === 0) {
+          return i.reply({ content: 'No birthdays saved yet. Use `/birthday set` or `/birthday add-external`.', ephemeral: true });
+        }
+
+        // Sort calendar order
+        const key = (s) => { const [m, d] = s.split('-').map(n => parseInt(n, 10)); return m * 100 + d; };
+        users.sort((a, b) => key(a.md) - key(b.md));
+        externals.sort((a, b) => key(a.md) - key(b.md));
+
+        const lines = [];
+        if (users.length) {
+          lines.push('🎂 **Discord Members**');
+          for (const { uid, md } of users) lines.push(`• ${prettyMD(md)} — <@${uid}>`);
+        }
+        if (externals.length) {
+          if (users.length) lines.push(''); // spacer
+          lines.push('👥 **External Birthdays**');
+          for (const { name, md, note } of externals) {
+            lines.push(`• ${prettyMD(md)} — ${name}${note ? ` (${note})` : ''}`);
+          }
+        }
+
+        return i.reply({ content: lines.join('\n') });
       }
     }
   });
