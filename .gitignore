@@ -13,3 +13,4 @@ npm-debug.log*
 
 # Local deploy scripts
 deploy.sh
+db.json
