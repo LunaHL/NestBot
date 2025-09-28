@@ -1,0 +1,10 @@
+# confidential Files
+.env
+todo.md
+src/data/nestbot.json
+
+# Node Modules and Logs
+node_modules/
+npm-debug.log*
+*.log
+
