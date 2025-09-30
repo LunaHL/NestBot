@@ -1,5 +1,9 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../utils/db');
+const nestcoins = require('../services/nestcoins');
+
+// cost in Nestcoins for a targeted spin
+const PRICE_TARGETED_SPIN = 15;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -46,27 +50,156 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
 
     if (sub === 'spin') {
-      let punishment;
+      const target = interaction.options.getUser('target') ?? interaction.user;
+
+      // Load the wheel list
+      let wheelList = [];
       db.perform(data => {
         if (!data.wheel) data.wheel = [];
-        if (data.wheel.length > 0) {
-          const randomIndex = Math.floor(Math.random() * data.wheel.length);
-          punishment = { id: randomIndex, text: data.wheel[randomIndex] };
-        }
+        wheelList = data.wheel.slice(); 
       });
 
-      if (!punishment) {
-        await interaction.reply('🎡 The wheel is empty!');
-        return;
+      if (wheelList.length === 0) {
+        return interaction.reply({ content: '🎡 The wheel is empty!', ephemeral: true });
       }
 
-      const target = interaction.options.getUser('target') || interaction.user;
-      await interaction.reply(`🎡 ${target} has been chosen!\n**Punishment:** ${punishment.text}`);
+      
+      const lines = wheelList.map((txt, i) => `#${i}: ${txt}`).join('\n');
+      const isTargeted = target.id !== interaction.user.id;
+
+     
+      const priceInfo = isTargeted
+        ? `This targeted spin will cost **${PRICE_TARGETED_SPIN}** Nestcoins.`
+        : `Self spin is free.`;
+
+      const tokenTarget = isTargeted ? target.id : 'self';
+      const customId = `wheel:spin:${tokenTarget}:${interaction.user.id}`;
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(customId)
+          .setLabel('Spin the Wheel')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      const message = await interaction.reply({
+        content:
+          `🎡 **Punishment Wheel**\n` +
+          `${lines}\n\n` +
+          `🎯 Target: ${isTargeted ? target : interaction.user}\n` +
+          `${priceInfo}`,
+        components: [row],
+        ephemeral: false,
+        fetchReply: true // IMPORTANT
+      });
+
+      const filter = (i) =>
+        i.isButton() &&
+        i.customId === customId &&
+        i.user.id === interaction.user.id;
+
+      const collector = message.createMessageComponentCollector({
+        filter,
+        time: 60_000 // 60s window
+      });
+
+      collector.on('collect', async (i) => {
+        let currentList = [];
+        db.perform(data => {
+          if (!data.wheel) data.wheel = [];
+          currentList = data.wheel.slice();
+        });
+
+        if (currentList.length === 0) {
+          const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(customId)
+              .setLabel('Spin the Wheel')
+              .setStyle(ButtonStyle.Primary)
+              .setDisabled(true)
+          );
+          await i.update({
+            content: '🎡 The wheel is empty!',
+            components: [disabledRow]
+          });
+          return collector.stop('empty');
+        }
+
+        const parts = i.customId.split(':');
+        const tokenTarget = parts[2];
+        const issuerId    = parts[3];
+
+        const isTargetedClick = tokenTarget !== 'self';
+        const targetId = isTargetedClick ? tokenTarget : issuerId;
+        let chargeLine = '';
+
+        // Charge Nestcoins only for targeted spins
+        if (isTargetedClick) {
+          const newBal = nestcoins.removeCoins(i.guildId, issuerId, PRICE_TARGETED_SPIN);
+          if (newBal === null) {
+            const current = nestcoins.getBalance(i.guildId, issuerId);
+            return i.reply({
+              content:
+                `💸 Not enough Nestcoins for a targeted spin.\n` +
+                `You need **${PRICE_TARGETED_SPIN}**, you have **${current}**. ` +
+                `Come back when your wallet isn't echoing.`,
+              ephemeral: true
+            });
+          } else {
+            chargeLine = `\n💳 Charged **${PRICE_TARGETED_SPIN}** Nestcoins from <@${issuerId}>.`;
+          }
+        }
+
+        const randomIndex = Math.floor(Math.random() * currentList.length);
+        const punishment  = currentList[randomIndex];
+
+        const refreshed = currentList.map((txt, idx) => `#${idx}: ${txt}`).join('\n');
+        const disabledRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(customId)
+            .setLabel('Spin the Wheel')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(true)
+        );
+
+        const content =
+          `🎡 **Punishment Wheel**\n` +
+          `${refreshed}\n\n` +
+          `🎯 Target: <@${targetId}>\n` +
+          `**Result:** ${punishment}${chargeLine}`;
+
+        await i.update({ content, components: [disabledRow] });
+        collector.stop('done');
+      });
+
+      collector.on('end', async (_collected, reason) => {
+        if (reason === 'done' || reason === 'empty') return;
+        try {
+          const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(customId)
+              .setLabel('Spin the Wheel')
+              .setStyle(ButtonStyle.Primary)
+              .setDisabled(true)
+          );
+          await message.edit({ components: [disabledRow] });
+        } catch {}
+      });
+
+      return;
     }
+
 
     if (sub === 'add') {
       const text = interaction.options.getString('text');
       let id;
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+        return interaction.reply({
+          content: '❌ You need to be an administrator to add punishments.',
+          ephemeral: true
+        });
+        }
+
       db.perform(data => {
         if (!data.wheel) data.wheel = [];
         data.wheel.push(text);
@@ -79,6 +212,13 @@ module.exports = {
     if (sub === 'remove') {
       const id = interaction.options.getInteger('id');
       let removed;
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+        return interaction.reply({
+          content: '❌ You need to be an administrator to remove punishments.',
+          ephemeral: true
+        });
+        }
+
       db.perform(data => {
         if (!data.wheel) data.wheel = [];
         if (id >= 0 && id < data.wheel.length) {
