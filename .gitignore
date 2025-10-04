@@ -2,6 +2,7 @@
 .env
 todo.md
 src/data/nestbot.json
+src/data/wordlist.json
 
 # Node Modules and Logs
 node_modules/
