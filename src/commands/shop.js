@@ -66,7 +66,7 @@ module.exports = {
       if (!isAdmin) {
         return interaction.reply({
           content: "You don't have permission to use this subcommand.",
-          ephemeral: true
+           flags: 64 
         });
       }
     }
@@ -77,7 +77,7 @@ module.exports = {
         const items = Object.entries(shop);
 
         if (items.length === 0) {
-          return interaction.reply({ content: 'The shop is currently empty.', ephemeral: true });
+          return interaction.reply({ content: 'The shop is currently empty.', flags: 64 });
         }
 
         const embed = new EmbedBuilder()
@@ -114,7 +114,7 @@ module.exports = {
             
             interaction.reply({ 
                 content: `Added item #${nextId}: ${name} for ${price} Nestcoins.`,
-                ephemeral: true,
+                flags: 64,
             });
         });
     }
@@ -124,7 +124,7 @@ module.exports = {
 
         db.perform((data) => {
             if (!data.shop || !data.shop[guildId] || !data.shop[guildId][id]) {
-                return interaction.reply({ content: `Item #${id} does not exist.`, ephemeral: true });
+                return interaction.reply({ content: `Item #${id} does not exist.`, flags: 64 });
             }
             const itemName = data.shop[guildId][id].name;
             delete data.shop[guildId][id];
@@ -137,7 +137,7 @@ module.exports = {
                 data.shop[guildId][newId] = item;
             });
 
-            interaction.reply({ content: `Removed item #${id}: ${itemName}.`, ephemeral: true });
+            interaction.reply({ content: `Removed item #${id}: ${itemName}.`, flags: 64 });
         });
     }
 
@@ -153,14 +153,14 @@ module.exports = {
         });
 
         if (!item) {
-            return interaction.reply({ content: `Item #${id} does not exist.`, ephemeral: true });
+            return interaction.reply({ content: `Item #${id} does not exist.`, flags: 64 });
         }
 
         const balance = nestcoins.getBalance(guildId, userId);
         if (balance < item.price) {
             return interaction.reply({
             content: `You don't have enough Nestcoins to buy "${item.name}".`,
-            ephemeral: true,
+            flags: 64,
             });
         }
 
@@ -168,7 +168,7 @@ module.exports = {
         if (newBalance === null) {
             return interaction.reply({
             content: `Something went wrong while processing your purchase.`,
-            ephemeral: true,
+            flags: 64,
             });
         }
 

@@ -19,7 +19,8 @@ module.exports = {
           opt.setName('difficulty').setDescription('Difficulty').addChoices(
             { name: 'Easy', value: 'easy' },
             { name: 'Medium', value: 'medium' },
-            { name: 'Hard', value: 'hard' }
+            { name: 'Hard', value: 'hard' },
+            { name: 'special', value: 'special' }
           ).setRequired(true)
         )
         .addStringOption(opt =>
@@ -38,11 +39,11 @@ module.exports = {
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
-    const rewards = { easy: 10, medium: 20, hard: 30 };
+    const rewards = { easy: 1, medium: 2, hard: 4, special: 20};
 
     if (sub === 'set') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-      if (!isAdmin) return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+      if (!isAdmin) return interaction.reply({ content: "❌ No permission.",  flags: 64  });
 
       const link = interaction.options.getString('link');
       const code = interaction.options.getString('code');
@@ -57,7 +58,7 @@ module.exports = {
 
       return interaction.reply({
         content: `✅ Puzzle for **${date}** set!\nDifficulty: **${difficulty}** (${reward} coins)\n🔗 ${link}`,
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -74,7 +75,7 @@ module.exports = {
         if (puzzle && puzzle.solvedBy.includes(userId)) solved = true;
       });
 
-      if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.", ephemeral: true });
+      if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.", flags: 64 });
 
       const msg =
         `🧩 **Puzzle of the Day (${today})**\n` +
@@ -120,11 +121,11 @@ module.exports = {
         nestcoins.addCoins(guildId, userId, reward);
       });
 
-      if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.", ephemeral: true });
-      if (solved) return interaction.reply({ content: "✅ Already solved.", ephemeral: true });
-      if (puzzle.code !== code) return interaction.reply({ content: "❌ Wrong code.", ephemeral: true });
+      if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.",  flags: 64  });
+      if (solved) return interaction.reply({ content: "✅ Already solved.",  flags: 64 });
+      if (puzzle.code !== code) return interaction.reply({ content: "❌ Wrong code.", flags: 64 });
 
-      return interaction.reply({ content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`, ephemeral: true });
+      return interaction.reply({ content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`,  flags: 64  });
     }
   }
 };

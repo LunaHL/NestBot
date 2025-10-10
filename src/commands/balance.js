@@ -45,6 +45,22 @@ module.exports = {
             .setRequired(true)
             .setMinValue(1)
         )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('transfer')
+        .setDescription('Transfer Nestcoins to another user')
+        .addUserOption(opt =>
+          opt.setName('user')
+            .setDescription('User to transfer Nestcoins to')
+            .setRequired(true)
+        )
+        .addIntegerOption(opt =>
+          opt.setName('amount')
+            .setDescription('Amount of Nestcoins to transfer')
+            .setRequired(true)
+            .setMinValue(1)
+        )
     ),
 
   async execute(interaction) {
@@ -56,7 +72,7 @@ module.exports = {
       if (!isAdmin) {
         return interaction.reply({
           content: "You don't have permission to use this subcommand.",
-          ephemeral: true
+          flags: 64 
         });
       }
     }
@@ -67,7 +83,7 @@ module.exports = {
 
         return interaction.reply({
             content: `The balance of ${target.username} is ${balance} Nestcoins.`,
-            ephemeral: true
+            flags: 64
         });
     }
 
@@ -78,13 +94,13 @@ module.exports = {
         if (!target || amount < 1) {
             return interaction.reply({
                 content: 'Invalid user or amount.',
-                ephemeral: true
+                flags: 64
             });
         }
         const newBalance = nestcoins.addCoins(interaction.guildId, target.id, amount);
         return interaction.reply({
             content: `✅ Granted ${amount} Nestcoins to ${target.username}. New balance: ${newBalance} Nestcoins.`,
-            ephemeral: true
+            flags: 64 
         });
     }
 
@@ -93,7 +109,7 @@ module.exports = {
         const amount = interaction.options.getInteger('amount');
 
         if (!target || amount < 1) {
-          return interaction.reply({ content: 'Invalid parameters.', ephemeral: true });
+          return interaction.reply({ content: 'Invalid parameters.', flags: 64  });
         }
 
         const newBal = nestcoins.removeCoins(interaction.guildId, target.id, amount);
@@ -101,15 +117,46 @@ module.exports = {
         if (newBal === null) {
           return interaction.reply({
             content: `❌ Cannot remove **${amount}** Nestcoins from **${target.tag}**: insufficient funds.`,
-            ephemeral: true,
+            flags: 64
           });
         }
 
         return interaction.reply({
           content: `✅ Removed **${amount}** Nestcoins from **${target.tag}**.\n💰 New balance: **${newBal}** Nestcoins.`,
-          ephemeral: true,
+          flags: 64
         });
       }
+    if (sub === 'transfer') {
+        const target = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        const sender = interaction.user;
+
+        if (!target || amount < 1) {
+            return interaction.reply({
+                content: 'Invalid user or amount.',
+                flags: 64
+            });
+        }
+        if (target.id === sender.id) {
+            return interaction.reply({
+                content: "You can't transfer Nestcoins to yourself.",
+                flags: 64
+            });
+        }
+        const senderBalance = nestcoins.getBalance(interaction.guildId, sender.id);
+        if (senderBalance < amount) {
+            return interaction.reply({
+                content: `❌ You have insufficient funds. Your balance is ${senderBalance} Nestcoins.`,
+                flags: 64
+            });
+        }
+        nestcoins.removeCoins(interaction.guildId, sender.id, amount);
+        const newBalance = nestcoins.addCoins(interaction.guildId, target.id, amount);
+        return interaction.reply({
+            content: `✅ Transferred ${amount} Nestcoins to ${target.username}. Your new balance: ${senderBalance - amount} Nestcoins.`,
+            flags: 64
+        });
+    }
 
  },
 };  

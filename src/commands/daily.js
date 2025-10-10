@@ -13,7 +13,7 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.inGuild()) {
-      return interaction.reply({ content: 'This command can only be used in a server (guild).', ephemeral: true });
+      return interaction.reply({ content: 'This command can only be used in a server (guild).', flags: 64 });
     }
 
     const guildId = interaction.guildId;
@@ -23,6 +23,7 @@ module.exports = {
     // read/update cooldown atomically
     let canClaim = false;
     let msLeft = 0;
+
 
     db.perform((data) => {
       if (!data.daily) data.daily = {};
@@ -44,14 +45,14 @@ module.exports = {
       const mins  = Math.floor((msLeft % 3_600_000) / 60_000);
       return interaction.reply({
         content: `⏳ You already claimed your daily. Come back in **${hours}h ${mins}m**.`,
-        ephemeral: true
+         flags: 64 
       });
     }
 
     const newBalance = nestcoins.addCoins(guildId, userId, DAILY_AMOUNT);
     return interaction.reply({
       content: `✅ You claimed **${DAILY_AMOUNT}** Nestcoins!\n💰 New balance: **${newBalance}** Nestcoins.`,
-      ephemeral: true
+       flags: 64 
     });
   }
 };

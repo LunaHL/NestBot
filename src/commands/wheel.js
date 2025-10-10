@@ -60,7 +60,7 @@ module.exports = {
       });
 
       if (wheelList.length === 0) {
-        return interaction.reply({ content: '🎡 The wheel is empty!', ephemeral: true });
+        return interaction.reply({ content: '🎡 The wheel is empty!', flags: 64  });
       }
 
       
@@ -89,8 +89,8 @@ module.exports = {
           `🎯 Target: ${isTargeted ? target : interaction.user}\n` +
           `${priceInfo}`,
         components: [row],
-        ephemeral: false,
-        fetchReply: true // IMPORTANT
+        flags: 64,
+        reply: { withResponse: true }
       });
 
       const filter = (i) =>
@@ -143,7 +143,7 @@ module.exports = {
                 `💸 Not enough Nestcoins for a targeted spin.\n` +
                 `You need **${PRICE_TARGETED_SPIN}**, you have **${current}**. ` +
                 `Come back when your wallet isn't echoing.`,
-              ephemeral: true
+              flags: 64
             });
           } else {
             chargeLine = `\n💳 Charged **${PRICE_TARGETED_SPIN}** Nestcoins from <@${issuerId}>.`;
@@ -196,7 +196,7 @@ module.exports = {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
         return interaction.reply({
           content: '❌ You need to be an administrator to add punishments.',
-          ephemeral: true
+          flags: 64
         });
         }
 
@@ -215,7 +215,7 @@ module.exports = {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
         return interaction.reply({
           content: '❌ You need to be an administrator to remove punishments.',
-          ephemeral: true
+          flags: 64
         });
         }
 
