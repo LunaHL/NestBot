@@ -1,73 +1,69 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../utils/db');
 
+function getToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getNextPeriod(period) {
   const now = new Date();
-  let start, end;
+  let start = new Date();
 
   if (period === 'daily') {
-    start = new Date(now);
-    start.setHours(24, 0, 0, 0); 
-    end = new Date(start);
-    end.setDate(start.getDate() + 1);
-  } else if (period === 'weekly') {
-    start = new Date(now);
-    const day = start.getDay(); // 0=So, 1=Mo...
-    const daysUntilMonday = (8 - day) % 7; 
-    start.setDate(start.getDate() + daysUntilMonday);
     start.setHours(0, 0, 0, 0);
-    end = new Date(start);
-    end.setDate(start.getDate() + 7);
+    start.setDate(start.getDate() + 1);
+  } else if (period === 'weekly') {
+    const day = start.getDay(); // 0 = Sonntag
+    const daysUntilMonday = (8 - day) % 7 || 7;
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() + daysUntilMonday);
   }
+
+  const end = new Date(start);
+  if (period === 'daily') end.setDate(start.getDate() + 1);
+  else end.setDate(start.getDate() + 7);
 
   return { start: start.getTime(), end: end.getTime() };
 }
+
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('picquota')
     .setDescription('Picture quota system')
     .addSubcommand(sub =>
-    sub
+      sub
         .setName('set')
-        .setDescription('Set picture quota')
+        .setDescription('Set a new picture quota')
         .addIntegerOption(opt =>
-        opt
-            .setName('amount')
-            .setDescription('Required number of pictures')
-            .setRequired(true)
+          opt.setName('amount').setDescription('Required number of pictures').setRequired(true)
         )
         .addStringOption(opt =>
-        opt
+          opt
             .setName('period')
             .setDescription('daily or weekly')
             .setRequired(true)
             .addChoices(
-            { name: 'Daily', value: 'daily' },
-            { name: 'Weekly', value: 'weekly' }
+              { name: 'Daily', value: 'daily' },
+              { name: 'Weekly', value: 'weekly' }
             )
         )
         .addRoleOption(opt =>
-        opt
-            .setName('role')
-            .setDescription('Role this quota applies to')
-            .setRequired(true)
+          opt.setName('role').setDescription('Role to track').setRequired(true)
         )
         .addChannelOption(opt =>
-        opt
-            .setName('channel')
-            .setDescription('Channel where pictures must be sent')
-            .setRequired(true)
+          opt.setName('channel').setDescription('Channel for pictures').setRequired(true)
         )
         .addIntegerOption(opt =>
-        opt
-            .setName('reward')
-            .setDescription('NestCoins reward if quota completed')
-            .setRequired(false)
+          opt.setName('reward').setDescription('NestCoins reward')
         )
     )
     .addSubcommand(sub =>
-      sub.setName('status').setDescription('Check current quota status')
+      sub.setName('status').setDescription('Show current quota status')
     )
     .addSubcommand(sub =>
       sub.setName('reset').setDescription('Reset the quota manually (admin only)')
@@ -79,9 +75,14 @@ module.exports = {
 
     if (sub === 'set') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+<<<<<<< HEAD
       if (!isAdmin) {
         return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
       }
+=======
+      if (!isAdmin)
+        return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
+>>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       const amount = interaction.options.getInteger('amount');
       const period = interaction.options.getString('period');
@@ -106,39 +107,55 @@ module.exports = {
       });
 
       return interaction.reply({
+<<<<<<< HEAD
         content: `✅ Picture quota set: **${amount}** images per ${period}, applies to role ${role}. Starts <t:${Math.floor(start/1000)}:F>.`,
         flags: 64
+=======
+        content: `✅ Quota set: **${amount}** images per ${period}\n🕛 Starts <t:${Math.floor(start / 1000)}:F>\n🎁 Reward: ${reward} NestCoins`,
+        ephemeral: true
+>>>>>>> f572f88085560077159e649ec2c6f87a593714f9
       });
     }
 
     if (sub === 'status') {
       let quota;
-      db.perform(data => {
-        quota = data.picquota?.[guildId];
-      });
+      db.perform(data => (quota = data.picquota?.[guildId]));
 
+<<<<<<< HEAD
       if (!quota) {
         return interaction.reply({ content: "❌ No quota set for this server.",  flags: 64  });
       }
+=======
+      if (!quota)
+        return interaction.reply({ content: "❌ No quota set for this server.", ephemeral: true });
+>>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       const percent = ((quota.current / quota.amount) * 100).toFixed(1);
       const statusIcon = quota.current >= quota.amount ? "✅" : "❌";
 
-      const msg = `📷 **Picture Quota**
-• Required: ${quota.amount} images
-• Period: ${quota.period}
-• Role: <@&${quota.roleId}>
-• Current: ${quota.current} (${percent}%)
-• Status: ${statusIcon}
-• Timeframe: <t:${Math.floor(quota.start/1000)}:F> → <t:${Math.floor(quota.end/1000)}:F>`;
-      return interaction.reply({ content: msg });
+      return interaction.reply({
+        content:
+          `📷 **Picture Quota**\n` +
+          `• Required: ${quota.amount}\n` +
+          `• Period: ${quota.period}\n` +
+          `• Role: <@&${quota.roleId}>\n` +
+          `• Channel: <#${quota.channelId}>\n` +
+          `• Progress: ${quota.current}/${quota.amount} (${percent}%) ${statusIcon}\n` +
+          `• Timeframe: <t:${Math.floor(quota.start / 1000)}:F> → <t:${Math.floor(quota.end / 1000)}:F>`,
+        ephemeral: true
+      });
     }
 
     if (sub === 'reset') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+<<<<<<< HEAD
       if (!isAdmin) {
         return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
       }
+=======
+      if (!isAdmin)
+        return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
+>>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       db.perform(data => {
         if (data.picquota) delete data.picquota[guildId];

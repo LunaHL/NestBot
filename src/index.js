@@ -13,10 +13,23 @@ const client = new Client({
   ]
 });
 
+const TZ = process.env.TIMEZONE || 'Europe/Berlin';
+function getLocalDate(offsetDays = 0) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+  now.setDate(now.getDate() + offsetDays);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function getLocalDayMonth() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+  return `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 // 🥳 Birthday Checker
 function checkBirthdays(client) {
-  const now = new Date();
-  const today = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  const today = getLocalDayMonth();
 
   db.perform(data => {
     for (const guildId of Object.keys(data.birthdays || {})) {
@@ -44,10 +57,10 @@ function checkBirthdays(client) {
 }
 
 function scheduleBirthdays(client) {
-  const now = new Date();
-  const nextMidnight = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+  const nextMidnight = new Date(now);
   nextMidnight.setHours(24, 0, 0, 0);
-  const msUntilMidnight = nextMidnight.getTime() - now.getTime();
+  const msUntilMidnight = nextMidnight - now;
 
   setTimeout(() => {
     checkBirthdays(client);
@@ -62,8 +75,8 @@ function checkScoreboard(client) {
     const channel = client.channels.cache.get(SCOREBOARD_CHANNEL);
     if (!channel) return;
 
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today = getLocalDate(0);
+    const yesterday = getLocalDate(-1);
 
     // 🟩 Wordle scoreboard
     const wordle = data.wordles?.[yesterday];
@@ -73,7 +86,6 @@ function checkScoreboard(client) {
         const solved = wordle.solvedBy?.includes(userId);
         lines.push(`• <@${userId}> — ${solved ? `✅ ${tries} tries` : `❌ ${tries} tries`}`);
       }
-
       if (lines.length > 0) {
         const summary = `📊 **NestWord Results for ${wordle.date}**\n${lines.join("\n")}`;
         channel.send(summary);
@@ -100,10 +112,10 @@ function checkScoreboard(client) {
 }
 
 function scheduleScoreboard(client) {
-  const now = new Date();
-  const nextMidnight = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+  const nextMidnight = new Date(now);
   nextMidnight.setHours(24, 0, 0, 0);
-  const msUntilMidnight = nextMidnight.getTime() - now.getTime();
+  const msUntilMidnight = nextMidnight - now;
 
   setTimeout(() => {
     checkScoreboard(client);
@@ -198,7 +210,6 @@ console.log("▶ Deploying commands...");
 client.commands = new Map();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
-
 for (const file of commandFiles) {
   const command = require(path.join(commandsPath, file));
   if ('data' in command && 'execute' in command) {
@@ -213,7 +224,6 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const command = interaction.client.commands.get(interaction.commandName);
   if (!command) return console.error(`❌ Unknown command: ${interaction.commandName}`);
-
   try {
     await command.execute(interaction);
   } catch (error) {
@@ -225,7 +235,6 @@ client.on('interactionCreate', async interaction => {
 // 🖼️ Message Image Tracker
 client.on('messageCreate', message => {
   if (!message.guild || message.author.bot) return;
-
   db.perform(data => {
     const quota = data.picquota?.[message.guild.id];
     if (!quota) return;
@@ -235,10 +244,11 @@ client.on('messageCreate', message => {
     const images = Array.from(message.attachments.values()).filter(a =>
       ['.png', '.jpg', '.jpeg', '.gif', '.webp'].some(ext => a.name?.toLowerCase().endsWith(ext))
     );
-
     if (images.length > 0) {
-      quota.current = (quota.current || 0) + images.length;
-      console.log(`📸 +${images.length} | ${quota.current}/${quota.amount}`);
+      if (now >= quota.start && now < quota.end) {
+        quota.current = (quota.current || 0) + images.length;
+        console.log(`📸 +${images.length} | ${quota.current}/${quota.amount}`);
+      }
     }
   });
 });
