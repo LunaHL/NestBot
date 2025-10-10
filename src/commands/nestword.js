@@ -4,16 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const nestcoins = require('../services/nestcoins');
 
+const TZ = process.env.TIMEZONE || 'Europe/Berlin';
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+const getToday = () => ymd(nowInTZ());
+const getYesterday = () => { const d = nowInTZ(); d.setDate(d.getDate()-1); return ymd(d); };
+
 const WORDLIST_PATH = path.join(__dirname, '..', 'data', 'wordlist.json');
-
-function getToday() {
-  return new Date().toISOString().split('T')[0];
-}
-
-function getYesterday() {
-  const d = new Date(Date.now() - 86400000);
-  return d.toISOString().split('T')[0];
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -27,11 +24,11 @@ module.exports = {
           opt.setName('word').setDescription('Word to set').setRequired(true)
             .setMinLength(5).setMaxLength(5)
         )
+        .addIntegerOption(opt =>
+          opt.setName('reward').setDescription('Reward in NestCoins (default: 15)').setMinValue(0)
+        )
         .addStringOption(opt =>
           opt.setName('date').setDescription('Date (YYYY-MM-DD, default: today)')
-        )
-        .addIntegerOption(opt =>
-          opt.setName('reward').setDescription('Reward in NestCoins').setMinValue(0)
         )
     )
     .addSubcommand(sub =>
@@ -48,11 +45,17 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
 
+    // === /nestword set ===
     if (sub === 'set') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+<<<<<<< HEAD
       if (!isAdmin) {
         return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
       }
+=======
+      if (!isAdmin)
+        return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
+>>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       const word = interaction.options.getString('word').toLowerCase();
       const date = interaction.options.getString('date') || getToday();
@@ -71,13 +74,14 @@ module.exports = {
           streaks: {}
         };
 
-        delete data.wordle;
+        delete data.wordle; 
       });
 
       if (fs.existsSync(WORDLIST_PATH)) {
         const wordlist = JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8'));
         wordlist.pool = wordlist.pool.filter(w => w !== word);
-        wordlist.usedWords.push({ date, word });
+        if (!wordlist.usedWords.some(e => e.date === date))
+          wordlist.usedWords.push({ date, word });
         fs.writeFileSync(WORDLIST_PATH, JSON.stringify(wordlist, null, 2));
       }
 
@@ -87,6 +91,7 @@ module.exports = {
       });
     }
 
+    // === /nestword guess ===
     if (sub === 'guess') {
       const guess = interaction.options.getString('word').toLowerCase();
       const userId = interaction.user.id;
