@@ -20,11 +20,7 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.inGuild()) {
-<<<<<<< HEAD
       return interaction.reply({ content: 'This command can only be used in a server (guild).', flags: 64 });
-=======
-      return interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
     }
 
     const guildId = interaction.guildId;
@@ -47,25 +43,15 @@ module.exports = {
 
     if (!canClaim) {
       return interaction.reply({
-<<<<<<< HEAD
         content: `⏳ You already claimed your daily. Come back in **${hours}h ${mins}m**.`,
          flags: 64 
-=======
-        content: '⏳ You already claimed your daily today! Come back tomorrow after midnight 🕛.',
-        ephemeral: true,
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
       });
     }
 
     const newBalance = nestcoins.addCoins(guildId, userId, DAILY_AMOUNT);
     return interaction.reply({
-<<<<<<< HEAD
       content: `✅ You claimed **${DAILY_AMOUNT}** Nestcoins!\n💰 New balance: **${newBalance}** Nestcoins.`,
        flags: 64 
-=======
-      content: `✅ You claimed **${DAILY_AMOUNT}** NestCoins!\n💰 New balance: **${newBalance}** NestCoins.`,
-      ephemeral: true,
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
     });
   },
 };

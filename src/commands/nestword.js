@@ -48,14 +48,9 @@ module.exports = {
     // === /nestword set ===
     if (sub === 'set') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-<<<<<<< HEAD
       if (!isAdmin) {
         return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
       }
-=======
-      if (!isAdmin)
-        return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       const word = interaction.options.getString('word').toLowerCase();
       const date = interaction.options.getString('date') || getToday();
