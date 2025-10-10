@@ -54,7 +54,7 @@ module.exports = {
 
       const word = interaction.options.getString('word').toLowerCase();
       const date = interaction.options.getString('date') || getToday();
-      const reward = interaction.options.getInteger('reward') ?? 2;
+      const reward = interaction.options.getInteger('reward') ?? 15;
 
       db.perform(data => {
         if (!data.wordles) data.wordles = {};

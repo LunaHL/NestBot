@@ -54,17 +54,12 @@ module.exports = {
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
-    const rewards = { easy: 1, medium: 2, hard: 4, special: 20};
+    const rewards = { easy: 10, medium: 20, hard: 30, special: 50 };
 
     // ==== /puzzle set ====
     if (sub === 'set') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-<<<<<<< HEAD
       if (!isAdmin) return interaction.reply({ content: "❌ No permission.",  flags: 64  });
-=======
-      if (!isAdmin)
-        return interaction.reply({ content: "❌ No permission.", ephemeral: true });
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       const link = interaction.options.getString('link');
       const code = interaction.options.getString('code');
@@ -78,13 +73,8 @@ module.exports = {
       });
 
       return interaction.reply({
-<<<<<<< HEAD
         content: `✅ Puzzle for **${date}** set!\nDifficulty: **${difficulty}** (${reward} coins)\n🔗 ${link}`,
         flags: 64
-=======
-        content: `✅ Puzzle for **${date}** set!\n🧩 Difficulty: **${difficulty}** (${reward} coins)\n🔗 ${link}`,
-        ephemeral: true
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
       });
     }
 
@@ -103,12 +93,7 @@ module.exports = {
         if (puzzle && puzzle.solvedBy.includes(userId)) solved = true;
       });
 
-<<<<<<< HEAD
       if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.", flags: 64 });
-=======
-      if (!puzzle)
-        return interaction.reply({ content: "❌ No puzzle set for today.", ephemeral: true });
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       const msg =
         `🧩 **Puzzle of the Day (${today})**\n` +
@@ -157,25 +142,11 @@ module.exports = {
         nestcoins.addCoins(guildId, userId, reward);
       });
 
-<<<<<<< HEAD
       if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.",  flags: 64  });
       if (solved) return interaction.reply({ content: "✅ Already solved.",  flags: 64 });
       if (puzzle.code !== code) return interaction.reply({ content: "❌ Wrong code.", flags: 64 });
 
       return interaction.reply({ content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`,  flags: 64  });
-=======
-      if (!puzzle)
-        return interaction.reply({ content: "❌ No puzzle set for today.", ephemeral: true });
-      if (solved)
-        return interaction.reply({ content: "✅ Already solved today.", ephemeral: true });
-      if (puzzle.code !== code)
-        return interaction.reply({ content: "❌ Wrong code.", ephemeral: true });
-
-      return interaction.reply({
-        content: `🎉 Correct! You earned **${reward}** NestCoins!\n${streakMsg}`,
-        ephemeral: true
-      });
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
     }
   }
 };
