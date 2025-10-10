@@ -15,7 +15,7 @@ module.exports = {
     // Check user balance
     const balance = nestcoins.getBalance(guildId, userId);
     if (balance < bet) {
-      return interaction.reply({ content: "❌ You don’t have enough NestCoins to gamble.", ephemeral: true });
+      return interaction.reply({ content: "❌ You don’t have enough NestCoins to gamble.", flags: 64 });
     }
 
     // Deduct entry fee

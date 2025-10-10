@@ -26,7 +26,7 @@ module.exports = {
     if (top.length === 0) {
       return interaction.reply({
         content: 'No Nestcoins recorded in this server yet.',
-        ephemeral: true
+         flags: 64 // ephemeral
     });
     }
 

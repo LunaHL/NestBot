@@ -61,7 +61,7 @@ module.exports = {
         if (entries.length === 0) {
         return interaction.reply({
             content: 'No birthdays set yet.',
-            ephemeral: true,
+            flags: 64 
         });
         }
 
@@ -160,7 +160,7 @@ module.exports = {
 
         return interaction.reply({
             content: `✅ Birthday set for **${entryName}** on ${date}`,
-            ephemeral: true,
+            flags: 64,
         });
     }
 
@@ -176,13 +176,13 @@ module.exports = {
             const entry = guildBirthdays[id];
 
             if (!entry) {
-            return interaction.reply({ content: `❌ Birthday #${id} does not exist.`, ephemeral: true });
+            return interaction.reply({ content: `❌ Birthday #${id} does not exist.`, flags: 64 });
             }
 
             if (!isAdmin && entry.userId !== userId) {
             return interaction.reply({
                 content: "❌ You can only remove your own birthday.",
-                ephemeral: true,
+                flags: 64
             });
             }
 
@@ -201,7 +201,7 @@ module.exports = {
         if (removedName) {
             return interaction.reply({
             content: `✅ Removed birthday entry: **${removedName}**`,
-            ephemeral: true,
+            flags: 64
             });
         }
     }
@@ -211,7 +211,7 @@ module.exports = {
         if (!isAdmin) {
             return interaction.reply({
             content: "You don't have permission to use this subcommand.",
-            ephemeral: true,
+            flags: 64
             });
         }
 
@@ -224,7 +224,7 @@ module.exports = {
 
         return interaction.reply({
             content: `✅ Birthday channel set to ${channel}`,
-            ephemeral: true,
+            flags: 64
         });
     }
 

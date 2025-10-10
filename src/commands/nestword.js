@@ -51,12 +51,12 @@ module.exports = {
     if (sub === 'set') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
       if (!isAdmin) {
-        return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
+        return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
       }
 
       const word = interaction.options.getString('word').toLowerCase();
       const date = interaction.options.getString('date') || getToday();
-      const reward = interaction.options.getInteger('reward') ?? 15;
+      const reward = interaction.options.getInteger('reward') ?? 2;
 
       db.perform(data => {
         if (!data.wordles) data.wordles = {};
@@ -83,7 +83,7 @@ module.exports = {
 
       return interaction.reply({
         content: `✅ Word for **${date}** set to **${word}** (${reward} coins)`,
-        ephemeral: true
+        flags: 64
       });
     }
 
@@ -120,7 +120,7 @@ module.exports = {
         for (let i = 0; i < guess.length; i++) {
           if (guess[i] === wordle.answer[i]) result.push('🟩');
           else if (wordle.answer.includes(guess[i])) result.push('🟨');
-          else result.push('⬛');
+          else result.push('🟥');
         }
 
         if (guess === wordle.answer) {
@@ -158,7 +158,7 @@ module.exports = {
 
       return interaction.reply({
         content: errorMsg || resultMsg,
-        ephemeral: true
+         flags: 64 
       });
     }
   }

@@ -84,7 +84,7 @@ function checkScoreboard(client) {
     const puzzle = data.puzzles?.[yesterday];
     if (puzzle && puzzle.solvedBy && puzzle.solvedBy.length > 0) {
       const lines = puzzle.solvedBy.map(uid => `• <@${uid}> — ✅ solved`);
-      const summary = `🧩 **Puzzle Results for ${puzzle.date}**\n${lines.join("\n")}`;
+      const summary = `🧩 **Puzzle Results for ${yesterday}**\n${lines.join("\n")}`;
       channel.send(summary);
     }
 
@@ -174,7 +174,7 @@ function schedulePicQuota(client) {
 }
 
 // 🧠 On Bot Ready
-client.on('ready', () => {
+client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   checkBirthdays(client);
   scheduleBirthdays(client);
@@ -218,7 +218,7 @@ client.on('interactionCreate', async interaction => {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    await interaction.reply({ content: '❌ Error executing this command.', ephemeral: true });
+    await interaction.reply({ content: '❌ Error executing this command.', flags: 64  });
   }
 });
 
