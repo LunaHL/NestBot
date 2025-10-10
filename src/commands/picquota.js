@@ -102,13 +102,8 @@ module.exports = {
       });
 
       return interaction.reply({
-<<<<<<< HEAD
         content: `✅ Picture quota set: **${amount}** images per ${period}, applies to role ${role}. Starts <t:${Math.floor(start/1000)}:F>.`,
         flags: 64
-=======
-        content: `✅ Quota set: **${amount}** images per ${period}\n🕛 Starts <t:${Math.floor(start / 1000)}:F>\n🎁 Reward: ${reward} NestCoins`,
-        ephemeral: true
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
       });
     }
 
@@ -116,14 +111,9 @@ module.exports = {
       let quota;
       db.perform(data => (quota = data.picquota?.[guildId]));
 
-<<<<<<< HEAD
       if (!quota) {
         return interaction.reply({ content: "❌ No quota set for this server.",  flags: 64  });
       }
-=======
-      if (!quota)
-        return interaction.reply({ content: "❌ No quota set for this server.", ephemeral: true });
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       const percent = ((quota.current / quota.amount) * 100).toFixed(1);
       const statusIcon = quota.current >= quota.amount ? "✅" : "❌";
@@ -143,14 +133,9 @@ module.exports = {
 
     if (sub === 'reset') {
       const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-<<<<<<< HEAD
       if (!isAdmin) {
         return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
       }
-=======
-      if (!isAdmin)
-        return interaction.reply({ content: "❌ You don't have permission.", ephemeral: true });
->>>>>>> f572f88085560077159e649ec2c6f87a593714f9
 
       db.perform(data => {
         if (data.picquota) delete data.picquota[guildId];
