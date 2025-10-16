@@ -69,7 +69,7 @@ module.exports = {
       const difficulty = interaction.options.getString('difficulty');
       const date = interaction.options.getString('date') || getToday();
       const reward = rewards[difficulty] || 10;
-      const append = interaction.options.getBoolean('Append')
+      const append = interaction.options.getBoolean('append')
       let finalDate = date;
 
       db.perform(data => {
