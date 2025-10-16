@@ -123,66 +123,73 @@ function scheduleScoreboard(client) {
   }, msUntilMidnight);
 }
 
-// 🖼️ Picture Quota System
-function getNextPeriod(period) {
-  const now = Date.now();
-  const oneDay = 24 * 60 * 60 * 1000;
-  if (period === "daily") return { start: now, end: now + oneDay };
-  if (period === "weekly") return { start: now, end: now + oneDay * 7 };
-  return { start: now, end: now + oneDay };
+// 🖼️ Picture Tracker System
+function getWeekRange() {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sonntag
+  const diffToMonday = (day + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 7);
+  return { start: monday.getTime(), end: sunday.getTime() };
 }
 
-function checkPicQuota(client) {
-  db.perform(async data => {
-    for (const guildId of Object.keys(data.picquota || {})) {
-      const quota = data.picquota[guildId];
-      if (!quota) continue;
+function checkPicTracker(client) {
+  db.perform(data => {
+    for (const guildId of Object.keys(data.pictracker || {})) {
+      const board = data.pictracker[guildId];
+      if (!board) continue;
 
       const now = Date.now();
-      if (now >= quota.end) {
+      if (now >= board.end) {
         const guild = client.guilds.cache.get(guildId);
         if (!guild) continue;
 
-        const channel = guild.systemChannel || guild.channels.cache.find(c => c.isTextBased());
-        if (!channel) continue;
+        // Leaderboard
+        const sorted = Object.entries(board.users || {}).sort((a, b) => b[1] - a[1]);
+        if (sorted.length === 0) continue;
 
-        if (quota.current >= quota.amount) {
-          channel.send(`🎉 Quota completed! ${quota.current}/${quota.amount} pictures sent!`);
-          const reward = quota.reward || 20;
-          const role = guild.roles.cache.get(quota.roleId);
-          if (role) {
-            role.members.forEach(member => {
-              nestcoins.addCoins(guildId, member.id, reward);
-            });
-            channel.send(`💰 Each <@&${quota.roleId}> got **${reward} NestCoins**!`);
-          }
+        const topText = sorted
+          .slice(0, 10)
+          .map(([id, count], i) => `**#${i + 1}** <@${id}> — ${count} 🖼️`)
+          .join("\n");
+
+        let channel;
+        if (board.channelId) {
+          channel = guild.channels.cache.get(board.channelId);
         } else {
-          channel.send(`❌ Quota failed! Only ${quota.current}/${quota.amount}.`);
+          channel = guild.systemChannel || guild.channels.cache.find(c => c.isTextBased());
         }
 
-        const { start, end } = getNextPeriod(quota.period);
-        quota.current = 0;
-        quota.start = start;
-        quota.end = end;
+        if (channel) {
+          channel.send(`🏆 **Weekly Picture Leaderboard** 🏆\n\n${topText}`);
+        } else {
+          console.log(`⚠️ No valid channel found for guild ${guild.name}`);
+        }
+
+
+        // Reset for new week
+        data.pictracker[guildId] = { users: {}, ...getWeekRange() };
       }
     }
   });
 }
 
-function schedulePicQuota(client) {
-  db.perform(data => {
-    for (const guildId of Object.keys(data.picquota || {})) {
-      const quota = data.picquota[guildId];
-      if (!quota) continue;
+function schedulePicTracker(client) {
+  const now = new Date();
+  const nextMonday = new Date(now);
+  const day = now.getDay();
+  const daysUntilMonday = (8 - day) % 7 || 7;
+  nextMonday.setDate(now.getDate() + daysUntilMonday);
+  nextMonday.setHours(0, 0, 0, 0);
+  const msUntilMonday = nextMonday - now;
 
-      const now = Date.now();
-      const msUntilEnd = quota.end - now;
-      setTimeout(() => {
-        checkPicQuota(client);
-        schedulePicQuota(client);
-      }, msUntilEnd);
-    }
-  });
+  setTimeout(() => {
+    checkPicTracker(client);
+    setInterval(() => checkPicTracker(client), 7 * 24 * 60 * 60 * 1000);
+  }, msUntilMonday);
 }
 
 // 🧠 On Bot Ready
@@ -192,8 +199,8 @@ client.on('clientReady', () => {
   scheduleBirthdays(client);
   checkScoreboard(client);
   scheduleScoreboard(client);
-  checkPicQuota(client);
-  schedulePicQuota(client);
+  checkPicTracker(client);
+  schedulePicTracker(client);
 });
 
 // 🚀 Deploy commands & login
@@ -232,23 +239,30 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// 🖼️ Message Image Tracker
+// 📸 Track all image uploads
 client.on('messageCreate', message => {
   if (!message.guild || message.author.bot) return;
-  db.perform(data => {
-    const quota = data.picquota?.[message.guild.id];
-    if (!quota) return;
-    if (message.channelId !== quota.channelId) return;
-    if (!message.member.roles.cache.has(quota.roleId)) return;
 
-    const images = Array.from(message.attachments.values()).filter(a =>
-      ['.png', '.jpg', '.jpeg', '.gif', '.webp'].some(ext => a.name?.toLowerCase().endsWith(ext))
-    );
-    if (images.length > 0) {
-      if (now >= quota.start && now < quota.end) {
-        quota.current = (quota.current || 0) + images.length;
-        console.log(`📸 +${images.length} | ${quota.current}/${quota.amount}`);
-      }
+  const images = Array.from(message.attachments.values()).filter(a =>
+    a.contentType?.startsWith('image/')
+  );
+  if (images.length === 0) return;
+
+  const guildId = message.guild.id;
+  const userId = message.author.id;
+
+  db.perform(data => {
+    if (!data.pictracker) data.pictracker = {};
+    if (!data.pictracker[guildId]) data.pictracker[guildId] = { users: {}, ...getWeekRange() };
+
+    const tracker = data.pictracker[guildId];
+
+    // Falls neue Woche begonnen hat → reset
+    if (Date.now() > tracker.end) {
+      data.pictracker[guildId] = { users: {}, ...getWeekRange() };
     }
+
+    tracker.users[userId] = (tracker.users[userId] || 0) + images.length;
   });
 });
+
