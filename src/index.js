@@ -126,7 +126,7 @@ function scheduleScoreboard(client) {
 // 🖼️ Picture Tracker System
 function getWeekRange() {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sonntag
+  const day = now.getDay(); 
   const diffToMonday = (day + 6) % 7;
   const monday = new Date(now);
   monday.setDate(now.getDate() - diffToMonday);
@@ -147,31 +147,47 @@ function checkPicTracker(client) {
         const guild = client.guilds.cache.get(guildId);
         if (!guild) continue;
 
-        // Leaderboard
-        const sorted = Object.entries(board.users || {}).sort((a, b) => b[1] - a[1]);
-        if (sorted.length === 0) continue;
 
-        const topText = sorted
+        const channel = board.channelId ? guild.channels.cache.get(board.channelId) : null;
+        if (!channel) continue;
+
+        const entries = Object.entries(board.users || {});
+        if (entries.length === 0) continue;
+
+
+        const sorted = entries.sort((a, b) => b[1] - a[1]);
+        const topUserId = sorted[0][0];
+        const leaderboardText = sorted
           .slice(0, 10)
           .map(([id, count], i) => `**#${i + 1}** <@${id}> — ${count} 🖼️`)
           .join("\n");
 
-        let channel;
-        if (board.channelId) {
-          channel = guild.channels.cache.get(board.channelId);
-        } else {
-          channel = guild.systemChannel || guild.channels.cache.find(c => c.isTextBased());
+
+        channel.send(`🏆 **Weekly Picture Leaderboard** 🏆\n\n${leaderboardText}`);
+
+
+        let rewarded = [];
+        for (const [userId, count] of entries) {
+          if (count >= 10) {
+            nestcoins.addCoins(guildId, userId, 50);
+            rewarded.push(`<@${userId}> +50 🪙 (${count} pics)`);
+          }
         }
 
-        if (channel) {
-          channel.send(`🏆 **Weekly Picture Leaderboard** 🏆\n\n${topText}`);
+
+        if (topUserId) {
+          nestcoins.addCoins(guildId, topUserId, 30);
+          rewarded.push(`💎 <@${topUserId}> gets **+30 bonus coins** for #1!`);
+        }
+
+        if (rewarded.length > 0) {
+          channel.send(`💰 **Rewards distributed:**\n${rewarded.join("\n")}`);
         } else {
-          console.log(`⚠️ No valid channel found for guild ${guild.name}`);
+          channel.send("😔 No one reached 10 pictures this week.");
         }
 
 
-        // Reset for new week
-        data.pictracker[guildId] = { users: {}, ...getWeekRange() };
+        data.pictracker[guildId] = { users: {}, ...getWeekRange(), channelId: board.channelId };
       }
     }
   });
@@ -243,26 +259,24 @@ client.on('interactionCreate', async interaction => {
 client.on('messageCreate', message => {
   if (!message.guild || message.author.bot) return;
 
-  const images = Array.from(message.attachments.values()).filter(a =>
-    a.contentType?.startsWith('image/')
-  );
-  if (images.length === 0) return;
-
-  const guildId = message.guild.id;
-  const userId = message.author.id;
-
   db.perform(data => {
-    if (!data.pictracker) data.pictracker = {};
-    if (!data.pictracker[guildId]) data.pictracker[guildId] = { users: {}, ...getWeekRange() };
+    const board = data.pictracker?.[message.guild.id];
+    if (!board || !board.channelId) return;
+    if (message.channelId !== board.channelId) return; 
+    if (!message.attachments.size) return;
 
-    const tracker = data.pictracker[guildId];
+    const images = Array.from(message.attachments.values()).filter(a =>
+      a.contentType?.startsWith('image/')
+    );
+    if (images.length === 0) return;
 
-    // Falls neue Woche begonnen hat → reset
-    if (Date.now() > tracker.end) {
-      data.pictracker[guildId] = { users: {}, ...getWeekRange() };
+    // Neue Woche automatisch starten, falls nötig
+    if (Date.now() > board.end) {
+      data.pictracker[message.guild.id] = { users: {}, ...getWeekRange(), channelId: board.channelId };
     }
 
-    tracker.users[userId] = (tracker.users[userId] || 0) + images.length;
+    const userId = message.author.id;
+    board.users[userId] = (board.users[userId] || 0) + images.length;
   });
 });
 
