@@ -33,6 +33,9 @@ module.exports = {
         .addStringOption(opt =>
           opt.setName('date').setDescription('Date (YYYY-MM-DD, default: today)')
         )
+        .addBooleanOption(opt =>
+          opt.setName('append').setDescription('Automatically set for next free day')
+        )
     )
     .addSubcommand(sub =>
       sub
@@ -66,14 +69,29 @@ module.exports = {
       const difficulty = interaction.options.getString('difficulty');
       const date = interaction.options.getString('date') || getToday();
       const reward = rewards[difficulty] || 10;
+      const append = interaction.options.getBoolean('Append')
+      let finalDate = date;
 
       db.perform(data => {
         if (!data.puzzles) data.puzzles = {};
-        data.puzzles[date] = { link, code, difficulty, reward, solvedBy: [] };
+
+        if (append) {
+          let d = nowInTZ();
+          for (let i = 0; i < 365; i++) {
+            d.setDate(d.getDate() + 1);
+            const nextDate = ymd(d);
+            if (!data.puzzles[nextDate]) {
+              finalDate = nextDate;
+              break;
+            }
+          }
+        }
+
+        data.puzzles[finalDate] = { link, code, difficulty, reward, solvedBy: [] };
       });
 
       return interaction.reply({
-        content: `✅ Puzzle for **${date}** set!\nDifficulty: **${difficulty}** (${reward} coins)\n🔗 ${link}`,
+        content: `✅ Puzzle for **${finalDate}** set!\nDifficulty: **${difficulty}** (${reward} coins)\n🔗 ${link}`,
         flags: 64
       });
     }
@@ -120,7 +138,7 @@ module.exports = {
         puzzle = data.puzzles[today];
 
         if (puzzle.solvedBy.includes(userId)) { solved = true; return; }
-        if (puzzle.code !== code) return;
+        if (puzzle.code.toLowerCase() !== code.toLowerCase()) return;
 
         reward = puzzle.reward;
         if (!data.puzzleStreaks) data.puzzleStreaks = {};
@@ -144,7 +162,7 @@ module.exports = {
 
       if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.",  flags: 64  });
       if (solved) return interaction.reply({ content: "✅ Already solved.",  flags: 64 });
-      if (puzzle.code !== code) return interaction.reply({ content: "❌ Wrong code.", flags: 64 });
+      if (puzzle.code.toLowerCase() !== code.toLowerCase()) return interaction.reply({ content: "❌ Wrong code.", flags: 64 });
 
       return interaction.reply({ content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`,  flags: 64  });
     }

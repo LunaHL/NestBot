@@ -89,8 +89,7 @@ module.exports = {
           `🎯 Target: ${isTargeted ? target : interaction.user}\n` +
           `${priceInfo}`,
         components: [row],
-        flags: 64,
-        reply: { withResponse: true }
+        fetchReply: true
       });
 
       const filter = (i) =>
