@@ -30,6 +30,9 @@ module.exports = {
         .addStringOption(opt =>
           opt.setName('date').setDescription('Date (YYYY-MM-DD, default: today)')
         )
+        .addBooleanOption(opt =>
+          opt.setName('append').setDescription('Automatically set for next free day')
+        )
     )
     .addSubcommand(sub =>
       sub
@@ -54,14 +57,30 @@ module.exports = {
 
       const word = interaction.options.getString('word').toLowerCase();
       const date = interaction.options.getString('date') || getToday();
+      const append = interaction.options.getBoolean('append');
       const reward = interaction.options.getInteger('reward') ?? 15;
+      let finalDate = date;
+      let daysAhead = 0;
 
       db.perform(data => {
         if (!data.wordles) data.wordles = {};
 
-        data.wordles[date] = {
+        if (append) {
+          let d = nowInTZ();
+          for (let i = 0; i < 365; i++) {
+            d.setDate(d.getDate() + 1);
+            const nextDate = ymd(d);
+            if (!data.wordles[nextDate]) {
+              finalDate = nextDate;
+              daysAhead = i + 1;
+              break;
+            }
+          }
+        }
+
+        data.wordles[finalDate] = {
           answer: word,
-          date,
+          date: finalDate,
           reward,
           solvedBy: [],
           guesses: {},
@@ -69,22 +88,26 @@ module.exports = {
           streaks: {}
         };
 
-        delete data.wordle; 
+        delete data.wordle; // old cleanup
       });
 
+      
       if (fs.existsSync(WORDLIST_PATH)) {
         const wordlist = JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8'));
         wordlist.pool = wordlist.pool.filter(w => w !== word);
-        if (!wordlist.usedWords.some(e => e.date === date))
-          wordlist.usedWords.push({ date, word });
+        if (!wordlist.usedWords.some(e => e.date === finalDate))
+          wordlist.usedWords.push({ date: finalDate, word });
         fs.writeFileSync(WORDLIST_PATH, JSON.stringify(wordlist, null, 2));
       }
 
       return interaction.reply({
-        content: `✅ Word for **${date}** set to **${word}** (${reward} coins)`,
+        content: `✅ Word for **${finalDate}** set to **${word}** (${reward} coins)${
+          append ? `\n📅 (${daysAhead} day${daysAhead === 1 ? '' : 's'} ahead)` : ''
+        }`,
         flags: 64
       });
     }
+
 
     // === /nestword guess ===
     if (sub === 'guess') {
@@ -120,7 +143,7 @@ module.exports = {
         for (let i = 0; i < guess.length; i++) {
           if (guess[i] === wordle.answer[i]) result.push('🟩');
           else if (wordle.answer.includes(guess[i])) result.push('🟨');
-          else result.push('🟥');
+          else result.push('❌');
         }
 
         if (guess === wordle.answer) {

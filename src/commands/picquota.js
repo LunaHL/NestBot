@@ -18,7 +18,7 @@ function getNextPeriod(period) {
     start.setDate(start.getDate() + 1);
   } else if (period === 'weekly') {
     const day = start.getDay(); // 0 = Sonntag
-    const daysUntilMonday = (8 - day) % 7 || 7;
+    const daysUntilMonday = (1 + 7 - day) % 7 || 7;
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() + daysUntilMonday);
   }
