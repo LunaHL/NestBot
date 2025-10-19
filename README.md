@@ -10,3 +10,10 @@ Major:
 
 Minor:
 - Puzzle code isnt case sensitive anymore
+
+
+*V 1.1.1*
+
+Major: 
+- Changed the gamble odds
+- Added Loot Drops

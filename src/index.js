@@ -3,7 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./utils/db');
 const nestcoins = require('./services/nestcoins');
+const lootdrop = require('./services/lootdrop');
 const { Client, GatewayIntentBits } = require('discord.js');
+
 
 const client = new Client({
   intents: [
@@ -217,6 +219,7 @@ client.on('clientReady', () => {
   scheduleScoreboard(client);
   checkPicTracker(client);
   schedulePicTracker(client);
+  lootdrop.start(client);
 });
 
 // 🚀 Deploy commands & login
