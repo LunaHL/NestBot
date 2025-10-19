@@ -12,7 +12,7 @@ module.exports = {
     const guildId = interaction.guildId;
     const bet = 5;
 
-    // Check user balance
+    // Check balance
     const balance = nestcoins.getBalance(guildId, userId);
     if (balance < bet) {
       return interaction.reply({ content: "❌ You don’t have enough NestCoins to gamble.", flags: 64 });
@@ -21,28 +21,31 @@ module.exports = {
     // Deduct entry fee
     nestcoins.addCoins(guildId, userId, -bet);
 
-    // Random roll
+    // Roll
     const roll = Math.random(); // 0–1
     let result = "";
     let reward = 0;
 
     if (roll < 0.01) {
-      // Jackpot zone (1%)
-      const jackpotType = Math.random() < 0.5 ? "coins" : "punishment";
-      if (jackpotType === "coins") {
-        reward = 50;
-        nestcoins.addCoins(guildId, userId, reward);
-        result = "🎰 **JACKPOT!** You won **50 NestCoins!** 💰";
-      } else {
-        result = "💥 **JACKPOT!** You triggered the **Punishment Roulette!** 🎡";
-      }
-    } else if (roll < 0.2) {
-      // 19% chance to win 10 coins
+      // 1% jackpot
+      reward = 100;
+      nestcoins.addCoins(guildId, userId, reward);
+      result = "🎰 **JACKPOT!** You won **100 NestCoins!** 💎";
+    } else if (roll < 0.10) {
+      // 9% big win
+      reward = Math.floor(Math.random() * 11) + 20; // 20–30
+      nestcoins.addCoins(guildId, userId, reward);
+      result = `💰 You hit a **big win!** You won **${reward} NestCoins!** 🎉`;
+    } else if (roll < 0.30) {
+      // 20% normal win
       reward = 10;
       nestcoins.addCoins(guildId, userId, reward);
-      result = "🎲 You won **10 NestCoins!** 🍀";
+      result = "🍀 You won **10 NestCoins!**";
+    } else if (roll < 0.40) {
+      // 10% punishment
+      result = "💥 **Uh oh!** You triggered the **Punishment Roulette!** 🎡";
     } else {
-      // 80% lose
+      // 60% lose
       result = "😢 You lost your bet. Better luck next time!";
     }
 
