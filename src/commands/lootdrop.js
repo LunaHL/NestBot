@@ -1,5 +1,10 @@
-require('dotenv').config();
-const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
 const nestcoins = require('../services/nestcoins');
 const db = require('../utils/db');
 
@@ -8,7 +13,7 @@ let activeDrop = null;
 async function spawnLoot(client) {
   for (const [guildId, guild] of client.guilds.cache) {
     let settings;
-    db.perform((data) => {
+    db.perform(data => {
       data.lootdrop ||= {};
       data.lootdrop[guildId] ||= { blacklist: [] };
       settings = data.lootdrop[guildId];
@@ -41,7 +46,10 @@ async function spawnLoot(client) {
     collector.on('collect', async i => {
       if (i.customId !== 'claim_loot' || activeDrop === null) return;
       nestcoins.addCoins(i.guildId, i.user.id, activeDrop.coins);
-      await i.reply({ content: `🎉 You claimed **${activeDrop.coins} NestCoins!**`, ephemeral: true });
+      await i.reply({
+        content: `🎉 You claimed **${activeDrop.coins} NestCoins!**`,
+        ephemeral: true,
+      });
       await msg.edit({
         content: `🏆 **${i.user.username}** claimed the loot!`,
         components: [],
@@ -52,7 +60,10 @@ async function spawnLoot(client) {
 
     collector.on('end', async () => {
       if (activeDrop) {
-        await msg.edit({ content: '⌛ The loot vanished into thin air.', components: [] });
+        await msg.edit({
+          content: '⌛ The loot vanished into thin air.',
+          components: [],
+        });
         activeDrop = null;
       }
     });
@@ -62,9 +73,14 @@ async function spawnLoot(client) {
 //* Schedules the next loot drop to drop
 function schedule(client) {
   const dropsPerDay = Math.floor(Math.random() * 6) + 3; // 3–8 per day
-  const interval = !process.env.DEBUG ? (24 * 60 * 60 * 1000) / dropsPerDay : (4 * 60 * 1000) / dropsPerDay;
+  const interval = !process.env.DEBUG
+    ? (24 * 60 * 60 * 1000) / dropsPerDay
+    : (4 * 60 * 1000) / dropsPerDay;
 
-  setTimeout(() => { spawnLoot(client); schedule(client) }, interval);
+  setTimeout(() => {
+    spawnLoot(client);
+    schedule(client);
+  }, interval);
   console.log(`[LootDrop] Next drop in ${interval / 1000} seconds`);
 }
 
@@ -73,13 +89,18 @@ module.exports = {
     .setName('drop')
     .setDescription('Configure Nest Loot Drops')
     .addSubcommand(sub =>
-      sub.setName('blacklist')
+      sub
+        .setName('blacklist')
         .setDescription('Add or remove a channel from the blacklist')
-        .addChannelOption(opt => opt.setName('channel').setDescription('Channel to blacklist/unblacklist').setRequired(true))
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Channel to blacklist/unblacklist')
+            .setRequired(true),
+        ),
     )
     .addSubcommand(sub =>
-      sub.setName('status')
-        .setDescription('Check loot drop system status')
+      sub.setName('status').setDescription('Check loot drop system status'),
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
@@ -87,7 +108,7 @@ module.exports = {
     const guildId = interaction.guildId;
     const sub = interaction.options.getSubcommand();
     let guildSettings;
-    db.perform((data) => {
+    db.perform(data => {
       data.lootdrop ||= {};
       data.lootdrop[guildId] ||= { blacklist: [] };
       guildSettings = data.lootdrop[guildId];
@@ -99,23 +120,30 @@ module.exports = {
 
       if (idx === -1) {
         guildSettings.blacklist.push(channel.id);
-        db.perform((data) => {
+        db.perform(data => {
           data.lootdrop[guildId] = guildSettings;
         });
-        return interaction.reply(`🚫 Added <#${channel.id}> to the loot drop blacklist.`);
+        return interaction.reply(
+          `🚫 Added <#${channel.id}> to the loot drop blacklist.`,
+        );
       } else {
         guildSettings.blacklist.splice(idx, 1);
-        db.perform((data) => {
+        db.perform(data => {
           data.lootdrop[guildId] = guildSettings;
         });
-        return interaction.reply(`✅ Removed <#${channel.id}> from the loot drop blacklist.`);
+        return interaction.reply(
+          `✅ Removed <#${channel.id}> from the loot drop blacklist.`,
+        );
       }
     }
 
     if (sub === 'status') {
-      const list = guildSettings.blacklist.map(id => `<#${id}>`).join(', ') || 'none';
-      return interaction.reply(`💰 Loot Drop System is **active**\n**Blacklisted Channels:** ${list}`);
+      const list =
+        guildSettings.blacklist.map(id => `<#${id}>`).join(', ') || 'none';
+      return interaction.reply(
+        `💰 Loot Drop System is **active**\n**Blacklisted Channels:** ${list}`,
+      );
     }
   },
-  schedule: schedule
+  schedule: schedule,
 };
