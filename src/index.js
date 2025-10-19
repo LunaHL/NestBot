@@ -2,7 +2,6 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const db = require('./utils/db');
-const nestcoins = require('./services/nestcoins');
 const { Client, GatewayIntentBits } = require('discord.js');
 
 
@@ -93,78 +92,6 @@ function getWeekRange() {
   return { start: monday.getTime(), end: sunday.getTime() };
 }
 
-function checkPicTracker(client) {
-  db.perform(data => {
-    for (const guildId of Object.keys(data.pictracker || {})) {
-      const board = data.pictracker[guildId];
-      if (!board) continue;
-
-      const now = Date.now();
-      if (now >= board.end) {
-        const guild = client.guilds.cache.get(guildId);
-        if (!guild) continue;
-
-
-        const channel = board.channelId ? guild.channels.cache.get(board.channelId) : null;
-        if (!channel) continue;
-
-        const entries = Object.entries(board.users || {});
-        if (entries.length === 0) continue;
-
-
-        const sorted = entries.sort((a, b) => b[1] - a[1]);
-        const topUserId = sorted[0][0];
-        const leaderboardText = sorted
-          .slice(0, 10)
-          .map(([id, count], i) => `**#${i + 1}** <@${id}> — ${count} 🖼️`)
-          .join("\n");
-
-
-        channel.send(`🏆 **Weekly Picture Leaderboard** 🏆\n\n${leaderboardText}`);
-
-
-        let rewarded = [];
-        for (const [userId, count] of entries) {
-          if (count >= 10) {
-            nestcoins.addCoins(guildId, userId, 50);
-            rewarded.push(`<@${userId}> +50 🪙 (${count} pics)`);
-          }
-        }
-
-
-        if (topUserId) {
-          nestcoins.addCoins(guildId, topUserId, 30);
-          rewarded.push(`💎 <@${topUserId}> gets **+30 bonus coins** for #1!`);
-        }
-
-        if (rewarded.length > 0) {
-          channel.send(`💰 **Rewards distributed:**\n${rewarded.join("\n")}`);
-        } else {
-          channel.send("😔 No one reached 10 pictures this week.");
-        }
-
-
-        data.pictracker[guildId] = { users: {}, ...getWeekRange(), channelId: board.channelId };
-      }
-    }
-  });
-}
-
-function schedulePicTracker(client) {
-  const now = new Date();
-  const nextMonday = new Date(now);
-  const day = now.getDay();
-  const daysUntilMonday = (8 - day) % 7 || 7;
-  nextMonday.setDate(now.getDate() + daysUntilMonday);
-  nextMonday.setHours(0, 0, 0, 0);
-  const msUntilMonday = nextMonday - now;
-
-  setTimeout(() => {
-    checkPicTracker(client);
-    setInterval(() => checkPicTracker(client), 7 * 24 * 60 * 60 * 1000);
-  }, msUntilMonday);
-}
-
 const schedulers = [];
 
 // 🧠 On Bot Ready
@@ -172,8 +99,6 @@ client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   checkScoreboard(client);
   scheduleScoreboard(client);
-  checkPicTracker(client);
-  schedulePicTracker(client);
   for (const scheduler of schedulers) {
     scheduler.schedule(client);
   }
