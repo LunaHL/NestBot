@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./utils/db');
 const nestcoins = require('./services/nestcoins');
-const lootdrop = require('./services/lootdrop');
 const { Client, GatewayIntentBits } = require('discord.js');
 
 
@@ -102,6 +101,7 @@ function checkScoreboard(client) {
       channel.send(summary);
     }
 
+
     // 🔥 Clean old entries (keep 7 days)
     const cutoff = Date.now() - 7 * 86400000;
     for (const [key] of Object.entries(data.wordles || {})) {
@@ -128,7 +128,7 @@ function scheduleScoreboard(client) {
 // 🖼️ Picture Tracker System
 function getWeekRange() {
   const now = new Date();
-  const day = now.getDay(); 
+  const day = now.getDay();
   const diffToMonday = (day + 6) % 7;
   const monday = new Date(now);
   monday.setDate(now.getDate() - diffToMonday);
@@ -210,6 +210,8 @@ function schedulePicTracker(client) {
   }, msUntilMonday);
 }
 
+const schedulers = [];
+
 // 🧠 On Bot Ready
 client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -219,7 +221,9 @@ client.on('clientReady', () => {
   scheduleScoreboard(client);
   checkPicTracker(client);
   schedulePicTracker(client);
-  lootdrop.start(client);
+  for (const scheduler of schedulers) {
+    scheduler.schedule(client);
+  }
 });
 
 // 🚀 Deploy commands & login
@@ -240,6 +244,10 @@ for (const file of commandFiles) {
   const command = require(path.join(commandsPath, file));
   if ('data' in command && 'execute' in command) {
     client.commands.set(command.data.name, command);
+    if ('schedule' in command) {
+      schedulers.push(command);
+      console.log('Added schedule command');
+    }
   } else {
     console.log(`[⚠️] Skipping invalid command: ${file}`);
   }
@@ -254,7 +262,7 @@ client.on('interactionCreate', async interaction => {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    await interaction.reply({ content: '❌ Error executing this command.', flags: 64  });
+    await interaction.reply({ content: '❌ Error executing this command.', flags: 64 });
   }
 });
 
@@ -265,7 +273,7 @@ client.on('messageCreate', message => {
   db.perform(data => {
     const board = data.pictracker?.[message.guild.id];
     if (!board || !board.channelId) return;
-    if (message.channelId !== board.channelId) return; 
+    if (message.channelId !== board.channelId) return;
     if (!message.attachments.size) return;
 
     const images = Array.from(message.attachments.values()).filter(a =>
