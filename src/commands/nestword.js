@@ -5,10 +5,16 @@ const path = require('path');
 const nestcoins = require('../services/nestcoins');
 
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
-const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+const ymd = d =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const nowInTZ = () =>
+  new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
 const getToday = () => ymd(nowInTZ());
-const getYesterday = () => { const d = nowInTZ(); d.setDate(d.getDate()-1); return ymd(d); };
+const getYesterday = () => {
+  const d = nowInTZ();
+  d.setDate(d.getDate() - 1);
+  return ymd(d);
+};
 
 const WORDLIST_PATH = path.join(__dirname, '..', 'data', 'wordlist.json');
 
@@ -21,27 +27,42 @@ module.exports = {
         .setName('set')
         .setDescription('Set the daily word (admins only)')
         .addStringOption(opt =>
-          opt.setName('word').setDescription('Word to set').setRequired(true)
-            .setMinLength(5).setMaxLength(5)
+          opt
+            .setName('word')
+            .setDescription('Word to set')
+            .setRequired(true)
+            .setMinLength(5)
+            .setMaxLength(5),
         )
         .addIntegerOption(opt =>
-          opt.setName('reward').setDescription('Reward in NestCoins (default: 15)').setMinValue(0)
+          opt
+            .setName('reward')
+            .setDescription('Reward in NestCoins (default: 15)')
+            .setMinValue(0),
         )
         .addStringOption(opt =>
-          opt.setName('date').setDescription('Date (YYYY-MM-DD, default: today)')
+          opt
+            .setName('date')
+            .setDescription('Date (YYYY-MM-DD, default: today)'),
         )
         .addBooleanOption(opt =>
-          opt.setName('append').setDescription('Automatically set for next free day')
-        )
+          opt
+            .setName('append')
+            .setDescription('Automatically set for next free day'),
+        ),
     )
     .addSubcommand(sub =>
       sub
         .setName('guess')
         .setDescription('Guess today’s word')
         .addStringOption(opt =>
-          opt.setName('word').setDescription('Your guess').setRequired(true)
-            .setMinLength(5).setMaxLength(5)
-        )
+          opt
+            .setName('word')
+            .setDescription('Your guess')
+            .setRequired(true)
+            .setMinLength(5)
+            .setMaxLength(5),
+        ),
     ),
 
   async execute(interaction) {
@@ -50,9 +71,14 @@ module.exports = {
 
     // === /nestword set ===
     if (sub === 'set') {
-      const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+      const isAdmin = interaction.memberPermissions?.has(
+        PermissionFlagsBits.Administrator,
+      );
       if (!isAdmin) {
-        return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
+        return interaction.reply({
+          content: "❌ You don't have permission.",
+          flags: 64,
+        });
       }
 
       const word = interaction.options.getString('word').toLowerCase();
@@ -85,13 +111,12 @@ module.exports = {
           solvedBy: [],
           guesses: {},
           stats: {},
-          streaks: {}
+          streaks: {},
         };
 
         delete data.wordle; // old cleanup
       });
 
-      
       if (fs.existsSync(WORDLIST_PATH)) {
         const wordlist = JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8'));
         wordlist.pool = wordlist.pool.filter(w => w !== word);
@@ -102,12 +127,13 @@ module.exports = {
 
       return interaction.reply({
         content: `✅ Word for **${finalDate}** set to **${word}** (${reward} coins)${
-          append ? `\n📅 (${daysAhead} day${daysAhead === 1 ? '' : 's'} ahead)` : ''
+          append
+            ? `\n📅 (${daysAhead} day${daysAhead === 1 ? '' : 's'} ahead)`
+            : ''
         }`,
-        flags: 64
+        flags: 64,
       });
     }
-
 
     // === /nestword guess ===
     if (sub === 'guess') {
@@ -122,7 +148,7 @@ module.exports = {
       db.perform(data => {
         const wordle = data.wordles?.[today];
         if (!wordle || !wordle.answer) {
-          errorMsg = "❌ No word set for today.";
+          errorMsg = '❌ No word set for today.';
           return;
         }
 
@@ -133,7 +159,7 @@ module.exports = {
 
         const tries = wordle.guesses[userId] || 0;
         if (tries >= 6) {
-          errorMsg = "❌ You already used all 6 attempts today.";
+          errorMsg = '❌ You already used all 6 attempts today.';
           return;
         }
 
@@ -152,7 +178,10 @@ module.exports = {
             const triesNeeded = wordle.guesses[userId];
             wordle.stats[userId] = triesNeeded;
 
-            const streakData = wordle.streaks[userId] || { count: 0, lastDate: null };
+            const streakData = wordle.streaks[userId] || {
+              count: 0,
+              lastDate: null,
+            };
             if (streakData.lastDate === yesterday) streakData.count++;
             else streakData.count = 1;
             streakData.lastDate = today;
@@ -161,7 +190,7 @@ module.exports = {
             const coins = wordle.reward;
             const newBalance = nestcoins.addCoins(guildId, userId, coins);
 
-            let streakMsg = "";
+            let streakMsg = '';
             if (streakData.count % 10 === 0) {
               const bonus = 20;
               const bonusBalance = nestcoins.addCoins(guildId, userId, bonus);
@@ -181,8 +210,8 @@ module.exports = {
 
       return interaction.reply({
         content: errorMsg || resultMsg,
-         flags: 64 
+        flags: 64,
       });
     }
-  }
+  },
 };

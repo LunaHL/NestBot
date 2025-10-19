@@ -3,10 +3,16 @@ const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
 
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
-const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+const ymd = d =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const nowInTZ = () =>
+  new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
 const getToday = () => ymd(nowInTZ());
-const getYesterday = () => { const d = nowInTZ(); d.setDate(d.getDate()-1); return ymd(d); };
+const getYesterday = () => {
+  const d = nowInTZ();
+  d.setDate(d.getDate() - 1);
+  return ymd(d);
+};
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,41 +23,49 @@ module.exports = {
         .setName('set')
         .setDescription('Set a puzzle (admins only)')
         .addStringOption(opt =>
-          opt.setName('link').setDescription('Puzzle link').setRequired(true)
+          opt.setName('link').setDescription('Puzzle link').setRequired(true),
         )
         .addStringOption(opt =>
-          opt.setName('code').setDescription('Solve code').setRequired(true)
+          opt.setName('code').setDescription('Solve code').setRequired(true),
         )
         .addStringOption(opt =>
-          opt.setName('difficulty').setDescription('Difficulty').addChoices(
-            { name: 'Easy', value: 'easy' },
-            { name: 'Medium', value: 'medium' },
-            { name: 'Hard', value: 'hard' },
-            { name: 'special', value: 'special' }
-          ).setRequired(true)
+          opt
+            .setName('difficulty')
+            .setDescription('Difficulty')
+            .addChoices(
+              { name: 'Easy', value: 'easy' },
+              { name: 'Medium', value: 'medium' },
+              { name: 'Hard', value: 'hard' },
+              { name: 'special', value: 'special' },
+            )
+            .setRequired(true),
         )
         .addStringOption(opt =>
-          opt.setName('date').setDescription('Date (YYYY-MM-DD, default: today)')
+          opt
+            .setName('date')
+            .setDescription('Date (YYYY-MM-DD, default: today)'),
         )
         .addBooleanOption(opt =>
-          opt.setName('append').setDescription('Automatically set for next free day')
-        )
+          opt
+            .setName('append')
+            .setDescription('Automatically set for next free day'),
+        ),
     )
     .addSubcommand(sub =>
       sub
         .setName('info')
         .setDescription('Show puzzle info')
         .addUserOption(opt =>
-          opt.setName('user').setDescription('User to check')
-        )
+          opt.setName('user').setDescription('User to check'),
+        ),
     )
     .addSubcommand(sub =>
       sub
         .setName('solve')
         .setDescription('Solve today’s puzzle')
         .addStringOption(opt =>
-          opt.setName('code').setDescription('Solve code').setRequired(true)
-        )
+          opt.setName('code').setDescription('Solve code').setRequired(true),
+        ),
     ),
 
   async execute(interaction) {
@@ -61,15 +75,18 @@ module.exports = {
 
     // ==== /puzzle set ====
     if (sub === 'set') {
-      const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-      if (!isAdmin) return interaction.reply({ content: "❌ No permission.",  flags: 64  });
+      const isAdmin = interaction.memberPermissions?.has(
+        PermissionFlagsBits.Administrator,
+      );
+      if (!isAdmin)
+        return interaction.reply({ content: '❌ No permission.', flags: 64 });
 
       const link = interaction.options.getString('link');
       const code = interaction.options.getString('code');
       const difficulty = interaction.options.getString('difficulty');
       const date = interaction.options.getString('date') || getToday();
       const reward = rewards[difficulty] || 10;
-      const append = interaction.options.getBoolean('append')
+      const append = interaction.options.getBoolean('append');
       let finalDate = date;
 
       db.perform(data => {
@@ -87,12 +104,18 @@ module.exports = {
           }
         }
 
-        data.puzzles[finalDate] = { link, code, difficulty, reward, solvedBy: [] };
+        data.puzzles[finalDate] = {
+          link,
+          code,
+          difficulty,
+          reward,
+          solvedBy: [],
+        };
       });
 
       return interaction.reply({
         content: `✅ Puzzle for **${finalDate}** set!\nDifficulty: **${difficulty}** (${reward} coins)\n🔗 ${link}`,
-        flags: 64
+        flags: 64,
       });
     }
 
@@ -102,7 +125,9 @@ module.exports = {
       const user = interaction.options.getUser('user') || interaction.user;
       const userId = user.id;
 
-      let puzzle, solved = false, streak = { current: 0, best: 0 };
+      let puzzle,
+        solved = false,
+        streak = { current: 0, best: 0 };
 
       db.perform(data => {
         puzzle = data.puzzles?.[today];
@@ -111,14 +136,15 @@ module.exports = {
         if (puzzle && puzzle.solvedBy.includes(userId)) solved = true;
       });
 
-      if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.", flags: 64 });
+      if (!puzzle)
+        return interaction.reply({ content: '❌ No puzzle today.', flags: 64 });
 
       const msg =
         `🧩 **Puzzle of the Day (${today})**\n` +
         `Difficulty: **${puzzle.difficulty}** (${puzzle.reward} coins)\n` +
         `🔗 ${puzzle.link}\n\n` +
         `👤 **${user.username}**:\n` +
-        (solved ? "✅ Solved\n" : "❌ Not solved\n") +
+        (solved ? '✅ Solved\n' : '❌ Not solved\n') +
         `🔥 Streak: ${streak.current} (Best: ${streak.best})`;
 
       return interaction.reply({ content: msg });
@@ -131,18 +157,28 @@ module.exports = {
       const today = getToday();
       const yesterday = getYesterday();
 
-      let puzzle, reward = 0, solved = false, streakMsg = "";
+      let puzzle,
+        reward = 0,
+        solved = false,
+        streakMsg = '';
 
       db.perform(data => {
         if (!data.puzzles || !data.puzzles[today]) return;
         puzzle = data.puzzles[today];
 
-        if (puzzle.solvedBy.includes(userId)) { solved = true; return; }
+        if (puzzle.solvedBy.includes(userId)) {
+          solved = true;
+          return;
+        }
         if (puzzle.code.toLowerCase() !== code.toLowerCase()) return;
 
         reward = puzzle.reward;
         if (!data.puzzleStreaks) data.puzzleStreaks = {};
-        const streak = data.puzzleStreaks[userId] || { current: 0, best: 0, lastDate: null };
+        const streak = data.puzzleStreaks[userId] || {
+          current: 0,
+          best: 0,
+          lastDate: null,
+        };
 
         if (streak.lastDate === yesterday) streak.current++;
         else streak.current = 1;
@@ -160,11 +196,17 @@ module.exports = {
         nestcoins.addCoins(guildId, userId, reward);
       });
 
-      if (!puzzle) return interaction.reply({ content: "❌ No puzzle today.",  flags: 64  });
-      if (solved) return interaction.reply({ content: "✅ Already solved.",  flags: 64 });
-      if (puzzle.code.toLowerCase() !== code.toLowerCase()) return interaction.reply({ content: "❌ Wrong code.", flags: 64 });
+      if (!puzzle)
+        return interaction.reply({ content: '❌ No puzzle today.', flags: 64 });
+      if (solved)
+        return interaction.reply({ content: '✅ Already solved.', flags: 64 });
+      if (puzzle.code.toLowerCase() !== code.toLowerCase())
+        return interaction.reply({ content: '❌ Wrong code.', flags: 64 });
 
-      return interaction.reply({ content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`,  flags: 64  });
+      return interaction.reply({
+        content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`,
+        flags: 64,
+      });
     }
-  }
+  },
 };
