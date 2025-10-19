@@ -1,6 +1,63 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../utils/db');
 
+const TZ = process.env.TIMEZONE || 'Europe/Berlin';
+function getLocalDayMonth() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+  return `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+// 🥳 Birthday Checker
+function checkBirthdays(client) {
+  const today = getLocalDayMonth();
+  let shouldCheck = true;
+
+  db.perform((data) => {
+    shouldCheck = data.birthdayLastChecked != today;
+    data.birthdayLastChecked = today;
+  });
+
+  if (!shouldCheck) return;
+
+  db.perform(data => {
+    for (const guildId of Object.keys(data.birthdays || {})) {
+      const channelId = data.birthdayChannels?.[guildId];
+      if (!channelId) continue;
+
+      const guild = client.guilds.cache.get(guildId);
+      if (!guild) continue;
+
+      const channel = guild.channels.cache.get(channelId);
+      if (!channel) continue;
+
+      for (const entry of Object.values(data.birthdays[guildId])) {
+        if (entry.date === today) {
+          if (entry.userId) {
+            nestcoins.addCoins(guildId, entry.userId, 200);
+            channel.send(`🎉 Happy Birthday <@${entry.userId}>! 🎂 You received **200 NestCoins**!`);
+          } else {
+            channel.send(`🎉 Happy Birthday **${entry.name}**! 🎂`);
+          }
+        }
+      }
+    }
+  });
+}
+
+function schedule(client) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+  const nextMidnight = new Date(now);
+  nextMidnight.setHours(24, 1, 0, 0);
+  const msUntilMidnight = nextMidnight - now;
+
+
+  checkBirthdays(client);
+
+  setTimeout(() => {
+    checkBirthdays(client);
+    setInterval(() => checkBirthdays(client), 24 * 60 * 60 * 1000);
+  }, msUntilMidnight);
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -227,7 +284,6 @@ module.exports = {
             flags: 64
         });
     }
-
-
-
-}};
+  },
+  schedule: schedule,
+};
