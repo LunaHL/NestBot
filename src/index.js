@@ -25,14 +25,25 @@ function getLocalDate(offsetDays = 0) {
 
 // 🧩📊 Scoreboard System
 function checkScoreboard(client) {
+  const SCOREBOARD_CHANNEL = process.env.SCOREBOARD_CHANNEL_ID;
+  const channel = client.channels.cache.get(SCOREBOARD_CHANNEL);
+  if (!channel) {
+    console.log('❌ Scoreboard channel invalid');
+    return;
+  }
+
+  const today = getLocalDate(0);
+  const yesterday = getLocalDate(-1);
+
+  let shouldCheck;
+  db.perform((data) => {
+    shouldCheck = data.scoreboardLastChecked != today;
+    data.scoreboardLastChecked = today;
+  });
+
+  if (!shouldCheck) return;
+
   db.perform(data => {
-    const SCOREBOARD_CHANNEL = process.env.SCOREBOARD_CHANNEL_ID;
-    const channel = client.channels.cache.get(SCOREBOARD_CHANNEL);
-    if (!channel) return;
-
-    const today = getLocalDate(0);
-    const yesterday = getLocalDate(-1);
-
     // 🟩 Wordle scoreboard
     const wordle = data.wordles?.[yesterday];
     if (wordle && wordle.stats && Object.keys(wordle.stats).length > 0) {
@@ -70,8 +81,10 @@ function checkScoreboard(client) {
 function scheduleScoreboard(client) {
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
   const nextMidnight = new Date(now);
-  nextMidnight.setHours(24, 0, 0, 0);
+  nextMidnight.setHours(24, 1, 0, 0);
   const msUntilMidnight = nextMidnight - now;
+
+  checkScoreboard(client);
 
   setTimeout(() => {
     checkScoreboard(client);
@@ -79,25 +92,11 @@ function scheduleScoreboard(client) {
   }, msUntilMidnight);
 }
 
-// 🖼️ Picture Tracker System
-function getWeekRange() {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMonday = (day + 6) % 7;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 7);
-  return { start: monday.getTime(), end: sunday.getTime() };
-}
-
 const schedulers = [];
 
 // 🧠 On Bot Ready
 client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  checkScoreboard(client);
   scheduleScoreboard(client);
   for (const scheduler of schedulers) {
     scheduler.schedule(client);
@@ -124,7 +123,6 @@ for (const file of commandFiles) {
     client.commands.set(command.data.name, command);
     if ('schedule' in command) {
       schedulers.push(command);
-      console.log('Added schedule command');
     }
   } else {
     console.log(`[⚠️] Skipping invalid command: ${file}`);
@@ -143,6 +141,20 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply({ content: '❌ Error executing this command.', flags: 64 });
   }
 });
+
+// 🖼️ Picture Tracker System
+function getWeekRange() {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = (day + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 7);
+  return { start: monday.getTime(), end: sunday.getTime() };
+}
+
 
 // 📸 Track all image uploads
 client.on('messageCreate', message => {
