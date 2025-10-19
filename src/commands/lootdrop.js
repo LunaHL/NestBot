@@ -123,9 +123,10 @@ module.exports = {
         db.perform(data => {
           data.lootdrop[guildId] = guildSettings;
         });
-        return interaction.reply(
-          `🚫 Added <#${channel.id}> to the loot drop blacklist.`,
-        );
+        return interaction.reply({
+          content:`🚫 Added <#${channel.id}> to the loot drop blacklist.`,
+          flags: 64
+      });
       } else {
         guildSettings.blacklist.splice(idx, 1);
         db.perform(data => {
@@ -140,9 +141,10 @@ module.exports = {
     if (sub === 'status') {
       const list =
         guildSettings.blacklist.map(id => `<#${id}>`).join(', ') || 'none';
-      return interaction.reply(
-        `💰 Loot Drop System is **active**\n**Blacklisted Channels:** ${list}`,
-      );
+      return interaction.reply({
+        content:`💰 Loot Drop System is **active**\n**Blacklisted Channels:** ${list}`,
+        flags: 64,
+    });
     }
   },
   schedule: schedule,
