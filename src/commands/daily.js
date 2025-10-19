@@ -20,7 +20,10 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.inGuild()) {
-      return interaction.reply({ content: 'This command can only be used in a server (guild).', flags: 64 });
+      return interaction.reply({
+        content: 'This command can only be used in a server (guild).',
+        flags: 64,
+      });
     }
 
     const guildId = interaction.guildId;
@@ -29,8 +32,7 @@ module.exports = {
 
     let canClaim = false;
 
-
-    db.perform((data) => {
+    db.perform(data => {
       if (!data.dailyClaims) data.dailyClaims = {};
       if (!data.dailyClaims[guildId]) data.dailyClaims[guildId] = {};
 
@@ -44,14 +46,14 @@ module.exports = {
     if (!canClaim) {
       return interaction.reply({
         content: `⏳ You already claimed your daily. Come back in **${hours}h ${mins}m**.`,
-         flags: 64 
+        flags: 64,
       });
     }
 
     const newBalance = nestcoins.addCoins(guildId, userId, DAILY_AMOUNT);
     return interaction.reply({
       content: `✅ You claimed **${DAILY_AMOUNT}** Nestcoins!\n💰 New balance: **${newBalance}** Nestcoins.`,
-       flags: 64 
+      flags: 64,
     });
   },
 };

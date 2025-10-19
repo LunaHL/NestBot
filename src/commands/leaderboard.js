@@ -6,16 +6,15 @@ module.exports = {
     .setName('leaderboard')
     .setDescription('Show the Nestcoins leaderboard for this server')
     .addIntegerOption(opt =>
-      opt.setName('limit')
+      opt
+        .setName('limit')
         .setDescription('How many entries to show (default 10, max 25)')
         .setMinValue(1)
-        .setMaxValue(25)
+        .setMaxValue(25),
     ),
 
   async execute(interaction) {
-
     const limit = interaction.options.getInteger('limit') ?? 10;
-
 
     const all = nestcoins.getAllBalances(interaction.guildId);
     const top = all
@@ -26,13 +25,16 @@ module.exports = {
     if (top.length === 0) {
       return interaction.reply({
         content: 'No Nestcoins recorded in this server yet.',
-         flags: 64 // ephemeral
-    });
+        flags: 64, // ephemeral
+      });
     }
 
-    const lines = top.map(([userId, amt], i) => `#${i + 1} — <@${userId}> — ${amt} Nestcoins`);
+    const lines = top.map(
+      ([userId, amt], i) => `#${i + 1} — <@${userId}> — ${amt} Nestcoins`,
+    );
     return interaction.reply({
-      content: `🏆 **Nestcoins Leaderboard** (top ${top.length})\n` + lines.join('\n'),
+      content:
+        `🏆 **Nestcoins Leaderboard** (top ${top.length})\n` + lines.join('\n'),
     });
-  }
+  },
 };

@@ -1,4 +1,4 @@
-const db = require('../utils/db'); 
+const db = require('../utils/db');
 
 function ensureWallet(data, guildId) {
   if (!data.nestcoins) data.nestcoins = {};
@@ -8,7 +8,7 @@ function ensureWallet(data, guildId) {
 
 function getBalance(guildId, userId) {
   let balance = 0;
-  db.perform((data) => {
+  db.perform(data => {
     const wallet = ensureWallet(data, guildId);
     const v = wallet[userId];
     balance = Number.isInteger(v) ? v : 0;
@@ -18,21 +18,24 @@ function getBalance(guildId, userId) {
 
 function getAllBalances(guildId) {
   let entries = [];
-  db.perform((data) => {
+  db.perform(data => {
     const wallet = ensureWallet(data, guildId);
-    entries = Object.entries(wallet).map(([userId, amt]) => [userId, Number.isInteger(amt) ? amt : 0]);
+    entries = Object.entries(wallet).map(([userId, amt]) => [
+      userId,
+      Number.isInteger(amt) ? amt : 0,
+    ]);
   });
   return entries;
 }
 
 function addCoins(guildId, userId, amount) {
   let newBalance = 0;
-  db.perform((data) => {
+  db.perform(data => {
     const wallet = ensureWallet(data, guildId);
     const current = Number.isInteger(wallet[userId]) ? wallet[userId] : 0;
-    const inc = Math.trunc(amount); 
+    const inc = Math.trunc(amount);
     newBalance = current + inc;
-    if (newBalance < 0) newBalance = 0; 
+    if (newBalance < 0) newBalance = 0;
     wallet[userId] = newBalance;
   });
   return newBalance;
@@ -41,7 +44,7 @@ function addCoins(guildId, userId, amount) {
 function removeCoins(guildId, userId, amount) {
   let result = null;
 
-  db.perform((data) => {
+  db.perform(data => {
     const wallet = ensureWallet(data, guildId);
     const current = Number.isInteger(wallet[userId]) ? wallet[userId] : 0;
 
