@@ -42,7 +42,7 @@ async function spawnLoot(client) {
 
     activeDrop = { guildId, msgId: msg.id, coins };
 
-    const collector = msg.createMessageComponentCollector({ time: 30000 });
+    const collector = msg.createMessageComponentCollector({ time: 300000 });
     collector.on('collect', async i => {
       if (i.customId !== 'claim_loot' || activeDrop === null) return;
       nestcoins.addCoins(i.guildId, i.user.id, activeDrop.coins);

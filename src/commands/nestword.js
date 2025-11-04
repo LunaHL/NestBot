@@ -5,213 +5,455 @@ const path = require('path');
 const nestcoins = require('../services/nestcoins');
 
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
-const ymd = d =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const nowInTZ = () =>
-  new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
 const getToday = () => ymd(nowInTZ());
-const getYesterday = () => {
-  const d = nowInTZ();
-  d.setDate(d.getDate() - 1);
-  return ymd(d);
-};
+const getYesterday = () => { const d = nowInTZ(); d.setDate(d.getDate()-1); return ymd(d); };
 
 const WORDLIST_PATH = path.join(__dirname, '..', 'data', 'wordlist.json');
 
+// ---------------- Utils ----------------
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const isAlphaLowerLen = (s, min=3, max=7) => new RegExp(`^[a-z]{${min},${max}}$`).test(s);
+const attemptsForLen = len => clamp(8 - (len - 3), 5, 8);  // 3→8, 4→7, 5→6, 6→5, 7→5
+const rewardForAttempts = att => Math.max(1, Math.round(15 * 6 / att)); // Base 15 @ 6 attempts
+const ensureWordlistFile = () => {
+  if (!fs.existsSync(WORDLIST_PATH)) {
+    const init = {
+      pool3: [], pool4: [], pool5: [], pool6: [], pool7: [],
+      usedWords: [],
+      config: { cooldownDays: 30, requireGuessInPool: false, defaultLen: 5 }
+    };
+    fs.writeFileSync(WORDLIST_PATH, JSON.stringify(init, null, 2));
+  }
+};
+const loadWordlist = () => { ensureWordlistFile(); return JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8')); };
+const saveWordlist = wl => fs.writeFileSync(WORDLIST_PATH, JSON.stringify(wl, null, 2));
+
+function parseBulkWords(input) {
+  // Split by newline, comma or space; filter empties
+  return input
+    .split(/[\n, ]+/g)
+    .map(w => w.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function scoreGuess(guess, answer) {
+  // Correct Wordle logic with duplicates: two-pass (greens first, then yellows by counts)
+  const len = answer.length;
+  const res = Array(len).fill('❌');
+  const ansArr = answer.split('');
+  const gArr = guess.split('');
+
+  // Count map for remaining unmatched letters in answer
+  const counts = {};
+  for (let i = 0; i < len; i++) {
+    if (gArr[i] === ansArr[i]) {
+      res[i] = '🟩';
+    } else {
+      counts[ansArr[i]] = (counts[ansArr[i]] || 0) + 1;
+    }
+  }
+  for (let i = 0; i < len; i++) {
+    if (res[i] === '🟩') continue;
+    const ch = gArr[i];
+    if (counts[ch] > 0) {
+      res[i] = '🟨';
+      counts[ch]--;
+    }
+  }
+  return res.join('');
+}
+
+function desiredLength(data, wl) {
+  // Default simple behavior: always wl.config.defaultLen (fallback 5).
+  const def = wl?.config?.defaultLen || 5;
+  return clamp(def, 3, 7);
+}
+
+function pickWordForToday(data) {
+  const today = getToday();
+  if (!data.nestwordDaily) data.nestwordDaily = {};
+  if (data.nestwordDaily[today]) return data.nestwordDaily[today];
+
+  const wl = loadWordlist();
+  const len = desiredLength(data, wl);
+  const poolKey = `pool${len}`;
+  const pool = wl[poolKey] || [];
+  const cd = wl.config?.cooldownDays ?? 30;
+
+  // Build recent set by cutoff
+  const cutoff = new Date(nowInTZ());
+  cutoff.setDate(cutoff.getDate() - cd);
+  const cutoffYMD = ymd(cutoff);
+  const recent = new Set((wl.usedWords || []).filter(e => e.len === len && e.date > cutoffYMD).map(e => e.word));
+
+  // Candidate pool after cooldown filter; if empty, fallback to whole pool
+  let candidates = pool.filter(w => !recent.has(w));
+  if (candidates.length === 0) candidates = pool.slice();
+
+  if (!candidates.length) {
+    throw new Error(`Pool${len} is empty, please add words of length ${len}.`);
+  }
+
+  const answer = candidates[Math.floor(Math.random() * candidates.length)];
+  const attempts = attemptsForLen(len);
+  const reward = rewardForAttempts(attempts);
+
+  data.nestwordDaily[today] = {
+    answer,
+    len,
+    attempts,
+    reward,
+    solvedBy: [],
+    guesses: {},     // userId -> number of guesses
+    rows: {}         // userId -> [ '🟩🟨❌...' , ... ]
+  };
+
+  wl.usedWords = wl.usedWords || [];
+  wl.usedWords.push({ date: today, word: answer, len });
+  saveWordlist(wl);
+
+  return data.nestwordDaily[today];
+}
+
+function ensureUserBlock(data, userId) {
+  if (!data.nestwordUsers) data.nestwordUsers = {};
+  if (!data.nestwordUsers[userId]) {
+    data.nestwordUsers[userId] = { streakCount: 0, bestStreak: 0, lastDate: null, totalSolved: 0 };
+  }
+  return data.nestwordUsers[userId];
+}
+
+function isAdminMember(interaction) {
+  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+}
+
+// -------------- Slash Commands --------------
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('nestword')
-    .setDescription('Daily Nest Wordle!')
+    .setDescription('Daily Nest Wordle with variable lengths (3–7)')
     .addSubcommand(sub =>
       sub
         .setName('set')
-        .setDescription('Set the daily word (admins only)')
-        .addStringOption(opt =>
-          opt
-            .setName('word')
-            .setDescription('Word to set')
-            .setRequired(true)
-            .setMinLength(5)
-            .setMaxLength(5),
-        )
-        .addIntegerOption(opt =>
-          opt
-            .setName('reward')
-            .setDescription('Reward in NestCoins (default: 15)')
-            .setMinValue(0),
-        )
-        .addStringOption(opt =>
-          opt
-            .setName('date')
-            .setDescription('Date (YYYY-MM-DD, default: today)'),
-        )
-        .addBooleanOption(opt =>
-          opt
-            .setName('append')
-            .setDescription('Automatically set for next free day'),
-        ),
+        .setDescription('Set or override the daily word for a specific date (admins only)')
+        .addStringOption(opt => opt
+          .setName('word')
+          .setDescription('The word (3–7 letters, a–z)')
+          .setRequired(true))
+        .addStringOption(opt => opt
+          .setName('date')
+          .setDescription('Date YYYY-MM-DD (default: today)'))
+        .addIntegerOption(opt => opt
+          .setName('reward')
+          .setDescription('Override reward in NestCoins (optional)')),
     )
     .addSubcommand(sub =>
       sub
         .setName('guess')
         .setDescription('Guess today’s word')
-        .addStringOption(opt =>
-          opt
-            .setName('word')
-            .setDescription('Your guess')
-            .setRequired(true)
-            .setMinLength(5)
-            .setMaxLength(5),
-        ),
+        .addStringOption(opt => opt
+          .setName('word')
+          .setDescription('Your guess (3–7 letters)')
+          .setRequired(true)),
+    )
+    .addSubcommandGroup(group =>
+      group
+        .setName('pool')
+        .setDescription('Manage word pools (admins only)')
+        .addSubcommand(sub =>
+          sub
+            .setName('bulkadd')
+            .setDescription('Add many words at once (length auto-detected)')
+            .addStringOption(opt => opt
+              .setName('words')
+              .setDescription('Words separated by newline/comma/space')
+              .setRequired(true)))
+        .addSubcommand(sub =>
+          sub
+            .setName('remove')
+            .setDescription('Remove a single word (length auto-detected)')
+            .addStringOption(opt => opt
+              .setName('word')
+              .setDescription('The exact word to remove')
+              .setRequired(true)))
+        .addSubcommand(sub =>
+          sub
+            .setName('list')
+            .setDescription('List words in a pool length')
+            .addIntegerOption(opt => opt
+              .setName('length')
+              .setDescription('3–7')
+              .setRequired(true))
+            .addIntegerOption(opt => opt
+              .setName('page')
+              .setDescription('Page number (1-based)')))
+        .addSubcommand(sub =>
+          sub
+            .setName('clear')
+            .setDescription('Clear a pool by length (admins only)')
+            .addIntegerOption(opt => opt
+              .setName('length')
+              .setDescription('3–7')
+              .setRequired(true)))
     ),
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
+    const group = interaction.options.getSubcommandGroup(false);
     const guildId = interaction.guildId;
 
-    // === /nestword set ===
-    if (sub === 'set') {
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
-      if (!isAdmin) {
-        return interaction.reply({
-          content: "❌ You don't have permission.",
-          flags: 64,
-        });
+    // ---------------- /nestword set ----------------
+    if (sub === 'set' && !group) {
+      if (!isAdminMember(interaction)) {
+        return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
+      }
+      const wordRaw = interaction.options.getString('word').trim().toLowerCase();
+      const date = interaction.options.getString('date') || getToday();
+      const manualReward = interaction.options.getInteger('reward');
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return interaction.reply({ content: '❌ Invalid date format. Use YYYY-MM-DD.', flags: 64 });
+      }
+      if (!isAlphaLowerLen(wordRaw, 3, 7)) {
+        return interaction.reply({ content: '❌ Word must be 3–7 letters, a–z only.', flags: 64 });
       }
 
-      const word = interaction.options.getString('word').toLowerCase();
-      const date = interaction.options.getString('date') || getToday();
-      const append = interaction.options.getBoolean('append');
-      const reward = interaction.options.getInteger('reward') ?? 15;
-      let finalDate = date;
-      let daysAhead = 0;
+      const len = wordRaw.length;
+      const attempts = attemptsForLen(len);
+      const reward = manualReward ?? rewardForAttempts(attempts);
 
       db.perform(data => {
-        if (!data.wordles) data.wordles = {};
-
-        if (append) {
-          let d = nowInTZ();
-          for (let i = 0; i < 365; i++) {
-            d.setDate(d.getDate() + 1);
-            const nextDate = ymd(d);
-            if (!data.wordles[nextDate]) {
-              finalDate = nextDate;
-              daysAhead = i + 1;
-              break;
-            }
-          }
-        }
-
-        data.wordles[finalDate] = {
-          answer: word,
-          date: finalDate,
+        if (!data.nestwordDaily) data.nestwordDaily = {};
+        data.nestwordDaily[date] = {
+          answer: wordRaw,
+          len,
+          attempts,
           reward,
           solvedBy: [],
           guesses: {},
-          stats: {},
-          streaks: {},
+          rows: {}
         };
 
-        delete data.wordle; // old cleanup
+        // Track in usedWords for cooldown
+        const wl = loadWordlist();
+        wl.usedWords = wl.usedWords || [];
+        // Remove any previous usedWords entry for the same date to avoid duplicates
+        wl.usedWords = wl.usedWords.filter(e => e.date !== date);
+        wl.usedWords.push({ date, word: wordRaw, len });
+        saveWordlist(wl);
       });
 
-      if (fs.existsSync(WORDLIST_PATH)) {
-        const wordlist = JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8'));
-        wordlist.pool = wordlist.pool.filter(w => w !== word);
-        if (!wordlist.usedWords.some(e => e.date === finalDate))
-          wordlist.usedWords.push({ date: finalDate, word });
-        fs.writeFileSync(WORDLIST_PATH, JSON.stringify(wordlist, null, 2));
-      }
-
       return interaction.reply({
-        content: `✅ Word for **${finalDate}** set to **${word}** (${reward} coins)${
-          append
-            ? `\n📅 (${daysAhead} day${daysAhead === 1 ? '' : 's'} ahead)`
-            : ''
-        }`,
-        flags: 64,
+        content: `✅ Set word for **${date}** → **${wordRaw}** (len=${len}, attempts=${attempts}, reward=${reward})`,
+        flags: 64
       });
     }
 
-    // === /nestword guess ===
-    if (sub === 'guess') {
-      const guess = interaction.options.getString('word').toLowerCase();
+    // ---------------- /nestword guess ----------------
+    if (sub === 'guess' && !group) {
+      const guessRaw = interaction.options.getString('word').trim().toLowerCase();
+      if (!isAlphaLowerLen(guessRaw, 3, 7)) {
+        return interaction.reply({ content: '❌ Guess must be 3–7 letters, a–z only.', flags: 64 });
+      }
       const userId = interaction.user.id;
       const today = getToday();
       const yesterday = getYesterday();
 
-      let resultMsg = null;
-      let errorMsg = null;
-
+      let replyContent = '❌ Unknown error.';
       db.perform(data => {
-        const wordle = data.wordles?.[today];
-        if (!wordle || !wordle.answer) {
-          errorMsg = '❌ No word set for today.';
-          return;
-        }
-
-        if (!wordle.guesses) wordle.guesses = {};
-        if (!wordle.solvedBy) wordle.solvedBy = [];
-        if (!wordle.stats) wordle.stats = {};
-        if (!wordle.streaks) wordle.streaks = {};
-
-        const tries = wordle.guesses[userId] || 0;
-        if (tries >= 6) {
-          errorMsg = '❌ You already used all 6 attempts today.';
-          return;
-        }
-
-        wordle.guesses[userId] = tries + 1;
-
-        const result = [];
-        for (let i = 0; i < guess.length; i++) {
-          if (guess[i] === wordle.answer[i]) result.push('🟩');
-          else if (wordle.answer.includes(guess[i])) result.push('🟨');
-          else result.push('❌');
-        }
-
-        if (guess === wordle.answer) {
-          if (!wordle.solvedBy.includes(userId)) {
-            wordle.solvedBy.push(userId);
-            const triesNeeded = wordle.guesses[userId];
-            wordle.stats[userId] = triesNeeded;
-
-            const streakData = wordle.streaks[userId] || {
-              count: 0,
-              lastDate: null,
-            };
-            if (streakData.lastDate === yesterday) streakData.count++;
-            else streakData.count = 1;
-            streakData.lastDate = today;
-            wordle.streaks[userId] = streakData;
-
-            const coins = wordle.reward;
-            const newBalance = nestcoins.addCoins(guildId, userId, coins);
-
-            let streakMsg = '';
-            if (streakData.count % 10 === 0) {
-              const bonus = 20;
-              const bonusBalance = nestcoins.addCoins(guildId, userId, bonus);
-              streakMsg = `🔥 10-day streak! +${bonus} extra NestCoins (Total: ${bonusBalance})`;
-            }
-
-            resultMsg = `${result.join('')}\n✅ Correct! You earned ${coins} NestCoins. ${streakMsg}`;
-          } else {
-            resultMsg = `${result.join('')}\n✅ Already solved today.`;
+        // Ensure daily word (auto-pick if missing)
+        let daily = data.nestwordDaily?.[today];
+        try {
+          if (!daily || !daily.answer) {
+            daily = pickWordForToday(data);
           }
-        } else {
-          resultMsg = `${result.join('')}\n❌ Not correct, try again.`;
+        } catch (err) {
+          replyContent = `❌ ${err.message}`;
+          return;
         }
 
-        data.wordles[today] = wordle;
+        // Validate length match
+        if (guessRaw.length !== daily.len) {
+          replyContent = `❌ Wrong length. Today's word has **${daily.len}** letters.`;
+          return;
+        }
+
+        // Optional: guess must be in pool (config)
+        const wl = loadWordlist();
+        const requireInPool = !!(wl.config && wl.config.requireGuessInPool);
+        if (requireInPool) {
+          const key = `pool${daily.len}`;
+          const pool = wl[key] || [];
+          if (!pool.includes(guessRaw)) {
+            replyContent = `❌ Guess not in allowed word list for length ${daily.len}.`;
+            return;
+          }
+        }
+
+        // Init structures
+        daily.guesses = daily.guesses || {};
+        daily.solvedBy = daily.solvedBy || [];
+        daily.rows = daily.rows || {};
+        if (!data.nestwordDaily) data.nestwordDaily = {};
+
+        const used = daily.guesses[userId] || 0;
+        if (daily.solvedBy.includes(userId)) {
+          // Already solved; show last row and info
+          const rows = daily.rows[userId] || [];
+          replyContent = `${rows.length ? rows[rows.length - 1] + '\n' : ''}✅ Already solved today.`;
+          data.nestwordDaily[today] = daily;
+          return;
+        }
+
+        if (used >= daily.attempts) {
+          replyContent = `❌ No attempts left (${daily.attempts}/${daily.attempts}).`;
+          data.nestwordDaily[today] = daily;
+          return;
+        }
+
+        // Score this guess
+        const row = scoreGuess(guessRaw, daily.answer);
+        daily.rows[userId] = daily.rows[userId] || [];
+        daily.rows[userId].push(row);
+        daily.guesses[userId] = used + 1;
+
+        if (guessRaw === daily.answer) {
+          // First time solver?
+          daily.solvedBy.push(userId);
+
+          // Update global streaks
+          const u = ensureUserBlock(data, userId);
+          if (u.lastDate === yesterday) u.streakCount += 1;
+          else u.streakCount = 1;
+          u.lastDate = today;
+          u.bestStreak = Math.max(u.bestStreak || 0, u.streakCount);
+          u.totalSolved = (u.totalSolved || 0) + 1;
+
+          // Award coins
+          const coins = daily.reward;
+          const newBalance = nestcoins.addCoins(guildId, userId, coins);
+
+          // Every 10 days streak bonus +20
+          let streakMsg = '';
+          if (u.streakCount > 0 && u.streakCount % 10 === 0) {
+            const bonus = 20;
+            const bonusBalance = nestcoins.addCoins(guildId, userId, bonus);
+            streakMsg = `\n🔥 **${u.streakCount}-day streak!** +${bonus} bonus (Total: ${bonusBalance})`;
+          }
+
+          replyContent = `${row}\n✅ Correct! +${coins} NestCoins (Balance: ${newBalance})${streakMsg}`;
+        } else {
+          const left = daily.attempts - daily.guesses[userId];
+          replyContent = `${row}\n❌ Not correct. Attempts left: **${left}/${daily.attempts}**.`;
+        }
+
+        data.nestwordDaily[today] = daily;
       });
 
-      return interaction.reply({
-        content: errorMsg || resultMsg,
-        flags: 64,
-      });
+      return interaction.reply({ content: replyContent, flags: 64 });
     }
-  },
+
+    // ---------------- /nestword pool * (admins only) ----------------
+    if (group === 'pool') {
+      if (!isAdminMember(interaction)) {
+        return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
+      }
+
+      const subPool = interaction.options.getSubcommand();
+
+      // /nestword pool bulkadd
+      if (subPool === 'bulkadd') {
+        const raw = interaction.options.getString('words');
+        const words = parseBulkWords(raw);
+
+        if (!words.length) {
+          return interaction.reply({ content: '❌ No valid words found in input.', flags: 64 });
+        }
+
+        const wl = loadWordlist();
+        const addedByLen = { 3: [], 4: [], 5: [], 6: [], 7: [] };
+        const skipped = [];
+
+        for (const w of words) {
+          if (!/^[a-z]+$/.test(w) || w.length < 3 || w.length > 7) {
+            skipped.push(w);
+            continue;
+          }
+          const key = `pool${w.length}`;
+          wl[key] = wl[key] || [];
+          if (!wl[key].includes(w)) {
+            wl[key].push(w);
+            addedByLen[w.length].push(w);
+          }
+        }
+
+        saveWordlist(wl);
+
+        const summary = [
+          `✅ Added: 3:${addedByLen[3].length}, 4:${addedByLen[4].length}, 5:${addedByLen[5].length}, 6:${addedByLen[6].length}, 7:${addedByLen[7].length}`,
+          skipped.length ? `⚠️ Skipped (invalid/len): ${skipped.slice(0, 10).join(', ')}${skipped.length > 10 ? '…' : ''}` : null
+        ].filter(Boolean).join('\n');
+
+        return interaction.reply({ content: summary, flags: 64 });
+      }
+
+      // /nestword pool remove
+      if (subPool === 'remove') {
+        const word = interaction.options.getString('word').trim().toLowerCase();
+        if (!/^[a-z]+$/.test(word) || word.length < 3 || word.length > 7) {
+          return interaction.reply({ content: '❌ Word must be 3–7 letters, a–z only.', flags: 64 });
+        }
+        const wl = loadWordlist();
+        const key = `pool${word.length}`;
+        const before = (wl[key] || []).length;
+        wl[key] = (wl[key] || []).filter(w => w !== word);
+        const after = wl[key].length;
+        saveWordlist(wl);
+        if (after < before) {
+          return interaction.reply({ content: `✅ Removed **${word}** from pool${word.length}.`, flags: 64 });
+        } else {
+          return interaction.reply({ content: `ℹ️ **${word}** not found in pool${word.length}.`, flags: 64 });
+        }
+      }
+
+      // /nestword pool list
+      if (subPool === 'list') {
+        const length = interaction.options.getInteger('length');
+        const page = Math.max(1, interaction.options.getInteger('page') || 1);
+        if (length < 3 || length > 7) {
+          return interaction.reply({ content: '❌ Length must be between 3 and 7.', flags: 64 });
+        }
+        const wl = loadWordlist();
+        const key = `pool${length}`;
+        const arr = (wl[key] || []).slice().sort();
+        const pageSize = 50;
+        const totalPages = Math.max(1, Math.ceil(arr.length / pageSize));
+        const p = Math.min(page, totalPages);
+        const start = (p - 1) * pageSize;
+        const end = start + pageSize;
+        const chunk = arr.slice(start, end);
+
+        const header = `📚 pool${length} (size=${arr.length}) — page ${p}/${totalPages}`;
+        const body = chunk.length ? chunk.join(', ') : '_empty_';
+        return interaction.reply({ content: `${header}\n${body}`, flags: 64 });
+      }
+
+      // /nestword pool clear
+      if (subPool === 'clear') {
+        const length = interaction.options.getInteger('length');
+        if (length < 3 || length > 7) {
+          return interaction.reply({ content: '❌ Length must be between 3 and 7.', flags: 64 });
+        }
+        const wl = loadWordlist();
+        wl[`pool${length}`] = [];
+        saveWordlist(wl);
+        return interaction.reply({ content: `✅ Cleared pool${length}.`, flags: 64 });
+      }
+    }
+
+    // Fallback
+    return interaction.reply({ content: '❌ Unknown command usage.', flags: 64 });
+  }
 };
