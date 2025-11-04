@@ -2,6 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const db = require('./utils/db');
+const nestword = require('./commands/nestword');
 const { Client, GatewayIntentBits } = require('discord.js');
 
 const client = new Client({
@@ -97,6 +98,7 @@ const schedulers = [];
 // 🧠 On Bot Ready
 client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
+  nestword.initDailyPicker();
   scheduleScoreboard(client);
   for (const scheduler of schedulers) {
     scheduler.schedule(client);
