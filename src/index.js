@@ -45,17 +45,26 @@ function checkScoreboard(client) {
 
   db.perform(data => {
     // 🟩 Wordle scoreboard
-    const wordle = data.wordles?.[yesterday];
-    if (wordle && wordle.stats && Object.keys(wordle.stats).length > 0) {
+    const daily = data.nestwordDaily?.[yesterday];
+
+    if (daily && daily.guesses && Object.keys(daily.guesses).length > 0) {
       const lines = [];
-      for (const [userId, tries] of Object.entries(wordle.stats)) {
-        const solved = wordle.solvedBy?.includes(userId);
+
+      for (const [userId, tries] of Object.entries(daily.guesses)) {
+        const solved = daily.solvedBy?.includes(userId);
         lines.push(
           `• <@${userId}> — ${solved ? `✅ ${tries} tries` : `❌ ${tries} tries`}`,
         );
       }
+
       if (lines.length > 0) {
-        const summary = `📊 **NestWord Results for ${wordle.date}**\n${lines.join('\n')}`;
+        const header =
+          `📊 **NestWord Results for ${yesterday}**\n` +
+          `• Length: **${daily.len}**\n` +
+          `• Attempts allowed: **${daily.attempts}**\n` +
+          `• Reward: **${daily.reward}** NestCoins\n`;
+
+        const summary = header + '\n' + lines.join('\n');
         channel.send(summary);
       }
     }
