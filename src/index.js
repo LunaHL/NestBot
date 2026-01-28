@@ -2,6 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const db = require('./utils/db');
+const gag = require('./services/gag');
 const nestword = require('./commands/nestword');
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -175,31 +176,62 @@ function getWeekRange() {
   return { start: monday.getTime(), end: sunday.getTime() };
 }
 
-// 📸 Track all image uploads
-client.on('messageCreate', message => {
-  if (!message.guild || message.author.bot) return;
+// 📸 Track all image uploads + gag feature
+client.on('messageCreate', async message => {
+  try {
+    if (!message.guild || message.author.bot) return;
 
-  db.perform(data => {
-    const board = data.pictracker?.[message.guild.id];
-    if (!board || !board.channelId) return;
-    if (message.channelId !== board.channelId) return;
-    if (!message.attachments.size) return;
+    // 🔇 GAG FEATURE
+    const guildId = message.guild.id;
+    const userId = message.author.id;
 
-    const images = Array.from(message.attachments.values()).filter(a =>
-      a.contentType?.startsWith('image/'),
-    );
-    if (images.length === 0) return;
+    if (gag.isGagged(guildId, userId)) {
+      const garbled = gag.garble(message.content);
 
-    // Neue Woche automatisch starten, falls nötig
-    if (Date.now() > board.end) {
-      data.pictracker[message.guild.id] = {
-        users: {},
-        ...getWeekRange(),
-        channelId: board.channelId,
-      };
+      if (garbled && garbled.trim()) {
+        const remainingSec = Math.ceil(gag.getRemainingMs(guildId, userId) / 1000);
+
+        const me = message.guild.members.me;
+        const canDelete =
+          me?.permissionsIn(message.channel)?.has('ManageMessages');
+
+        if (canDelete) {
+          await message.delete().catch(() => {});
+        }
+
+        await message.channel.send({
+          content: `🔇 **${message.member?.displayName || message.author.username}**: ${garbled}\n*(gagged • ${remainingSec}s left)*`,
+          allowedMentions: { parse: [] },
+        });
+      }
+
+      return;
     }
 
-    const userId = message.author.id;
-    board.users[userId] = (board.users[userId] || 0) + images.length;
-  });
+    // 🖼️ PICTURE TRACKER 
+    db.perform(data => {
+      const board = data.pictracker?.[message.guild.id];
+      if (!board || !board.channelId) return;
+      if (message.channelId !== board.channelId) return;
+      if (!message.attachments.size) return;
+
+      const images = Array.from(message.attachments.values()).filter(a =>
+        a.contentType?.startsWith('image/'),
+      );
+      if (images.length === 0) return;
+
+      if (Date.now() > board.end) {
+        data.pictracker[message.guild.id] = {
+          users: {},
+          ...getWeekRange(),
+          channelId: board.channelId,
+        };
+      }
+
+      const userId2 = message.author.id;
+      board.users[userId2] = (board.users[userId2] || 0) + images.length;
+    });
+  } catch (e) {
+    console.error('messageCreate error:', e);
+  }
 });
