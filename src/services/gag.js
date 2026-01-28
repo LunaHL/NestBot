@@ -76,34 +76,75 @@ function cleanupGuild(guildId) {
 function garble(text) {
   if (!text) return text;
 
-  // Preserve links/mentions as-is (damit es nicht völlig kaputt geht)
-  const tokens = text.split(/(\s+)/);
+  // Protect segments we do NOT want to garble:
+  // *actions* and (ooc)
+  const protectRe = /(\*[^*\n]+\*)|(\([^)\n]+\))/g;
 
-  return tokens
-    .map(tok => {
+  let out = '';
+  let last = 0;
+
+  const garblePlain = (plain) => {
+    if (!plain) return plain;
+
+    // Split by whitespace but keep whitespace
+    const tokens = plain.split(/(\s+)/);
+
+    return tokens.map(tok => {
       if (/^\s+$/.test(tok)) return tok;
-      if (/^https?:\/\//i.test(tok)) return tok;
-      if (/^<@!?(\d+)>$/.test(tok)) return tok;
-      if (/^<#[0-9]+>$/.test(tok)) return tok;
 
-      // Keep punctuation, garble letters
-      let out = '';
+      // Keep mentions/channels/roles as-is
+      if (/^<@!?(\d+)>$/.test(tok)) return tok;
+      if (/^<@&(\d+)>$/.test(tok)) return tok;
+      if (/^<#(\d+)>$/.test(tok)) return tok;
+
+      // Keep custom emojis as-is: <:name:id> or <a:name:id>
+      if (/^<a?:\w+:\d+>$/.test(tok)) return tok;
+
+      // Keep links as-is (Tenor/Giphy are usually links)
+      if (/^https?:\/\/\S+$/i.test(tok)) return tok;
+
+      // Garble letters, preserve:
+      // - punctuation
+      // - digits
+      // - non-ascii (covers most emoji + many special chars)
+      let s = '';
       for (const ch of tok) {
-        if (/[a-z]/.test(ch)) out += 'm';
-        else if (/[A-Z]/.test(ch)) out += 'M';
-        else if (/\d/.test(ch)) out += ch; // numbers unchanged
-        else out += ch; // punctuation unchanged
+        const code = ch.codePointAt(0);
+
+        if (code > 127) {
+          // unicode emoji / non-ascii: keep
+          s += ch;
+          continue;
+        }
+
+        if (/[a-z]/.test(ch)) s += 'm';
+        else if (/[A-Z]/.test(ch)) s += 'M';
+        else if (/\d/.test(ch)) s += ch;
+        else s += ch;
       }
 
-      // Add some variation
-      // e.g. "mmmm" -> "mmph"
-      out = out.replace(/m{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'ph');
-      out = out.replace(/M{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'PH');
+      // Add light variation
+      s = s.replace(/m{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'ph');
+      s = s.replace(/M{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'PH');
 
-      return out;
-    })
-    .join('');
+      return s;
+    }).join('');
+  };
+
+  // Walk through protected segments and garble only the gaps
+  for (const match of text.matchAll(protectRe)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+
+    out += garblePlain(text.slice(last, start)); // garble gap
+    out += match[0]; // keep protected segment verbatim
+    last = end;
+  }
+
+  out += garblePlain(text.slice(last));
+  return out;
 }
+
 
 module.exports = {
   gagUser,
