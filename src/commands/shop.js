@@ -4,7 +4,21 @@ const {
   PermissionFlagsBits,
 } = require('discord.js');
 const nestcoins = require('../services/nestcoins');
+const gag = require('../services/gag');
 const db = require('../utils/db');
+
+function parseEffect(item) {
+  const desc = item?.description || '';
+  const m = desc.match(/\[effect:(\w+);duration:(\d+)\]/i);
+  if (!m) return null;
+
+  const type = String(m[1]).toLowerCase();
+  const durationSec = Number(m[2]);
+
+  if (!Number.isFinite(durationSec) || durationSec <= 0) return null;
+  return { type, durationSec };
+}
+
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,6 +38,12 @@ module.exports = {
             .setName('id')
             .setDescription('The ID of the item to buy.')
             .setRequired(true),
+        )
+        .addUserOption(option =>
+          option
+            .setName('target')
+            .setDescription('Target user (required for some items, e.g. gag).')
+            .setRequired(false),
         ),
     )
     .addSubcommand(subcommand =>
@@ -174,6 +194,21 @@ module.exports = {
         });
       }
 
+      const targetUser = interaction.options.getUser('target');
+      const effect = parseEffect(item);
+
+      if (effect?.type === 'gag') {
+        if (!targetUser) {
+          return interaction.reply({
+            content: `This item requires a target: \`/shop buy id:${id} target:@User\``,
+            flags: 64,
+          });
+        }
+        if (targetUser.bot) {
+          return interaction.reply({ content: `You can't gag a bot.`, flags: 64 });
+        }
+      }
+
       const balance = nestcoins.getBalance(guildId, userId);
       if (balance < item.price) {
         return interaction.reply({
@@ -194,6 +229,16 @@ module.exports = {
         .setTitle(`${interaction.user.username} bought ${item.name}`)
         .setDescription(`${item.price} Nestcoins – ${item.description}`)
         .setColor('Green');
+
+      if (effect?.type === 'gag') {
+        const info = gag.gagUser(guildId, targetUser.id, effect.durationSec, userId);
+        const remainingMin = Math.ceil((info.until - Date.now()) / 60000);
+
+        embed.addFields({
+          name: 'Effect',
+          value: `🔇 Gagged <@${targetUser.id}> for **${effect.durationSec}s** (≈ ${remainingMin} min).`,
+        });
+      }
 
       return interaction.reply({ embeds: [embed] });
     }
