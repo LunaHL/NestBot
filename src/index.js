@@ -208,20 +208,30 @@ client.on('messageCreate', async message => {
       const now = Date.now();
 
       let state = gagRepostLimiter.get(key);
-      if (!state) state = { lastPost: 0, dropped: 0 };
+      if (!state) state = { lastPost: 0, dropped: 0, punishedAt: 0 };
 
       if (now - state.lastPost < GAG_REPOST_COOLDOWN_MS) {
-        // Under spam: drop bot repost to avoid flooding
         state.dropped++;
 
-        // Optional: every N drops, post a tiny notice
+        // Spam Punishment
         if (state.dropped % GAG_DROP_NOTICE_EVERY === 0) {
+          const now2 = Date.now();
+
+          // throttle punishment: max alle 5 Sekunden (damit es nicht eskaliert)
+          if (now2 - (state.punishedAt || 0) > 5000) {
+            const doubled = gag.doubleRemaining(guildId, userId);
+            if (doubled) state.punishedAt = now2;
+          }
+
           const remainingSec = Math.ceil(gag.getRemainingMs(guildId, userId) / 1000);
+          const remainingMin = Math.ceil(remainingSec / 60);
+
           await message.channel.send({
-            content: `🔇 **${message.member?.displayName || message.author.username}**: *mmph…* *(spam suppressed • ${remainingSec}s left)*`,
+            content: `⛓️🔇 **${message.member?.displayName || message.author.username}** spam detected. Gag time doubled. **~${remainingMin} min** left.`,
             allowedMentions: { parse: [] },
           }).catch(() => {});
-          state.lastPost = Date.now();
+
+          // zählt als "post" für cooldown (damit das nicht spammt)
         }
 
         gagRepostLimiter.set(key, state);
