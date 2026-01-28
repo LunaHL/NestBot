@@ -3,6 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./utils/db');
 const gag = require('./services/gag');
+const gagRepostLimiter = new Map(); // key: `${guildId}:${userId}` -> { lastPost: number, dropped: number }
+const GAG_REPOST_COOLDOWN_MS = 1200; // bot repost max ~1 per 1.2s per user
+const GAG_DROP_NOTICE_EVERY = 8;     // optional: every 8 dropped msgs, send a small notice
 const nestword = require('./commands/nestword');
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -188,24 +191,57 @@ client.on('messageCreate', async message => {
     if (gag.isGagged(guildId, userId)) {
       const garbled = gag.garble(message.content);
 
-      if (garbled && garbled.trim()) {
-        const remainingSec = Math.ceil(gag.getRemainingMs(guildId, userId) / 1000);
+      // 1) ALWAYS try to delete the readable original (this is the key)
+      const me = message.guild.members.me;
+      const canDelete = me?.permissionsIn(message.channel)?.has('ManageMessages');
 
-        const me = message.guild.members.me;
-        const canDelete =
-          me?.permissionsIn(message.channel)?.has('ManageMessages');
+      if (canDelete) {
+        await message.delete().catch(() => {});
+      } else {
+        // If you can't delete, you can't prevent readable spam reliably.
+        // Best fallback: react + repost garbled (but it will still be readable in original).
+        await message.react('🔇').catch(() => {});
+      }
 
-        if (canDelete) {
-          await message.delete().catch(() => {});
+      // 2) Rate-limit BOT reposts (but originals are already gone when canDelete=true)
+      const key = `${guildId}:${userId}`;
+      const now = Date.now();
+
+      let state = gagRepostLimiter.get(key);
+      if (!state) state = { lastPost: 0, dropped: 0 };
+
+      if (now - state.lastPost < GAG_REPOST_COOLDOWN_MS) {
+        // Under spam: drop bot repost to avoid flooding
+        state.dropped++;
+
+        // Optional: every N drops, post a tiny notice
+        if (state.dropped % GAG_DROP_NOTICE_EVERY === 0) {
+          const remainingSec = Math.ceil(gag.getRemainingMs(guildId, userId) / 1000);
+          await message.channel.send({
+            content: `🔇 **${message.member?.displayName || message.author.username}**: *mmph…* *(spam suppressed • ${remainingSec}s left)*`,
+            allowedMentions: { parse: [] },
+          }).catch(() => {});
+          state.lastPost = Date.now();
         }
 
+        gagRepostLimiter.set(key, state);
+        return;
+      }
+
+      // Allowed to repost now
+      state.lastPost = now;
+      gagRepostLimiter.set(key, state);
+
+      if (garbled && garbled.trim()) {
+        const remainingSec = Math.ceil(gag.getRemainingMs(guildId, userId) / 1000);
         await message.channel.send({
           content: `🔇 **${message.member?.displayName || message.author.username}**: ${garbled}\n*(gagged • ${remainingSec}s left)*`,
           allowedMentions: { parse: [] },
-        });
+        }).catch(() => {});
       }
 
       return;
+
     }
 
     // 🖼️ PICTURE TRACKER 
