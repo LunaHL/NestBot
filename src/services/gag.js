@@ -86,64 +86,63 @@ function garble(text) {
   const garblePlain = (plain) => {
     if (!plain) return plain;
 
-    // Split by whitespace but keep whitespace
     const tokens = plain.split(/(\s+)/);
 
     return tokens.map(tok => {
       if (/^\s+$/.test(tok)) return tok;
 
-      // Keep mentions/channels/roles as-is
+      // Mentions/channels/roles
       if (/^<@!?(\d+)>$/.test(tok)) return tok;
       if (/^<@&(\d+)>$/.test(tok)) return tok;
       if (/^<#(\d+)>$/.test(tok)) return tok;
 
-      // Keep custom emojis as-is: <:name:id> or <a:name:id>
+      // Custom emojis
       if (/^<a?:\w+:\d+>$/.test(tok)) return tok;
 
-      // Keep links as-is (Tenor/Giphy are usually links)
+      // Links
       if (/^https?:\/\/\S+$/i.test(tok)) return tok;
 
-      // Garble letters, preserve:
-      // - punctuation
-      // - digits
-      // - non-ascii (covers most emoji + many special chars)
+      // Garble ASCII letters; preserve digits/punct/non-ascii (emoji)
       let s = '';
       for (const ch of tok) {
         const code = ch.codePointAt(0);
 
-        if (code > 127) {
-          // unicode emoji / non-ascii: keep
-          s += ch;
-          continue;
-        }
-
+        if (code > 127) { s += ch; continue; } // emoji etc.
         if (/[a-z]/.test(ch)) s += 'm';
         else if (/[A-Z]/.test(ch)) s += 'M';
         else if (/\d/.test(ch)) s += ch;
         else s += ch;
       }
 
-      // Add light variation
       s = s.replace(/m{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'ph');
       s = s.replace(/M{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'PH');
-
       return s;
     }).join('');
   };
 
-  // Walk through protected segments and garble only the gaps
   for (const match of text.matchAll(protectRe)) {
     const start = match.index ?? 0;
     const end = start + match[0].length;
 
-    out += garblePlain(text.slice(last, start)); // garble gap
-    out += match[0]; // keep protected segment verbatim
+    out += garblePlain(text.slice(last, start));
+
+    // Make protected segments more obvious:
+    // match[1] = *action*, match[2] = (ooc)
+    if (match[1]) {
+      out += `**${match[1]}**`;      // actions pop (bold)
+    } else if (match[2]) {
+      out += `\`${match[2]}\``;      // OOC looks like OOC (code style)
+    } else {
+      out += match[0];
+    }
+
     last = end;
   }
 
   out += garblePlain(text.slice(last));
   return out;
 }
+
 
 
 module.exports = {
