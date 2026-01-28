@@ -7,6 +7,24 @@ const {
 } = require('discord.js');
 const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
+const gag = require('../services/gag');
+
+function parseEffectFromText(text) {
+  const s = String(text || '');
+  const m = s.match(/\[effect:(\w+);duration:(\d+)\]/i);
+  if (!m) return null;
+
+  const type = String(m[1]).toLowerCase();
+  const durationSec = Number(m[2]);
+  if (!Number.isFinite(durationSec) || durationSec <= 0) return null;
+
+  return { type, durationSec };
+}
+
+function stripEffectMarker(text) {
+  return String(text || '').replace(/\s*\[effect:\w+;duration:\d+\]\s*/i, '').trim();
+}
+
 
 // cost in Nestcoins for a targeted spin
 const PRICE_TARGETED_SPIN = 15;
@@ -164,6 +182,21 @@ module.exports = {
         const randomIndex = Math.floor(Math.random() * currentList.length);
         const punishment = currentList[randomIndex];
 
+        const effect = parseEffectFromText(punishment);
+
+        if (effect?.type === 'gag') {
+          gag.gagUser(i.guildId, targetId, effect.durationSec, issuerId);
+        }
+
+        const visiblePunishment = stripEffectMarker(punishment);
+
+
+        // Apply effect (e.g., gag)
+        if (effect?.type === 'gag') {
+          gag.gagUser(i.guildId, targetId, effect.durationSec, issuerId);
+        }
+
+
         const refreshed = currentList
           .map((txt, idx) => `#${idx}: ${txt}`)
           .join('\n');
@@ -179,7 +212,7 @@ module.exports = {
           `🎡 **Punishment Wheel**\n` +
           `${refreshed}\n\n` +
           `🎯 Target: <@${targetId}>\n` +
-          `**Result:** ${punishment}${chargeLine}`;
+          `**Result:** ${visiblePunishment}${chargeLine}`;
 
         await i.update({ content, components: [disabledRow] });
         collector.stop('done');
