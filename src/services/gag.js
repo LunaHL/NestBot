@@ -72,6 +72,34 @@ function cleanupGuild(guildId) {
   });
 }
 
+function doubleRemaining(guildId, targetId) {
+  let doubled = false;
+  let newUntil = null;
+
+  db.perform(data => {
+    const g = data.gags?.[guildId];
+    if (!g?.[targetId]?.until) return;
+
+    const now = Date.now();
+    const curUntil = g[targetId].until;
+
+    if (curUntil <= now) {
+      // abgelaufen -> cleanup
+      delete g[targetId];
+      return;
+    }
+
+    const remaining = curUntil - now;
+    g[targetId].until = now + remaining * 2;
+
+    doubled = true;
+    newUntil = g[targetId].until;
+  });
+
+  return doubled ? { until: newUntil } : null;
+}
+
+
 // Simple “gagged speech”
 function garble(text) {
   if (!text) return text;
@@ -152,4 +180,5 @@ module.exports = {
   getRemainingMs,
   cleanupGuild,
   garble,
+  doubleRemaining,
 };
