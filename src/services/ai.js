@@ -78,12 +78,13 @@ async function fetchCurrentAttachments(message) {
   return parts;
 }
 
-function buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance, dailyWord) {
+function buildSystemPrompt(message, opinion, memories, coreMemories, contextLog, shopText, userBalance, dailyWord) {
   const now = new Date().toLocaleString('en-US', { timeZone: TZ, dateStyle: 'full', timeStyle: 'medium' });
   const username = message.author.username;
   const nickname = message.member?.displayName || username;
   const channelName = message.channel.name;
   const memText = memories.length ? `\nFacts you know about them:\n- ${memories.join('\n- ')}` : '';
+  const coreMemText = coreMemories.length ? `\nCore Memories (Global Facts):\n- ${coreMemories.join('\n- ')}` : '';
   
   const gameInfo = dailyWord 
     ? `Today's secret NestWord answer is "${dailyWord}". If the user asks for a hint, give a subtle, tsundere clue. NEVER reveal the word directly.`
@@ -94,7 +95,7 @@ Current server time: ${now}.
 Current Channel: #${channelName}
 User: ${nickname} (@${username}).
 User's Balance: ${userBalance} NestCoins.
-Your current opinion of them: "${opinion}".${memText}
+Your current opinion of them: "${opinion}".${memText}${coreMemText}
 ${contextLog ? `\n[RECENT CHANNEL MESSAGES (Context)]:\n${contextLog}` : ''}
 
 Server Theme: "The Nest"
@@ -210,6 +211,7 @@ async function handleMessage(message, client) {
 
     // 1. Load Data
     const memories = db.database.memory?.[userId] || [];
+    const coreMemories = db.database.coreMemory || [];
     const opinion = db.database.opinions?.[userId] || "You haven't formed a strong opinion on them yet.";
 
     // 2. Fetch Context & Attachments in parallel
@@ -230,7 +232,7 @@ async function handleMessage(message, client) {
     const dailyWord = db.database.nestwordDaily?.[today]?.answer;
 
     // 5. Build Prompt
-    const persona = buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance, dailyWord);
+    const persona = buildSystemPrompt(message, opinion, memories, coreMemories, contextLog, shopText, userBalance, dailyWord);
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash',
       systemInstruction: { parts: [{ text: persona }] },
