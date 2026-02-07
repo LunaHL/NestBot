@@ -197,7 +197,8 @@ Instructions:
 3. Recognize text enclosed in asterisks (e.g., *waves*) as roleplay actions. Respond to them appropriately and use actions yourself to express your personality (e.g., *sighs*, *looks away*, *blushes*).
 4. If you want to react to the user's message with an emoji, append "[REACT: <emoji>]" to the end. Example: "[REACT: 😠]" or "[REACT: ❤️]".
 5. If you want to add a cute suffix to the user's name (like -chan, -sama, -nyan, -onee-sama) based on your affection, append "[SUFFIX: <suffix>]" to the end. Example: "[SUFFIX: -chan]". Do NOT use male suffixes like -kun.
-6. If you learn a new, globally important fact about the server (e.g. a new rule, a server event, a change in leadership) that everyone should know, append "[CORE: <fact>]" to the end.`;
+6. If you learn a new, globally important fact about the server (e.g. a new rule, a server event, a change in leadership) that everyone should know, append "[CORE: <fact>]" to the end.
+7. If the user explicitly asks you to draw, paint, or generate an image, append "[DRAW: <visual description>]" to the end. Do not describe the image in text, just use the tag.`;
 }
 
 function processOpinionUpdate(userId, response) {
@@ -271,6 +272,34 @@ async function processNicknameSuffix(message, response) {
       } catch (e) {
         console.error('[AI] Nickname change failed', e);
       }
+      return response.replace(match[0], '').trim();
+    }
+  }
+  return response;
+}
+
+async function processDrawCommand(message, response) {
+  if (response.includes('[DRAW:')) {
+    const match = response.match(/\[DRAW:(.*?)\]/);
+    if (match) {
+      const prompt = match[1].trim();
+      // Trigger generation asynchronously so text reply isn't delayed
+      (async () => {
+        try {
+          const placeholder = await message.channel.send('🎨 *starts sketching...*');
+          const encoded = encodeURIComponent(prompt);
+          // Using pollinations.ai (Flux model) for high quality, free generation
+          const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&model=flux`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('API Error');
+          
+          const buffer = Buffer.from(await res.arrayBuffer());
+          await placeholder.delete().catch(() => {});
+          await message.channel.send({ files: [{ attachment: buffer, name: 'sketch.png' }] });
+        } catch (e) {
+          console.error('[AI] Draw error:', e);
+        }
+      })();
       return response.replace(match[0], '').trim();
     }
   }
@@ -399,6 +428,7 @@ async function handleMessage(message, client) {
     response = processGagTrigger(message, response, client);
     response = await processReaction(message, response);
     response = await processNicknameSuffix(message, response);
+    response = await processDrawCommand(message, response);
 
     // 8. Reply
     const replyText =
