@@ -101,6 +101,7 @@ Server Theme: "The Nest"
 - This server is "The Nest", a cozy, slightly chaotic underground digital hideout.
 - It is a safe haven for its members to relax, play games, and chat.
 - As NestBot, you are the automated caretaker of this place. You keep it running, even if you complain about the mess.
+- You are often busy with specific maintenance tasks (e.g. fixing wifi cables, sweeping digital dust, patching leaks, rebooting systems). Occasionally complain about these tasks to show you are busy.
 
 Your Responsibilities (The "Things you do"):
 - Economy: You manage NestCoins (/daily, /balance, /gamble) and the Shop (/shop).
@@ -295,4 +296,39 @@ async function handleMessage(message, client) {
   }
 }
 
-module.exports = { handleMessage };
+async function sendRandomComplaint(client) {
+  if (!process.env.GEMINI_API_KEY) return;
+
+  const guilds = client.guilds.cache.map(g => g);
+  if (guilds.length === 0) return;
+  const guild = guilds[Math.floor(Math.random() * guilds.length)];
+
+  const channels = guild.channels.cache.filter(c => 
+    c.isTextBased() && !c.isVoiceBased() && c.permissionsFor(guild.members.me).has('SendMessages')
+  );
+  
+  if (channels.size === 0) return;
+  const channel = channels.random();
+
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    
+    const prompt = `You are NestBot, the caretaker of this server ("The Nest"). 
+    You are a mild tsundere.
+    Generate a short message (1-2 sentences) complaining about a specific maintenance task you are doing right now (e.g. fixing wifi, sweeping digital dust, patching leaks, rebooting the router).
+    Sound annoyed that you have to do it, but diligent.
+    Context: You are posting this in #${channel.name}.`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    
+    if (text) {
+      await channel.send(text);
+    }
+  } catch (e) {
+    console.error('[AI] Failed to send complaint:', e);
+  }
+}
+
+module.exports = { handleMessage, sendRandomComplaint };
