@@ -84,8 +84,8 @@ function checkScoreboard(client) {
 
     // 🔥 Clean old entries (keep 7 days)
     const cutoff = Date.now() - 7 * 86400000;
-    for (const [key] of Object.entries(data.wordles || {})) {
-      if (new Date(key).getTime() < cutoff) delete data.wordles[key];
+    for (const [key] of Object.entries(data.nestwordDaily || {})) {
+      if (new Date(key).getTime() < cutoff) delete data.nestwordDaily[key];
     }
     for (const [key] of Object.entries(data.puzzles || {})) {
       if (new Date(key).getTime() < cutoff) delete data.puzzles[key];
