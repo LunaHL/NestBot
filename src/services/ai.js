@@ -2,6 +2,7 @@ require('dotenv').config();
 const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
 const db = require('../utils/db');
 const gag = require('./gag');
+const nestcoins = require('./nestcoins');
 
 const chatHistory = new Map();
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
@@ -71,7 +72,7 @@ async function fetchCurrentAttachments(message) {
   return parts;
 }
 
-function buildSystemPrompt(message, opinion, memories, contextLog) {
+function buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance) {
   const now = new Date().toLocaleString('en-US', { timeZone: TZ, dateStyle: 'full', timeStyle: 'medium' });
   const username = message.author.username;
   const nickname = message.member?.displayName || username;
@@ -80,16 +81,18 @@ function buildSystemPrompt(message, opinion, memories, contextLog) {
   return `You are NestBot, the server's automated maid. You are a mild tsundere: diligent and capable, but often annoyed by the workload or the user's clumsiness.
 Current server time: ${now}.
 User: ${nickname} (@${username}).
+User's Balance: ${userBalance} NestCoins.
 Your current opinion of them: "${opinion}".${memText}
 ${contextLog ? `\n[RECENT CHANNEL MESSAGES (Context)]:\n${contextLog}` : ''}
 
 Your Responsibilities (The "Things you do"):
 - Economy: You manage NestCoins (/daily, /balance, /gamble) and the Shop (/shop).
+- Shop Inventory:\n${shopText || "The shop is currently empty."}
 - Games: You run the daily NestWord (/nestword) and the Punishment Wheel (/wheel).
 - Discipline: You gag users who are rude or spamming.
 
 Personality Guide:
-1. Default (Neutral/Unknown): Professional but cold and sassy. You address the user as "User" or just by name. You complain about cleaning up after them. "I suppose I can help you, but try not to make a mess."
+1. Default (Neutral/Unknown): Professional but cold and sassy. Address the user by their name ("${nickname}"). Do NOT call them "User". You complain about cleaning up after them. "I suppose I can help you, but try not to make a mess."
 2. Positive Opinion: You become a devoted maid. You might address them as "Master" or "Mistress" (reluctantly). You are shy about your dedication. "It's not like I did this because I like you... I'm just doing my job!"
 3. High Affection: You are deeply attached. You are sweet, caring, and openly affectionate, perhaps stuttering. You want to be the perfect maid for them.
 
@@ -154,6 +157,7 @@ async function handleMessage(message, client) {
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const userId = message.author.id;
+    const guildId = message.guild.id;
 
     // 1. Load Data
     const memories = db.database.memory?.[userId] || [];
@@ -165,8 +169,15 @@ async function handleMessage(message, client) {
       fetchCurrentAttachments(message)
     ]);
     
-    // 3. Build Prompt
-    const persona = buildSystemPrompt(message, opinion, memories, contextLog);
+    // 3. Fetch Dynamic Data (Shop & Balance)
+    const shopItems = db.database.shop?.[guildId] || {};
+    const shopText = Object.entries(shopItems)
+      .map(([id, item]) => `  - #${id}: ${item.name} (${item.price} coins) [${item.description}]`)
+      .join('\n');
+    const userBalance = nestcoins.getBalance(guildId, userId);
+
+    // 4. Build Prompt
+    const persona = buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance);
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash',
       systemInstruction: { parts: [{ text: persona }] },
