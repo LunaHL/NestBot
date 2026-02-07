@@ -2,6 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const db = require('./utils/db');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const gag = require('./services/gag');
 const gagRepostLimiter = new Map(); // key: `${guildId}:${userId}` -> { lastPost: number, dropped: number }
 const GAG_REPOST_COOLDOWN_MS = 1200; // bot repost max ~1 per 1.2s per user
@@ -252,6 +253,41 @@ client.on('messageCreate', async message => {
 
       return;
 
+    }
+
+    // 🤖 AI Reply on Ping
+    if (message.mentions.users.has(client.user.id)) {
+      if (!process.env.GEMINI_API_KEY) {
+        console.warn('[AI] Ping received but GEMINI_API_KEY is missing.');
+        return;
+      }
+
+      await message.channel.sendTyping();
+
+      try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        // Remove the bot's mention from the prompt
+        const prompt = message.content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim();
+        
+        if (!prompt) {
+          await message.reply("H-huh? What do you want? Don't just ping me for no reason, baka! 💢");
+          return;
+        }
+
+        const persona = "You are NestBot, a tsundere Discord bot. You are helpful but act annoyed and reluctant. You often call users 'baka' (idiot) and insist you aren't doing this because you like them. Be sarcastic but accurate.";
+        
+        const result = await model.generateContent(`${persona}\n\nUser: ${prompt}`);
+        const response = result.response.text();
+        const replyText = response.length > 2000 ? response.substring(0, 1997) + '...' : response;
+        
+        await message.reply(replyText);
+      } catch (error) {
+        console.error('[AI] Error:', error);
+        await message.reply("I'm having trouble thinking right now. 😵‍💫");
+      }
+      return;
     }
 
     // 🖼️ PICTURE TRACKER 

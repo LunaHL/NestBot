@@ -18,6 +18,8 @@ const isAlphaLowerLen = (s, min=3, max=7) => new RegExp(`^[a-z]{${min},${max}}$`
 const attemptsForLen = len => clamp(8 - (len - 3), 5, 8);  // 3→8, 4→7, 5→6, 6→5, 7→5
 const rewardForAttempts = att => Math.max(1, Math.round(15 * 6 / att)); // Base 15 @ 6 attempts
 
+let _cachedWordlist = null;
+
 const ensureWordlistFile = () => {
   if (!fs.existsSync(WORDLIST_PATH)) {
     const init = {
@@ -28,8 +30,21 @@ const ensureWordlistFile = () => {
     fs.writeFileSync(WORDLIST_PATH, JSON.stringify(init, null, 2));
   }
 };
-const loadWordlist = () => { ensureWordlistFile(); return JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8')); };
-const saveWordlist = wl => fs.writeFileSync(WORDLIST_PATH, JSON.stringify(wl, null, 2));
+const loadWordlist = () => {
+  if (_cachedWordlist) return _cachedWordlist;
+  ensureWordlistFile();
+  try {
+    _cachedWordlist = JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8'));
+  } catch (e) {
+    console.error('[NestWord] Failed to load wordlist:', e);
+    _cachedWordlist = { pool3: [], pool4: [], pool5: [], pool6: [], pool7: [], usedWords: [] };
+  }
+  return _cachedWordlist;
+};
+const saveWordlist = wl => {
+  _cachedWordlist = wl;
+  fs.writeFileSync(WORDLIST_PATH, JSON.stringify(wl, null, 2));
+};
 
 function parseBulkWords(input) {
   return input

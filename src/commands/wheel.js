@@ -125,7 +125,7 @@ module.exports = {
 
       const collector = message.createMessageComponentCollector({
         filter,
-        time: 7200_000, // 60s window
+        time: 7200_000, // 2h window
       });
 
       collector.on('collect', async i => {
