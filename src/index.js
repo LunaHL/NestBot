@@ -107,6 +107,18 @@ function scheduleScoreboard(client) {
   }, msUntilMidnight);
 }
 
+function scheduleRandomComplaints(client) {
+  // Random interval between 3 and 6 hours
+  const min = 3 * 60 * 60 * 1000;
+  const max = 6 * 60 * 60 * 1000;
+  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+
+  setTimeout(() => {
+    ai.sendRandomComplaint(client);
+    scheduleRandomComplaints(client);
+  }, delay);
+}
+
 const schedulers = [];
 
 // 🧠 On Bot Ready
@@ -114,6 +126,7 @@ client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   nestword.initDailyPicker();
   scheduleScoreboard(client);
+  scheduleRandomComplaints(client);
   for (const scheduler of schedulers) {
     scheduler.schedule(client);
   }
