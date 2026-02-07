@@ -279,15 +279,43 @@ client.on('messageCreate', async message => {
         
         const memText = memories.length ? `\nFacts you know about them:\n- ${memories.join('\n- ')}` : '';
 
-        // 📜 Fetch Recent Chat Context (Last 10 messages)
+        // 📜 Fetch Recent Chat Context (Last 10 messages + Last 3 Images)
         let contextLog = '';
+        const imageParts = [];
         try {
-          const recent = await message.channel.messages.fetch({ limit: 10, before: message.id });
-          contextLog = recent.reverse().map(m => {
+          const recent = await message.channel.messages.fetch({ limit: 30, before: message.id });
+          const recentSorted = Array.from(recent.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+          contextLog = recentSorted.slice(-10).map(m => {
             const name = m.member?.displayName || m.author.username;
             const txt = m.content || '[Media/Embed]';
             return `${name}: ${txt}`;
           }).join('\n');
+
+          // Fetch last 3 images from history
+          const reversed = [...recentSorted].reverse();
+          for (const msg of reversed) {
+            if (imageParts.length >= 3) break;
+            if (msg.attachments.size > 0) {
+              for (const attachment of msg.attachments.values()) {
+                if (imageParts.length >= 3) break;
+                if (attachment.contentType?.startsWith('image/')) {
+                  try {
+                    const res = await fetch(attachment.url);
+                    const buf = await res.arrayBuffer();
+                    imageParts.push({
+                      inlineData: {
+                        data: Buffer.from(buf).toString('base64'),
+                        mimeType: attachment.contentType
+                      }
+                    });
+                  } catch (e) {
+                    console.error('[AI] Failed to download image:', e);
+                  }
+                }
+              }
+            }
+          }
         } catch (e) {
           console.warn('[AI] Failed to fetch context:', e);
         }
@@ -318,7 +346,24 @@ Instructions:
         // 📜 Chat History
         const history = chatHistory.get(message.author.id) || [];
         const chat = model.startChat({ history });
-        const result = await chat.sendMessage(prompt);
+        
+        // Check current message for images
+        if (message.attachments.size > 0) {
+          for (const attachment of message.attachments.values()) {
+            if (attachment.contentType?.startsWith('image/')) {
+              try {
+                const res = await fetch(attachment.url);
+                const buf = await res.arrayBuffer();
+                imageParts.unshift({
+                  inlineData: { data: Buffer.from(buf).toString('base64'), mimeType: attachment.contentType }
+                });
+              } catch (e) { console.error('[AI] Failed to download current image:', e); }
+            }
+          }
+        }
+
+        const msgParts = [{ text: prompt }, ...imageParts];
+        const result = await chat.sendMessage(msgParts);
         let response = result.response.text();
 
         // Update history (keep last 20 turns)
