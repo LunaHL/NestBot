@@ -7,6 +7,7 @@ const gag = require('./services/gag');
 const gagRepostLimiter = new Map(); // key: `${guildId}:${userId}` -> { lastPost: number, dropped: number }
 const GAG_REPOST_COOLDOWN_MS = 1200; // bot repost max ~1 per 1.2s per user
 const GAG_DROP_NOTICE_EVERY = 8;     // optional: every 8 dropped msgs, send a small notice
+const chatHistory = new Map();       // key: userId -> Array<{ role, parts }>
 const nestword = require('./commands/nestword');
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -266,7 +267,31 @@ client.on('messageCreate', async message => {
 
       try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        
+        const now = new Date().toLocaleString('en-US', { timeZone: TZ, dateStyle: 'full', timeStyle: 'medium' });
+        
+        // 🧠 Load Memory & Identity
+        const userId = message.author.id;
+        const username = message.author.username;
+        const nickname = message.member?.displayName || username;
+        const memories = db.database.memory?.[userId] || [];
+        const opinion = db.database.opinions?.[userId] || "You haven't formed a strong opinion on them yet.";
+        
+        const memText = memories.length ? `\nFacts you know about them:\n- ${memories.join('\n- ')}` : '';
+
+        const persona = `You are NestBot, a mild tsundere Discord bot. You are helpful and accurate, but you act a bit sassy or reluctant. 
+Current server time: ${now}.
+User: ${nickname} (@${username}).
+Your current opinion of them: "${opinion}".${memText}
+
+Instructions:
+1. If the user is being extremely annoying, rude, or spamming, end your response with "[GAG]".
+2. You are slowly forming an opinion on this user. If this interaction changes your opinion of them, append "[OPINION: <short summary of new opinion>]" to the end of your response. Keep it concise.`;
+        
+        const model = genAI.getGenerativeModel({ 
+          model: 'gemini-2.0-flash',
+          systemInstruction: { parts: [{ text: persona }] }
+        });
 
         // Remove the bot's mention from the prompt
         const prompt = message.content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim();
@@ -276,22 +301,39 @@ client.on('messageCreate', async message => {
           return;
         }
 
-        const now = new Date().toLocaleString('en-US', { timeZone: TZ, dateStyle: 'full', timeStyle: 'medium' });
-        
-        // 🧠 Load Memory
-        const memories = db.database.memory?.[message.author.id] || [];
-        const memText = memories.length ? `\nFacts about this user:\n- ${memories.join('\n- ')}` : '';
-
-        const persona = `You are NestBot, a mild tsundere Discord bot. You are helpful and accurate, but you act a bit sassy or reluctant. Current server time: ${now}.${memText}
-If the user is being extremely annoying, rude, or spamming, you can punish them by ending your response with "[GAG]". This will mute them for 60 seconds.`;
-        
-        const result = await model.generateContent(`${persona}\n\nUser: ${prompt}`);
+        // 📜 Chat History
+        const history = chatHistory.get(message.author.id) || [];
+        const chat = model.startChat({ history });
+        const result = await chat.sendMessage(prompt);
         let response = result.response.text();
+
+        // Update history (keep last 20 turns)
+        const newHistory = [
+          ...history,
+          { role: 'user', parts: [{ text: prompt }] },
+          { role: 'model', parts: [{ text: response }] }
+        ];
+        if (newHistory.length > 40) newHistory.splice(0, newHistory.length - 40);
+        chatHistory.set(message.author.id, newHistory);
+
+        // Parse Opinion Updates
+        if (response.includes('[OPINION:')) {
+          const match = response.match(/\[OPINION:(.*?)\]/);
+          if (match) {
+            const newOpinion = match[1].trim();
+            db.perform(data => {
+              if (!data.opinions) data.opinions = {};
+              data.opinions[userId] = newOpinion;
+            });
+            response = response.replace(match[0], '').trim();
+          }
+        }
 
         if (response.includes('[GAG]')) {
           response = response.replace('[GAG]', '').trim();
           gag.gagUser(message.guild.id, message.author.id, 60, client.user.id);
-          if (!response) response = "You're too annoying! 💢 *gags you*";
+          if (!response) response = "You're too annoying!";
+          response += " 💢 *gags you*";
         }
 
         const replyText = response.length > 2000 ? response.substring(0, 1997) + '...' : response;
