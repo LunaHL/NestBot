@@ -272,14 +272,28 @@ client.on('messageCreate', async message => {
         const prompt = message.content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim();
         
         if (!prompt) {
-          await message.reply("H-huh? What do you want? Don't just ping me for no reason, baka! 💢");
+          await message.reply("What? You need me again? Fine, what is it?");
           return;
         }
 
-        const persona = "You are NestBot, a tsundere Discord bot. You are helpful but act annoyed and reluctant. You often call users 'baka' (idiot) and insist you aren't doing this because you like them. Be sarcastic but accurate.";
+        const now = new Date().toLocaleString('en-US', { timeZone: TZ, dateStyle: 'full', timeStyle: 'medium' });
+        
+        // 🧠 Load Memory
+        const memories = db.database.memory?.[message.author.id] || [];
+        const memText = memories.length ? `\nFacts about this user:\n- ${memories.join('\n- ')}` : '';
+
+        const persona = `You are NestBot, a mild tsundere Discord bot. You are helpful and accurate, but you act a bit sassy or reluctant. Current server time: ${now}.${memText}
+If the user is being extremely annoying, rude, or spamming, you can punish them by ending your response with "[GAG]". This will mute them for 60 seconds.`;
         
         const result = await model.generateContent(`${persona}\n\nUser: ${prompt}`);
-        const response = result.response.text();
+        let response = result.response.text();
+
+        if (response.includes('[GAG]')) {
+          response = response.replace('[GAG]', '').trim();
+          gag.gagUser(message.guild.id, message.author.id, 60, client.user.id);
+          if (!response) response = "You're too annoying! 💢 *gags you*";
+        }
+
         const replyText = response.length > 2000 ? response.substring(0, 1997) + '...' : response;
         
         await message.reply(replyText);
