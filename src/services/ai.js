@@ -1,5 +1,9 @@
 require('dotenv').config();
-const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
+const {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} = require('@google/generative-ai');
 const db = require('../utils/db');
 const gag = require('./gag');
 const nestcoins = require('./nestcoins');
@@ -7,10 +11,11 @@ const nestcoins = require('./nestcoins');
 const chatHistory = new Map();
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 
-const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+const nowInTZ = () =>
+  new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
 const getToday = () => {
   const d = nowInTZ();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 // ==========================================
@@ -21,14 +26,22 @@ async function fetchContext(message) {
   let contextLog = '';
   const imageParts = [];
   try {
-    const recent = await message.channel.messages.fetch({ limit: 30, before: message.id });
-    const recentSorted = Array.from(recent.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    const recent = await message.channel.messages.fetch({
+      limit: 30,
+      before: message.id,
+    });
+    const recentSorted = Array.from(recent.values()).sort(
+      (a, b) => a.createdTimestamp - b.createdTimestamp,
+    );
 
-    contextLog = recentSorted.slice(-10).map(m => {
-      const name = m.member?.displayName || m.author.username;
-      const txt = m.cleanContent || m.content || '[Media/Embed]';
-      return `${name}: ${txt}`;
-    }).join('\n');
+    contextLog = recentSorted
+      .slice(-10)
+      .map(m => {
+        const name = m.member?.displayName || m.author.username;
+        const txt = m.cleanContent || m.content || '[Media/Embed]';
+        return `${name}: ${txt}`;
+      })
+      .join('\n');
 
     // Fetch last 3 images from history
     const reversed = [...recentSorted].reverse();
@@ -44,8 +57,8 @@ async function fetchContext(message) {
               imageParts.push({
                 inlineData: {
                   data: Buffer.from(buf).toString('base64'),
-                  mimeType: attachment.contentType
-                }
+                  mimeType: attachment.contentType,
+                },
               });
             } catch (e) {
               console.error('[AI] Failed to download image:', e);
@@ -69,26 +82,80 @@ async function fetchCurrentAttachments(message) {
           const res = await fetch(attachment.url);
           const buf = await res.arrayBuffer();
           parts.unshift({
-            inlineData: { data: Buffer.from(buf).toString('base64'), mimeType: attachment.contentType }
+            inlineData: {
+              data: Buffer.from(buf).toString('base64'),
+              mimeType: attachment.contentType,
+            },
           });
-        } catch (e) { console.error('[AI] Failed to download current image:', e); }
+        } catch (e) {
+          console.error('[AI] Failed to download current image:', e);
+        }
       }
     }
   }
   return parts;
 }
 
-function buildSystemPrompt(message, opinion, memories, coreMemories, contextLog, shopText, userBalance, dailyWord) {
-  const now = new Date().toLocaleString('en-US', { timeZone: TZ, dateStyle: 'full', timeStyle: 'medium' });
+function getValidMemories(userId) {
+  const now = Date.now();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  let changed = false;
+
+  const raw = db.database.memory?.[userId] || [];
+  const valid = [];
+
+  for (const m of raw) {
+    if (typeof m === 'string') {
+      // Upgrade legacy string to object, reset timer
+      valid.push({ text: m, timestamp: now });
+      changed = true;
+    } else if (m && typeof m === 'object') {
+      if (now - m.timestamp < thirtyDays) {
+        valid.push(m);
+      } else {
+        changed = true; // Expired
+      }
+    }
+  }
+
+  if (changed) {
+    db.perform(data => {
+      if (!data.memory) data.memory = {};
+      data.memory[userId] = valid;
+    });
+  }
+
+  return valid.map(v => v.text);
+}
+
+function buildSystemPrompt(
+  message,
+  opinion,
+  memories,
+  coreMemories,
+  contextLog,
+  shopText,
+  userBalance,
+  dailyWord,
+) {
+  const now = new Date().toLocaleString('en-US', {
+    timeZone: TZ,
+    dateStyle: 'full',
+    timeStyle: 'medium',
+  });
   const username = message.author.username;
   const nickname = message.member?.displayName || username;
   const channelName = message.channel.name;
-  const memText = memories.length ? `\nFacts you know about them:\n- ${memories.join('\n- ')}` : '';
-  const coreMemText = coreMemories.length ? `\nCore Memories (Global Facts):\n- ${coreMemories.join('\n- ')}` : '';
-  
-  const gameInfo = dailyWord 
+  const memText = memories.length
+    ? `\nFacts you know about them:\n- ${memories.join('\n- ')}`
+    : '';
+  const coreMemText = coreMemories.length
+    ? `\nCore Memories (Global Facts):\n- ${coreMemories.join('\n- ')}`
+    : '';
+
+  const gameInfo = dailyWord
     ? `Today's secret NestWord answer is "${dailyWord}". If the user asks for a hint, give a subtle, tsundere clue. NEVER reveal the word directly.`
-    : "There is no NestWord set for today yet.";
+    : 'There is no NestWord set for today yet.';
 
   return `You are NestBot, a mild tsundere Discord bot. You are helpful and accurate, but you act a bit sassy or reluctant. You manage this server's economy and games.
 Current server time: ${now}.
@@ -107,7 +174,7 @@ Server Theme: "The Nest"
 
 Your Responsibilities (The "Things you do"):
 - Economy: You manage NestCoins (/daily, /balance, /gamble) and the Shop (/shop).
-- Shop Inventory:\n${shopText || "The shop is currently empty."}
+- Shop Inventory:\n${shopText || 'The shop is currently empty.'}
 - Games: You run the daily NestWord (/nestword) and the Punishment Wheel (/wheel).
 ${gameInfo}
 - Discipline: You gag users who are rude or spamming.
@@ -129,7 +196,8 @@ Instructions:
 2. You are slowly forming an opinion on this user based on how they treat you. If this interaction changes your opinion of them, append "[OPINION: <short summary of new opinion>]" to the end of your response. Keep it concise.
 3. Recognize text enclosed in asterisks (e.g., *waves*) as roleplay actions. Respond to them appropriately and use actions yourself to express your personality (e.g., *sighs*, *looks away*, *blushes*).
 4. If you want to react to the user's message with an emoji, append "[REACT: <emoji>]" to the end. Example: "[REACT: 😠]" or "[REACT: ❤️]".
-5. If you want to add a cute suffix to the user's name (like -chan, -sama, -nyan, -onee-sama) based on your affection, append "[SUFFIX: <suffix>]" to the end. Example: "[SUFFIX: -chan]". Do NOT use male suffixes like -kun.`;
+5. If you want to add a cute suffix to the user's name (like -chan, -sama, -nyan, -onee-sama) based on your affection, append "[SUFFIX: <suffix>]" to the end. Example: "[SUFFIX: -chan]". Do NOT use male suffixes like -kun.
+6. If you learn a new, globally important fact about the server (e.g. a new rule, a server event, a change in leadership) that everyone should know, append "[CORE: <fact>]" to the end.`;
 }
 
 function processOpinionUpdate(userId, response) {
@@ -147,12 +215,27 @@ function processOpinionUpdate(userId, response) {
   return response;
 }
 
+function processCoreMemory(response) {
+  if (response.includes('[CORE:')) {
+    const match = response.match(/\[CORE:(.*?)\]/);
+    if (match) {
+      const fact = match[1].trim();
+      db.perform(data => {
+        if (!data.coreMemory) data.coreMemory = [];
+        if (!data.coreMemory.includes(fact)) data.coreMemory.push(fact);
+      });
+      return response.replace(match[0], '').trim();
+    }
+  }
+  return response;
+}
+
 function processGagTrigger(message, response, client) {
   if (response.includes('[GAG]')) {
     let cleanResponse = response.replace('[GAG]', '').trim();
     gag.gagUser(message.guild.id, message.author.id, 60, client.user.id);
     if (!cleanResponse) cleanResponse = "You're too annoying!";
-    return cleanResponse + " 💢 *gags you*";
+    return cleanResponse + ' 💢 *gags you*';
   }
   return response;
 }
@@ -178,14 +261,16 @@ async function processNicknameSuffix(message, response) {
       const suffix = match[1].trim();
       try {
         if (message.member.manageable) {
-           const current = message.member.displayName;
-           if (!current.endsWith(suffix)) {
-             const base = current.substring(0, 32 - suffix.length);
-             const newNick = base + suffix;
-             await message.member.setNickname(newNick);
-           }
+          const current = message.member.displayName;
+          if (!current.endsWith(suffix)) {
+            const base = current.substring(0, 32 - suffix.length);
+            const newNick = base + suffix;
+            await message.member.setNickname(newNick);
+          }
         }
-      } catch (e) { console.error('[AI] Nickname change failed', e); }
+      } catch (e) {
+        console.error('[AI] Nickname change failed', e);
+      }
       return response.replace(match[0], '').trim();
     }
   }
@@ -210,20 +295,26 @@ async function handleMessage(message, client) {
     const guildId = message.guild.id;
 
     // 1. Load Data
-    const memories = db.database.memory?.[userId] || [];
+    const memories = getValidMemories(userId);
     const coreMemories = db.database.coreMemory || [];
-    const opinion = db.database.opinions?.[userId] || "You haven't formed a strong opinion on them yet.";
+    const opinion =
+      db.database.opinions?.[userId] ||
+      "You haven't formed a strong opinion on them yet.";
 
     // 2. Fetch Context & Attachments in parallel
-    const [ { contextLog, imageParts: contextImages }, currentImages ] = await Promise.all([
-      fetchContext(message),
-      fetchCurrentAttachments(message)
-    ]);
-    
+    const [{ contextLog, imageParts: contextImages }, currentImages] =
+      await Promise.all([
+        fetchContext(message),
+        fetchCurrentAttachments(message),
+      ]);
+
     // 3. Fetch Dynamic Data (Shop & Balance)
     const shopItems = db.database.shop?.[guildId] || {};
     const shopText = Object.entries(shopItems)
-      .map(([id, item]) => `  - #${id}: ${item.name} (${item.price} coins) [${item.description}]`)
+      .map(
+        ([id, item]) =>
+          `  - #${id}: ${item.name} (${item.price} coins) [${item.description}]`,
+      )
       .join('\n');
     const userBalance = nestcoins.getBalance(guildId, userId);
 
@@ -232,22 +323,45 @@ async function handleMessage(message, client) {
     const dailyWord = db.database.nestwordDaily?.[today]?.answer;
 
     // 5. Build Prompt
-    const persona = buildSystemPrompt(message, opinion, memories, coreMemories, contextLog, shopText, userBalance, dailyWord);
-    const model = genAI.getGenerativeModel({ 
+    const persona = buildSystemPrompt(
+      message,
+      opinion,
+      memories,
+      coreMemories,
+      contextLog,
+      shopText,
+      userBalance,
+      dailyWord,
+    );
+    const model = genAI.getGenerativeModel({
       model: 'gemini-2.0-flash',
       systemInstruction: { parts: [{ text: persona }] },
       safetySettings: [
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
       ],
     });
 
     // 4. Prepare Chat
-    const prompt = message.content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim();
+    const prompt = message.content
+      .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
+      .trim();
     if (!prompt) {
-      await message.reply("What? You need me again? Fine, what is it?");
+      await message.reply('What? You need me again? Fine, what is it?');
       return;
     }
 
@@ -256,7 +370,7 @@ async function handleMessage(message, client) {
 
     // 5. Send Message (with retry)
     const msgParts = [{ text: prompt }, ...currentImages, ...contextImages];
-    
+
     let result;
     try {
       result = await chat.sendMessage(msgParts);
@@ -274,25 +388,28 @@ async function handleMessage(message, client) {
     const newHistory = [
       ...history,
       { role: 'user', parts: [{ text: prompt }] },
-      { role: 'model', parts: [{ text: response }] }
+      { role: 'model', parts: [{ text: response }] },
     ];
     if (newHistory.length > 40) newHistory.splice(0, newHistory.length - 40);
     chatHistory.set(userId, newHistory);
 
     // 7. Post-processing
     response = processOpinionUpdate(userId, response);
+    response = processCoreMemory(response);
     response = processGagTrigger(message, response, client);
     response = await processReaction(message, response);
     response = await processNicknameSuffix(message, response);
 
     // 8. Reply
-    const replyText = response.length > 2000 ? response.substring(0, 1997) + '...' : response;
+    const replyText =
+      response.length > 2000 ? response.substring(0, 1997) + '...' : response;
     await message.reply(replyText);
-
   } catch (error) {
     console.error('[AI] Error:', error);
     if (error.status === 429) {
-      await message.reply("Ugh, everyone is talking at once! My brain is overheating! Give me a moment! 💢");
+      await message.reply(
+        'Ugh, everyone is talking at once! My brain is overheating! Give me a moment! 💢',
+      );
     } else {
       await message.reply("I'm having trouble thinking right now. 😵‍💫");
     }
@@ -306,17 +423,20 @@ async function sendRandomComplaint(client) {
   if (guilds.length === 0) return;
   const guild = guilds[Math.floor(Math.random() * guilds.length)];
 
-  const channels = guild.channels.cache.filter(c => 
-    c.isTextBased() && !c.isVoiceBased() && c.permissionsFor(guild.members.me).has('SendMessages')
+  const channels = guild.channels.cache.filter(
+    c =>
+      c.isTextBased() &&
+      !c.isVoiceBased() &&
+      c.permissionsFor(guild.members.me).has('SendMessages'),
   );
-  
+
   if (channels.size === 0) return;
   const channel = channels.random();
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    
+
     const prompt = `You are NestBot, the caretaker of this server ("The Nest"). 
     You are a mild tsundere.
     Generate a short message (1-2 sentences) complaining about a specific maintenance task you are doing right now (e.g. fixing wifi, sweeping digital dust, patching leaks, rebooting the router).
@@ -325,7 +445,7 @@ async function sendRandomComplaint(client) {
 
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
-    
+
     if (text) {
       await channel.send(text);
     }
