@@ -279,10 +279,24 @@ client.on('messageCreate', async message => {
         
         const memText = memories.length ? `\nFacts you know about them:\n- ${memories.join('\n- ')}` : '';
 
+        // 📜 Fetch Recent Chat Context (Last 10 messages)
+        let contextLog = '';
+        try {
+          const recent = await message.channel.messages.fetch({ limit: 10, before: message.id });
+          contextLog = recent.reverse().map(m => {
+            const name = m.member?.displayName || m.author.username;
+            const txt = m.content || '[Media/Embed]';
+            return `${name}: ${txt}`;
+          }).join('\n');
+        } catch (e) {
+          console.warn('[AI] Failed to fetch context:', e);
+        }
+
         const persona = `You are NestBot, a mild tsundere Discord bot. You are helpful and accurate, but you act a bit sassy or reluctant. 
 Current server time: ${now}.
 User: ${nickname} (@${username}).
 Your current opinion of them: "${opinion}".${memText}
+${contextLog ? `\n[RECENT CHANNEL MESSAGES (Context)]:\n${contextLog}` : ''}
 
 Instructions:
 1. If the user is being extremely annoying, rude, or spamming, end your response with "[GAG]".
