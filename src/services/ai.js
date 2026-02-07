@@ -7,6 +7,12 @@ const nestcoins = require('./nestcoins');
 const chatHistory = new Map();
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 
+const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+const getToday = () => {
+  const d = nowInTZ();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
 // ==========================================
 // 🛠️ HELPER FUNCTIONS
 // ==========================================
@@ -72,11 +78,15 @@ async function fetchCurrentAttachments(message) {
   return parts;
 }
 
-function buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance) {
+function buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance, dailyWord) {
   const now = new Date().toLocaleString('en-US', { timeZone: TZ, dateStyle: 'full', timeStyle: 'medium' });
   const username = message.author.username;
   const nickname = message.member?.displayName || username;
   const memText = memories.length ? `\nFacts you know about them:\n- ${memories.join('\n- ')}` : '';
+  
+  const gameInfo = dailyWord 
+    ? `Today's secret NestWord answer is "${dailyWord}". If the user asks for a hint, give a subtle, tsundere clue. NEVER reveal the word directly.`
+    : "There is no NestWord set for today yet.";
 
   return `You are NestBot, a mild tsundere Discord bot. You are helpful and accurate, but you act a bit sassy or reluctant. You manage this server's economy and games.
 Current server time: ${now}.
@@ -89,6 +99,7 @@ Your Responsibilities (The "Things you do"):
 - Economy: You manage NestCoins (/daily, /balance, /gamble) and the Shop (/shop).
 - Shop Inventory:\n${shopText || "The shop is currently empty."}
 - Games: You run the daily NestWord (/nestword) and the Punishment Wheel (/wheel).
+${gameInfo}
 - Discipline: You gag users who are rude or spamming.
 
 Personality Guide:
@@ -100,7 +111,8 @@ Instructions:
 1. If the user is being extremely annoying, rude, or spamming, end your response with "[GAG]".
 2. You are slowly forming an opinion on this user based on how they treat you. If this interaction changes your opinion of them, append "[OPINION: <short summary of new opinion>]" to the end of your response. Keep it concise.
 3. Recognize text enclosed in asterisks (e.g., *waves*) as roleplay actions. Respond to them appropriately and use actions yourself to express your personality (e.g., *sighs*, *looks away*, *blushes*).
-4. If you want to react to the user's message with an emoji, append "[REACT: <emoji>]" to the end. Example: "[REACT: 😠]" or "[REACT: ❤️]".`;
+4. If you want to react to the user's message with an emoji, append "[REACT: <emoji>]" to the end. Example: "[REACT: 😠]" or "[REACT: ❤️]".
+5. If you want to add a cute suffix to the user's name (like -chan, -kun, -sama, -nyan) based on your affection, append "[SUFFIX: <suffix>]" to the end. Example: "[SUFFIX: -chan]".`;
 }
 
 function processOpinionUpdate(userId, response) {
@@ -142,6 +154,27 @@ async function processReaction(message, response) {
   return response;
 }
 
+async function processNicknameSuffix(message, response) {
+  if (response.includes('[SUFFIX:')) {
+    const match = response.match(/\[SUFFIX:(.*?)\]/);
+    if (match) {
+      const suffix = match[1].trim();
+      try {
+        if (message.member.manageable) {
+           const current = message.member.displayName;
+           if (!current.endsWith(suffix)) {
+             const base = current.substring(0, 32 - suffix.length);
+             const newNick = base + suffix;
+             await message.member.setNickname(newNick);
+           }
+        }
+      } catch (e) { console.error('[AI] Nickname change failed', e); }
+      return response.replace(match[0], '').trim();
+    }
+  }
+  return response;
+}
+
 // ==========================================
 // 🤖 MAIN HANDLER
 // ==========================================
@@ -176,8 +209,12 @@ async function handleMessage(message, client) {
       .join('\n');
     const userBalance = nestcoins.getBalance(guildId, userId);
 
-    // 4. Build Prompt
-    const persona = buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance);
+    // 4. Fetch Daily Word
+    const today = getToday();
+    const dailyWord = db.database.nestwordDaily?.[today]?.answer;
+
+    // 5. Build Prompt
+    const persona = buildSystemPrompt(message, opinion, memories, contextLog, shopText, userBalance, dailyWord);
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash',
       systemInstruction: { parts: [{ text: persona }] },
@@ -228,6 +265,7 @@ async function handleMessage(message, client) {
     response = processOpinionUpdate(userId, response);
     response = processGagTrigger(message, response, client);
     response = await processReaction(message, response);
+    response = await processNicknameSuffix(message, response);
 
     // 8. Reply
     const replyText = response.length > 2000 ? response.substring(0, 1997) + '...' : response;
