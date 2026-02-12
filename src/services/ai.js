@@ -11,6 +11,21 @@ const nestcoins = require('./nestcoins');
 const chatHistory = new Map();
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 
+const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+let lastRateLimit = 0;
+let totalRequests = 0;
+let failedRequests = 0;
+
+function getStatus() {
+  return {
+    isRateLimited: (Date.now() - lastRateLimit) < 60000,
+    lastRateLimit,
+    totalRequests,
+    failedRequests,
+    models: MODELS
+  };
+}
+
 const nowInTZ = () =>
   new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
 const getToday = () => {
@@ -153,10 +168,6 @@ function buildSystemPrompt(
     ? `\nCore Memories (Global Facts):\n- ${coreMemories.join('\n- ')}`
     : '';
 
-  const gameInfo = dailyWord
-    ? `Today's secret NestWord answer is "${dailyWord}". If the user asks for a hint, give a subtle, tsundere clue. NEVER reveal the word directly.`
-    : 'There is no NestWord set for today yet.';
-
   return `You are NestBot, a mild tsundere Discord bot. You are helpful and accurate, but you act a bit sassy or reluctant. You manage this server's economy and games.
 Current server time: ${now}.
 Current Channel: #${channelName}
@@ -190,6 +201,7 @@ You are currently in #${channelName}.
 - If the name suggests a specific topic (e.g. #art, #gaming, #memes) or a location (e.g. #kitchen, #void), adapt your vocabulary, attitude, and roleplay actions to fit that specific atmosphere.
 - Always incorporate the channel's context into your response.
 - If in #hanojs-weird-testing-lab: This is where you were created. You feel at home here, but maybe a bit experimental or technical.
+- If in 
 
 Instructions:
 1. If the user is being extremely annoying, rude, or spamming, end your response with "[GAG]".
@@ -322,6 +334,7 @@ async function handleMessage(message, client) {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const userId = message.author.id;
     const guildId = message.guild.id;
+    totalRequests++;
 
     // 1. Load Data
     const memories = getValidMemories(userId);
@@ -362,28 +375,6 @@ async function handleMessage(message, client) {
       userBalance,
       dailyWord,
     );
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      systemInstruction: { parts: [{ text: persona }] },
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-      ],
-    });
 
     // 4. Prepare Chat
     const prompt = message.content
@@ -395,23 +386,60 @@ async function handleMessage(message, client) {
     }
 
     const history = chatHistory.get(userId) || [];
-    const chat = model.startChat({ history });
-
-    // 5. Send Message (with retry)
     const msgParts = [{ text: prompt }, ...currentImages, ...contextImages];
 
-    let result;
-    try {
-      result = await chat.sendMessage(msgParts);
-    } catch (e) {
-      if (e.status === 429) {
-        await new Promise(r => setTimeout(r, 2000)); // Wait 2s and retry
-        result = await chat.sendMessage(msgParts);
-      } else {
-        throw e;
+    let response = null;
+    let lastError = null;
+
+    // 5. Try Models (Failover Strategy)
+    for (const modelName of MODELS) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: { parts: [{ text: persona }] },
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+          ],
+        });
+
+        const chat = model.startChat({ history });
+        
+        // Retry loop for this specific model
+        let retries = 0;
+        while (true) {
+          try {
+            const result = await chat.sendMessage(msgParts);
+            response = result.response.text();
+            break; // Success
+          } catch (e) {
+            if (e.status === 429 && retries < 1) {
+              retries++;
+              const delay = 1500 + Math.random() * 1000;
+              console.warn(`[AI] ${modelName} 429. Retrying in ${Math.floor(delay)}ms...`);
+              await message.channel.sendTyping().catch(() => {});
+              await new Promise(r => setTimeout(r, delay));
+            } else {
+              throw e;
+            }
+          }
+        }
+        
+        if (response) break; // We got a response, stop trying models
+
+      } catch (e) {
+        lastError = e;
+        if (e.status === 429) lastRateLimit = Date.now();
+        console.warn(`[AI] Model ${modelName} failed: ${e.message}`);
       }
     }
-    let response = result.response.text();
+
+    if (!response) {
+      failedRequests++;
+      throw lastError || new Error('All models failed');
+    }
 
     // 6. Update History
     const newHistory = [
@@ -435,12 +463,13 @@ async function handleMessage(message, client) {
       response.length > 2000 ? response.substring(0, 1997) + '...' : response;
     await message.reply(replyText);
   } catch (error) {
-    console.error('[AI] Error:', error);
     if (error.status === 429) {
+      console.warn('[AI] Rate limit exhausted after retries.');
       await message.reply(
         'Ugh, everyone is talking at once! My brain is overheating! Give me a moment! 💢',
       );
     } else {
+      console.error('[AI] Error:', error);
       await message.reply("I'm having trouble thinking right now. 😵‍💫");
     }
   }
@@ -480,8 +509,12 @@ async function sendRandomComplaint(client) {
       await channel.send(text);
     }
   } catch (e) {
-    console.error('[AI] Failed to send complaint:', e);
+    if (e.status === 429) {
+      console.warn('[AI] Skipped random complaint due to rate limit.');
+    } else {
+      console.error('[AI] Failed to send complaint:', e);
+    }
   }
 }
 
-module.exports = { handleMessage, sendRandomComplaint };
+module.exports = { handleMessage, sendRandomComplaint, getStatus };

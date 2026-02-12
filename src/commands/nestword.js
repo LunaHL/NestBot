@@ -347,15 +347,14 @@ module.exports = {
           u.bestStreak = Math.max(u.bestStreak || 0, u.streakCount);
           u.totalSolved = (u.totalSolved || 0) + 1;
 
-          const coins = daily.reward;
-          const newBalance = nestcoins.addCoins(guildId, userId, coins);
-
+          let coins = daily.reward;
           let streakMsg = '';
-          if (u.streakCount > 0 && u.streakCount % 10 === 0) {
-            const bonus = 20;
-            const bonusBalance = nestcoins.addCoins(guildId, userId, bonus);
-            streakMsg = `\n🔥 **${u.streakCount}-day streak!** +${bonus} bonus (Total: ${bonusBalance})`;
+          if (u.streakCount > 1) {
+            coins *= u.streakCount;
+            streakMsg = `\n🔥 **${u.streakCount}-day streak!** Reward multiplied by **${u.streakCount}**!`;
           }
+
+          const newBalance = nestcoins.addCoins(guildId, userId, coins);
 
           replyContent = `${row}\n✅ Correct! +${coins} NestCoins (Balance: ${newBalance})${streakMsg}`;
         } else {
