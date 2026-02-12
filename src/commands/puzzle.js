@@ -172,7 +172,6 @@ module.exports = {
         }
         if (puzzle.code.toLowerCase() !== code.toLowerCase()) return;
 
-        reward = puzzle.reward;
         if (!data.puzzleStreaks) data.puzzleStreaks = {};
         const streak = data.puzzleStreaks[userId] || {
           current: 0,
@@ -180,16 +179,20 @@ module.exports = {
           lastDate: null,
         };
 
-        if (streak.lastDate === yesterday) streak.current++;
-        else streak.current = 1;
+        if (streak.lastDate === yesterday) {
+          streak.current++;
+        } else {
+          streak.current = 1;
+        }
 
         if (streak.current > streak.best) streak.best = streak.current;
         streak.lastDate = today;
         data.puzzleStreaks[userId] = streak;
 
-        if (streak.current % 10 === 0) {
-          reward += 10;
-          streakMsg = `🔥 10-day streak! +10 bonus coins!`;
+        reward = puzzle.reward;
+        if (streak.current > 1) {
+          reward *= streak.current;
+          streakMsg = `🔥 ${streak.current}-day streak! Your reward is multiplied by **${streak.current}**!`;
         }
 
         puzzle.solvedBy.push(userId);
