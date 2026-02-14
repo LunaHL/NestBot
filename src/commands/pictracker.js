@@ -4,7 +4,7 @@ const nestcoins = require('../services/nestcoins');
 
 function getWeekRange() {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sonntag
+  const day = now.getDay(); // 0 = Sunday
   const diffToMonday = (day + 6) % 7;
   const monday = new Date(now);
   monday.setDate(now.getDate() - diffToMonday);

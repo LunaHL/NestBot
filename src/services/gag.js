@@ -17,7 +17,7 @@ function gagUser(guildId, targetId, durationSec, byUserId) {
     const g = _getGuildMap(data, guildId);
     const cur = g[targetId];
 
-    // Verlängern, falls schon gagged
+    // Extend if already gagged
     const baseUntil = cur?.until && cur.until > _now() ? cur.until : _now();
     g[targetId] = {
       until: Math.max(until, baseUntil + durationSec * 1000),
@@ -42,7 +42,7 @@ function getGagInfo(guildId, targetId) {
     const g = data.gags?.[guildId] || {};
     info = g[targetId] || null;
 
-    // Auto-cleanup wenn abgelaufen
+    // Auto-cleanup if expired
     if (info?.until && info.until <= _now()) {
       delete g[targetId];
       info = null;
@@ -84,7 +84,7 @@ function doubleRemaining(guildId, targetId) {
     const curUntil = g[targetId].until;
 
     if (curUntil <= now) {
-      // abgelaufen -> cleanup
+      // expired -> cleanup
       delete g[targetId];
       return;
     }

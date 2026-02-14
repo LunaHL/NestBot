@@ -19,7 +19,7 @@ async function spawnLoot(client) {
       settings = data.lootdrop[guildId];
     });
     const channels = guild.channels.cache
-      .filter(c => c.isTextBased() && !settings.blacklist.includes(c.id))
+      .filter(c => c.isTextBased() && !c.isThread() && !settings.blacklist.includes(c.id))
       .map(c => c.id);
 
     if (channels.length === 0) continue;

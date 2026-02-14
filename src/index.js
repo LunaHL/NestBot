@@ -107,18 +107,6 @@ function scheduleScoreboard(client) {
   }, msUntilMidnight);
 }
 
-function scheduleRandomComplaints(client) {
-  // Random interval between 3 and 6 hours
-  const min = 3 * 60 * 60 * 1000;
-  const max = 6 * 60 * 60 * 1000;
-  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-
-  setTimeout(() => {
-    ai.sendRandomComplaint(client);
-    scheduleRandomComplaints(client);
-  }, delay);
-}
-
 const schedulers = [];
 
 // 🧠 On Bot Ready
@@ -126,7 +114,6 @@ client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   nestword.initDailyPicker();
   scheduleScoreboard(client);
-  scheduleRandomComplaints(client);
   for (const scheduler of schedulers) {
     scheduler.schedule(client);
   }
@@ -231,7 +218,7 @@ client.on('messageCreate', async message => {
         if (state.dropped % GAG_DROP_NOTICE_EVERY === 0) {
           const now2 = Date.now();
 
-          // throttle punishment: max alle 5 Sekunden (damit es nicht eskaliert)
+          // throttle punishment: max every 5 seconds (so it doesn't escalate)
           if (now2 - (state.punishedAt || 0) > 5000) {
             const doubled = gag.doubleRemaining(guildId, userId);
             if (doubled) state.punishedAt = now2;
@@ -245,7 +232,7 @@ client.on('messageCreate', async message => {
             allowedMentions: { parse: [] },
           }).catch(() => {});
 
-          // zählt als "post" für cooldown (damit das nicht spammt)
+          // counts as "post" for cooldown (so it doesn't spam)
         }
 
         gagRepostLimiter.set(key, state);
