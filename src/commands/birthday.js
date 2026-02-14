@@ -125,7 +125,7 @@ module.exports = {
           });
         }
 
-        // helper: Monatsnamen
+        // helper: Month names
         const monthNames = [
           'Jan',
           'Feb',
@@ -149,7 +149,7 @@ module.exports = {
           return parseInt(mm) * 100 + parseInt(dd);
         };
 
-        // sortieren
+        // sort
         entries.sort((a, b) => sortKey(a.date) - sortKey(b.date));
 
         let memberLines = [];
@@ -192,7 +192,7 @@ module.exports = {
       let userId = null;
 
       if (!isAdmin) {
-        // Normale User → nur sich selbst
+        // Normal users → only themselves
         entryName = interaction.user.username;
         userId = interaction.user.id;
       } else {
@@ -212,7 +212,7 @@ module.exports = {
         if (!data.birthdays) data.birthdays = {};
         if (!data.birthdays[guildId]) data.birthdays[guildId] = {};
 
-        // Prüfen, ob es schon einen Eintrag für diesen User/Namen gibt
+        // Check if there is already an entry for this user/name
         let existingId = null;
         for (const [id, entry] of Object.entries(data.birthdays[guildId])) {
           if (
@@ -225,14 +225,14 @@ module.exports = {
         }
 
         if (existingId) {
-          // Update vorhandenen Eintrag
+          // Update existing entry
           data.birthdays[guildId][existingId] = {
             name: entryName,
             date,
             userId,
           };
         } else {
-          // Neuer Eintrag
+          // New entry
           const nextId = Object.keys(data.birthdays[guildId]).length + 1;
           data.birthdays[guildId][nextId] = { name: entryName, date, userId };
         }
@@ -274,7 +274,7 @@ module.exports = {
         removedName = entry.name;
         delete guildBirthdays[id];
 
-        // IDs neu durchzählen
+        // Renumber IDs
         const items = Object.values(guildBirthdays);
         data.birthdays[guildId] = {};
         items.forEach((item, index) => {
