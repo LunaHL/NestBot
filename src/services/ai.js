@@ -8,7 +8,7 @@ const nestcoins = require('./nestcoins');
 
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 
-const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+const MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
 let lastRateLimit = 0;
 let totalRequests = 0;
 let failedRequests = 0;
