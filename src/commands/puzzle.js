@@ -1,21 +1,11 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const achievements = require('../services/achievements');
 const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
 const history = require('../services/history');
+const { streakReward, streakMessage } = require('../utils/streak');
 
 const HISTORY_PAGE_SIZE = 10;
-
-const TZ = process.env.TIMEZONE || 'Europe/Berlin';
-const ymd = d =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const nowInTZ = () =>
-  new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-const getToday = () => ymd(nowInTZ());
-const getYesterday = () => {
-  const d = nowInTZ();
-  d.setDate(d.getDate() - 1);
-  return ymd(d);
-};
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -244,11 +234,9 @@ module.exports = {
         streak.lastDate = today;
         data.puzzleStreaks[userId] = streak;
 
-        reward = puzzle.reward;
-        if (streak.current > 1) {
-          reward *= streak.current;
-          streakMsg = `🔥 ${streak.current}-day streak! Your reward is multiplied by **${streak.current}**!`;
-        }
+        const r = streakReward(puzzle.reward, streak.current);
+        reward = r.total;
+        streakMsg = streakMessage(streak.current, r);
 
         puzzle.solvedBy.push(userId);
         nestcoins.addCoins(guildId, userId, reward);
@@ -261,10 +249,11 @@ module.exports = {
       if (puzzle.code.toLowerCase() !== code.toLowerCase())
         return interaction.reply({ content: '❌ Wrong code.', flags: 64 });
 
-      return interaction.reply({
+      await interaction.reply({
         content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`,
         flags: 64,
       });
+      return achievements.announce(interaction, [userId]);
     }
   },
 };

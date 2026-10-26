@@ -3,6 +3,7 @@ const {
   PermissionFlagsBits,
   EmbedBuilder,
 } = require('discord.js');
+const achievements = require('../services/achievements');
 const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
 
@@ -299,7 +300,8 @@ module.exports = {
         result = `✅ You have registered for **${event.name}**!`;
       });
 
-      return interaction.reply({ content: result, flags: 64 });
+      await interaction.reply({ content: result, flags: 64 });
+      return achievements.announce(interaction, [userId]);
     }
 
     // --- FINISH ---
@@ -343,9 +345,10 @@ module.exports = {
       // Pay the winner
       nestcoins.addCoins(guildId, winner.id, prize);
 
-      return interaction.reply(
+      await interaction.reply(
         `🏆 **Event Ended!**\nEvent: **${eventName}**\nWinner: ${winner} has received **${prize} NestCoins**! 🎉`,
       );
+      return achievements.announce(interaction, [winner.id]);
     }
 
     // --- LEAVE ---
@@ -707,7 +710,15 @@ module.exports = {
         }
       }
 
-      return interaction.reply({ content: result });
+      await interaction.reply({ content: result });
+      if (announcement) {
+        await achievements.announce(interaction, [
+          announcement.winnerId,
+          announcement.runnerUpId,
+          ...announcement.thirdPlaceIds,
+        ]);
+      }
+      return;
     }
 
     // --- BRACKET ---

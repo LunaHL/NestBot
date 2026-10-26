@@ -1,23 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const nestcoins = require('../services/nestcoins');
 const gag = require('../services/gag');
-const history = require('../services/history');
 const db = require('../utils/db');
+const { getUserStats } = require('../services/stats');
+const achievements = require('../services/achievements');
 
-const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December'];
-
-function localDate(offsetDays = 0) {
-  const d = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-  d.setDate(d.getDate() + offsetDays);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// A stored streak only counts if it was continued today or yesterday
-function liveStreak(lastDate, count) {
-  return lastDate === localDate(0) || lastDate === localDate(-1) ? count || 0 : 0;
-}
 
 function getBirthday(guildId, userId) {
   const birthdays = db.read(d => d.birthdays?.[guildId] || {});
@@ -28,51 +16,6 @@ function getBirthday(guildId, userId) {
     }
   }
   return 'Not set';
-}
-
-function getPuzzleStats(userId) {
-  const today = localDate(0);
-  const puzzles = Object.entries(history.allPuzzles()).filter(([date]) => date <= today);
-  const solved = puzzles.filter(([, p]) => p.solvedBy?.includes(userId)).length;
-  const s = db.read(d => d.puzzleStreaks?.[userId]) || {};
-  return {
-    solved,
-    total: puzzles.length,
-    streak: liveStreak(s.lastDate, s.current),
-    best: s.best || 0,
-  };
-}
-
-function getNestwordStats(userId) {
-  let played = 0;
-  let solved = 0;
-  let triesOnSolved = 0;
-  for (const day of Object.values(history.allNestwordDays())) {
-    const tries = day.guesses?.[userId];
-    if (!tries) continue;
-    played++;
-    if (day.solvedBy?.includes(userId)) {
-      solved++;
-      triesOnSolved += tries;
-    }
-  }
-  const u = db.read(d => d.nestwordUsers?.[userId]) || {};
-  return {
-    played,
-    solved,
-    winRate: played ? Math.round((solved / played) * 100) : 0,
-    avgTries: solved ? (triesOnSolved / solved).toFixed(1) : '–',
-    streak: liveStreak(u.lastDate, u.streakCount),
-    best: u.bestStreak || 0,
-  };
-}
-
-function getEventStats(guildId, userId) {
-  const events = history.allEvents(guildId);
-  return {
-    joined: events.filter(e => e.participants?.includes(userId)).length,
-    won: events.filter(e => e.winnerId === userId).length,
-  };
 }
 
 module.exports = {
@@ -90,59 +33,68 @@ module.exports = {
     const guildId = interaction.guildId;
     const userId = targetUser.id;
 
-    // Coins + rank
-    const balance = nestcoins.getBalance(guildId, userId);
-    const sorted = nestcoins
-      .getAllBalances(guildId)
-      .filter(e => e[1] > 0)
-      .sort((a, b) => b[1] - a[1]);
-    const rankIndex = sorted.findIndex(e => e[0] === userId);
-    const rankText = rankIndex === -1 ? 'Unranked' : `**#${rankIndex + 1}** / ${sorted.length}`;
-
-    const puzzle = getPuzzleStats(userId);
-    const word = getNestwordStats(userId);
-    const events = getEventStats(guildId, userId);
-    const pics = db.read(d => d.pictracker?.[guildId]?.users?.[userId]) || 0;
+    // Award anything already earned before showing the badges
+    const fresh = achievements.checkAchievements(guildId, userId);
+    const s = getUserStats(guildId, userId);
     const gagMs = gag.getRemainingMs(guildId, userId);
+
+    const have = achievements.getUnlocked(guildId, userId);
+    const badges = achievements.ACHIEVEMENTS.filter(a => have[a.id]);
+    const total = achievements.ACHIEVEMENTS.length;
 
     const embed = new EmbedBuilder()
       .setTitle(`Profile for ${member?.displayName || targetUser.username}`)
       .setThumbnail(targetUser.displayAvatarURL())
       .setColor('#5865F2')
       .addFields(
-        { name: '💰 NestCoins', value: `**${balance}**`, inline: true },
-        { name: '🏆 Rank', value: rankText, inline: true },
+        { name: '💰 NestCoins', value: `**${s.balance}**`, inline: true },
+        { name: '🏆 Rank', value: s.rank ? `**#${s.rank}** / ${s.rankedCount}` : 'Unranked', inline: true },
         { name: '🎂 Birthday', value: getBirthday(guildId, userId), inline: true },
         {
           name: '🧩 Puzzles',
-          value:
-            `Solved **${puzzle.solved}** / ${puzzle.total}\n` +
-            `🔥 Streak **${puzzle.streak}** (best ${puzzle.best})`,
+          value: `Solved **${s.puzzle.solved}** / ${s.puzzle.total}\n🔥 Streak **${s.puzzle.streak}** (best ${s.puzzle.best})`,
           inline: true,
         },
         {
           name: '🟩 NestWord',
           value:
-            `Solved **${word.solved}** / ${word.played} played (${word.winRate}%)\n` +
-            `Avg. tries: **${word.avgTries}**\n` +
-            `🔥 Streak **${word.streak}** (best ${word.best})`,
+            `Solved **${s.nestword.solved}** / ${s.nestword.played} played (${s.nestword.winRate}%)\n` +
+            `Avg. tries: **${s.nestword.avgTries}**\n🔥 Streak **${s.nestword.streak}** (best ${s.nestword.best})`,
           inline: true,
         },
         {
-          name: '⚔️ Tournaments',
-          value: `Joined **${events.joined}**\nWon **${events.won}**`,
+          name: '⚔️ Tournaments & Duels',
+          value:
+            `Tournaments: joined **${s.events.joined}**, won **${s.events.won}**\n` +
+            `Duels: **${s.duels.wins}**W / ${s.duels.losses}L`,
           inline: true,
         },
-        { name: '📸 Pictures this week', value: `**${pics}**`, inline: true },
+        {
+          name: '☕ Coffee',
+          value: s.coffee.total
+            ? `**${s.coffee.total}** cups (${s.coffee.today} today)\n🔥 Streak **${s.coffee.streak}**` +
+              (s.coffee.favorite ? `\n❤️ ${s.coffee.favorite.name}` : '')
+            : 'No coffee yet',
+          inline: true,
+        },
+        { name: '📸 Pictures this week', value: `**${s.pictures}**`, inline: true },
+        {
+          name: `🏅 Achievements (${badges.length}/${total})`,
+          value: badges.length
+            ? badges.map(a => a.emoji).join(' ') + '\nSee `/achievements` for details'
+            : 'None yet. See `/achievements`',
+        },
       )
       .setTimestamp();
 
     if (gagMs > 0) {
-      embed.addFields({
-        name: '🔇 Gagged',
-        value: `~${Math.ceil(gagMs / 60000)} min left`,
-        inline: true,
-      });
+      embed.addFields({ name: '🔇 Gagged', value: `~${Math.ceil(gagMs / 60000)} min left`, inline: true });
+    }
+    if (fresh.length) {
+      embed.setDescription(
+        `✨ Just unlocked: ${fresh.map(a => `${a.emoji} ${a.name}`).join(', ')} ` +
+          `(+${fresh.reduce((sum, a) => sum + a.reward, 0)} coins)`,
+      );
     }
 
     await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });

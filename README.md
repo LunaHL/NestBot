@@ -3,13 +3,14 @@
 **Features** 
 
 ### 🤖 AI Personality (Gemini Powered)
-*   **Persona**: Acts as the caretaker of the server. She is helpful but sassy/reluctant (mild tsundere).
+*   **Persona**: Acts as the caretaker of the server: dry, witty and a little sassy, but helpful. Short replies by default.
 *   **Context Aware**: Remembers the last few messages in the channel to hold a conversation.
 *   **Dynamic**: Reacts to the channel vibe (e.g., acts differently in a lab vs. a kitchen).
 *   **Commands**:
     *   Just ping the bot to talk!
     *   `/ai status`: Check AI health, API usage and today's mood.
     *   `/ai roast|compliment|poem <target>`: Pay NestCoins for a roast, a flustered compliment or a poem (refunded if the AI fails).
+    *   `/memory add|list|forget`: Tell NestBot things to remember about you (max 10). It uses them in chat. Nothing is saved unless you add it.
     *   `/ai mood <mood>`: Pay NestCoins to set NestBot's personality for the rest of the day (sweet, grumpy, royal, pirate, sleepy, gremlin, poet).
 
 ### 💰 Economy (NestCoins)
@@ -48,6 +49,27 @@ Full-featured tournament manager built-in (`/event`).
     *   Visual bracket status (`/event bracket`).
     *   Leaderboards/Standings for Swiss format (`/event standings`).
 *   **Prizes**: Automatically distributes NestCoins to the Top 3 winners upon completion.
+
+### ☕ The Nest Café
+*   `/coffee menu` - See the drinks and prices.
+*   `/coffee order <drink>` - Buy yourself a coffee with NestCoins. Random serving lines, latte art, and a 5% "lucky bean" chance that makes it free.
+*   `/coffee gift <user> <drink> [note]` - Treat someone to a coffee.
+*   `/coffee stats [user]` and `/coffee leaderboard` - Cups, streaks, favorite drink, gifts.
+*   Every coffee comes with a premade picture of the cup and its latte art, from `src/assets/coffee-art/` (see the README in that folder). Create them yourself, or once with `npm run coffee-art`, then commit them.
+*   Max 6 cups per person per day. Coffee stats also show in `/profile`, and NestBot knows your coffee habits in chat.
+
+### 🏅 Achievements
+*   30 achievements across puzzles, NestWord, the café, tournaments, duels, gags and Halloween (some secret). Each pays a small coin reward.
+*   Unlocked automatically and announced in chat. `/achievements [user]` shows all of them; `/profile` shows the badges.
+
+### 🤺 Duels
+*   `/duel challenge <opponent> [bet]` - Rock · Paper · Scissors, both bet the same amount (0–500), winner takes all. Ties replay (3 ties = draw, bets returned).
+*   `/duel stats [user]` - Win/loss record.
+
+### 🎃 Halloween (October 31 only)
+*   `/trickortreat` - 3 tries per day: candy coins, a rare jackpot, or tricks (a ghost steals coins, a witch gags you for a minute…).
+*   Café specials (🧪 Witch's Brew, 🩸 Vampire Latte), haunted loot drops twice as often, a spooky NestBot, and a morning announcement in the scoreboard channel.
+*   Test it on any day with `FORCE_HALLOWEEN=true` in `.env`.
 
 ### 🎂 Social & Utility
 *   **Profiles**: `/profile` shows coins, rank, birthday, puzzle and NestWord stats (streaks, win rate, average tries), tournament wins and this week's pictures.

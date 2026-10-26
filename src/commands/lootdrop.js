@@ -7,6 +7,7 @@ const {
 } = require('discord.js');
 const nestcoins = require('../services/nestcoins');
 const db = require('../utils/db');
+const { isHalloween } = require('../utils/time');
 
 async function spawnLootInGuild(guildId, guild) {
   const settings = db.read(data => data.lootdrop?.[guildId]) || { blacklist: [] };
@@ -26,15 +27,18 @@ async function spawnLootInGuild(guildId, guild) {
   if (channels.length === 0) return;
 
   const channel = channels[Math.floor(Math.random() * channels.length)];
-  const coins = Math.floor(Math.random() * 4) + 1;
+  const spooky = isHalloween();
+  const coins = Math.floor(Math.random() * 4) + 1 + (spooky ? 2 : 0);
   const button = new ButtonBuilder()
     .setCustomId('claim_loot')
-    .setLabel('💰 Claim Loot')
+    .setLabel(spooky ? '🎃 Grab it… if you dare' : '💰 Claim Loot')
     .setStyle(ButtonStyle.Success);
   const row = new ActionRowBuilder().addComponents(button);
 
   const msg = await channel.send({
-    content: `💰 **Loot Drop!** A pouch with **${coins} NestCoins** has appeared! First to claim gets it!`,
+    content: spooky
+      ? `🎃 **Haunted Loot!** A cursed pumpkin with **${coins} NestCoins** inside rolled into the room… First to grab it keeps it! 👻`
+      : `💰 **Loot Drop!** A pouch with **${coins} NestCoins** has appeared! First to claim gets it!`,
     components: [row],
   });
 
@@ -86,7 +90,8 @@ async function spawnLoot(client) {
 
 //* Schedules the next loot drop to drop
 function schedule(client) {
-  const dropsPerDay = Math.floor(Math.random() * 6) + 3; // 3–8 per day
+  // 3–8 per day, twice as many on Halloween
+  const dropsPerDay = (Math.floor(Math.random() * 6) + 3) * (isHalloween() ? 2 : 1);
   const interval = !process.env.DEBUG
     ? (24 * 60 * 60 * 1000) / dropsPerDay
     : (4 * 60 * 1000) / dropsPerDay;

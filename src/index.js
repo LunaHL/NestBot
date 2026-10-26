@@ -5,6 +5,7 @@ const db = require('./utils/db');
 const gag = require('./services/gag');
 const ai = require('./services/ai');
 const { startCleanup } = require('./services/cleanup');
+const { startHalloween } = require('./services/halloween');
 const gagRepostLimiter = new Map(); // key: `${guildId}:${userId}` -> { lastPost: number, dropped: number }
 const GAG_REPOST_COOLDOWN_MS = 1200; // bot repost max ~1 per 1.2s per user
 const GAG_DROP_NOTICE_EVERY = 8;     // optional: every 8 dropped msgs, send a small notice
@@ -107,6 +108,8 @@ client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   nestword.initDailyPicker();
   startCleanup();
+  startHalloween(client);
+  ai.checkModels();
   scheduleScoreboard(client);
   for (const scheduler of schedulers) {
     scheduler.schedule(client);
@@ -257,7 +260,15 @@ client.on('messageCreate', async message => {
     }
 
     // 🤖 AI Reply on Ping
-    if (message.mentions.users.has(client.user.id)) {
+    // Only a real @NestBot counts. Replying to one of the bot's messages
+    // (puzzle posts, scoreboards, ...) also "mentions" it, so ignore that,
+    // plus @everyone/@here and role pings.
+    const pinged = message.mentions.has(client.user, {
+      ignoreRepliedUser: true,
+      ignoreEveryone: true,
+      ignoreRoles: true,
+    });
+    if (pinged) {
       await ai.handleMessage(message, client);
       return;
     }

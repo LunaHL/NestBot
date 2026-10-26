@@ -5,6 +5,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
+const achievements = require('../services/achievements');
 const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
 const gag = require('../services/gag');
@@ -184,17 +185,13 @@ module.exports = {
 
         const effect = parseEffectFromText(punishment);
 
+        // Apply effect (e.g., gag). Only once: this used to run twice,
+        // which doubled every wheel gag.
         if (effect?.type === 'gag') {
           gag.gagUser(i.guildId, targetId, effect.durationSec, issuerId);
         }
 
         const visiblePunishment = stripEffectMarker(punishment);
-
-
-        // Apply effect (e.g., gag)
-        if (effect?.type === 'gag') {
-          gag.gagUser(i.guildId, targetId, effect.durationSec, issuerId);
-        }
 
 
         const refreshed = currentList
@@ -216,6 +213,7 @@ module.exports = {
 
         await i.update({ content, components: [disabledRow] });
         collector.stop('done');
+        await achievements.announce(i, [issuerId, targetId]);
       });
 
       collector.on('end', async (_collected, reason) => {
