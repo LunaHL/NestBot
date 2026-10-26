@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../utils/db');
+const nestcoins = require('../services/nestcoins');
 
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 function getLocalDayMonth() {
@@ -7,42 +8,54 @@ function getLocalDayMonth() {
   return `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-// 🥳 Birthday Checker
-function checkBirthdays(client) {
+
+async function checkBirthdays(client) {
   const today = getLocalDayMonth();
   let shouldCheck = true;
 
   db.perform(data => {
     shouldCheck = data.birthdayLastChecked != today;
-    data.birthdayLastChecked = today;
   });
 
   if (!shouldCheck) return;
 
+  let guildsToProcess = [];
   db.perform(data => {
-    for (const guildId of Object.keys(data.birthdays || {})) {
-      const channelId = data.birthdayChannels?.[guildId];
-      if (!channelId) continue;
+    if (data.birthdays) {
+      for (const guildId of Object.keys(data.birthdays)) {
+        guildsToProcess.push({
+          guildId: guildId,
+          channelId: data.birthdayChannels?.[guildId],
+          entries: data.birthdays[guildId]
+        });
+      }
+    }
+  });
 
-      const guild = client.guilds.cache.get(guildId);
-      if (!guild) continue;
+  for (const g of guildsToProcess) {
+    if (!g.channelId) continue;
 
-      const channel = guild.channels.cache.get(channelId);
+    try {
+      const channel = await client.channels.fetch(g.channelId);
       if (!channel) continue;
 
-      for (const entry of Object.values(data.birthdays[guildId])) {
+      for (const entry of Object.values(g.entries)) {
         if (entry.date === today) {
           if (entry.userId) {
-            nestcoins.addCoins(guildId, entry.userId, 200);
-            channel.send(
-              `🎉 Happy Birthday <@${entry.userId}>! 🎂 You received **200 NestCoins**!`,
-            );
+            nestcoins.addCoins(g.guildId, entry.userId, 200);
+            await channel.send(`🎉 Happy Birthday <@${entry.userId}>! 🎂 You received **200 NestCoins**!`);
           } else {
-            channel.send(`🎉 Happy Birthday **${entry.name}**! 🎂`);
+            await channel.send(`🎉 Happy Birthday **${entry.name}**! 🎂`);
           }
         }
       }
+    } catch (error) {
+      console.error(`Error generating the automatic announcement:`, error);
     }
+  }
+
+  db.perform(data => {
+    data.birthdayLastChecked = today;
   });
 }
 
@@ -107,6 +120,11 @@ module.exports = {
             .setDescription('The channel to post birthday messages in')
             .setRequired(true),
         ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('announce')
+        .setDescription('Manually check and announce today\'s birthdays (Admins only)')
     ),
 
   async execute(interaction) {
@@ -313,6 +331,70 @@ module.exports = {
         content: `✅ Birthday channel set to ${channel}`,
         flags: 64,
       });
+    }
+    if (sub === 'announce') {
+      const isAdmin = interaction.memberPermissions?.has(
+        PermissionFlagsBits.Administrator,
+      );
+      
+      if (!isAdmin) {
+        return interaction.reply({
+          content: '❌ You need to be an administrator to use this subcommand.',
+          flags: 64,
+        });
+      }
+
+      const today = getLocalDayMonth();
+      let announcedCount = 0;
+
+      db.perform(data => {
+        const channelId = data.birthdayChannels?.[guildId];
+        if (!channelId) {
+          return interaction.reply({
+            content: '❌ No birthday channel set! Use `/birthday channel` first.',
+            flags: 64,
+          });
+        }
+
+        const channel = interaction.guild.channels.cache.get(channelId);
+        if (!channel) {
+          return interaction.reply({
+            content: '❌ Birthday channel not found or deleted.',
+            flags: 64,
+          });
+        }
+
+        const guildBirthdays = data.birthdays?.[guildId] || {};
+        
+        for (const entry of Object.values(guildBirthdays)) {
+          if (entry.date === today) {
+            if (entry.userId) {
+              // Hinweis: Ich habe die NestCoins hier absichtlich weggelassen, 
+              // damit man durch mehrfaches "manuelles Announcen" kein Geld farmen kann.
+              // Wenn du das möchtest, entferne die // vor der nächsten Zeile:
+              // nestcoins.addCoins(guildId, entry.userId, 200);
+              
+              channel.send(`🎉 Happy Birthday <@${entry.userId}>! 🎂 (Manual Announcement)`);
+            } else {
+              channel.send(`🎉 Happy Birthday **${entry.name}**! 🎂 (Manual Announcement)`);
+            }
+            announcedCount++;
+          }
+        }
+
+        if (announcedCount === 0) {
+          return interaction.reply({
+            content: `🤷‍♂️ Nobody has a birthday today (${today}).`,
+            flags: 64,
+          });
+        } else {
+          return interaction.reply({
+            content: `✅ Successfully announced ${announcedCount} birthday(s) for today!`,
+            flags: 64,
+          });
+        }
+      });
+      return;
     }
   },
   schedule: schedule,
