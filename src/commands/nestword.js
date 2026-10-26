@@ -43,8 +43,27 @@ const loadWordlist = () => {
 };
 const saveWordlist = wl => {
   _cachedWordlist = wl;
-  fs.writeFileSync(WORDLIST_PATH, JSON.stringify(wl, null, 2));
+  // temp file + rename so a crash can't leave a half-written wordlist
+  const tmp = WORDLIST_PATH + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(wl, null, 2));
+  fs.renameSync(tmp, WORDLIST_PATH);
 };
+
+// Drop usedWords entries older than the cooldown (they no longer block anything).
+// Returns how many were removed.
+function pruneUsedWords() {
+  const wl = loadWordlist();
+  if (!Array.isArray(wl.usedWords)) return 0;
+  const cd = wl.config?.cooldownDays ?? 30;
+  const cutoff = nowInTZ();
+  cutoff.setDate(cutoff.getDate() - cd - 1);
+  const cutoffYMD = ymd(cutoff);
+  const before = wl.usedWords.length;
+  wl.usedWords = wl.usedWords.filter(e => e.date >= cutoffYMD);
+  const removed = before - wl.usedWords.length;
+  if (removed > 0) saveWordlist(wl);
+  return removed;
+}
 
 function parseBulkWords(input) {
   return input
@@ -184,6 +203,7 @@ function initDailyPicker() {
 // -------------- Slash Commands --------------
 module.exports = {
   initDailyPicker,
+  pruneUsedWords,
 
   data: new SlashCommandBuilder()
     .setName('nestword')

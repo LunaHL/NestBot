@@ -1,6 +1,9 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
+const history = require('../services/history');
+
+const HISTORY_PAGE_SIZE = 10;
 
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 const ymd = d =>
@@ -65,6 +68,17 @@ module.exports = {
         .setDescription('Solve today’s puzzle')
         .addStringOption(opt =>
           opt.setName('code').setDescription('Solve code').setRequired(true),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('history')
+        .setDescription('Show past puzzles')
+        .addUserOption(opt =>
+          opt.setName('user').setDescription('Show which ones this user solved'),
+        )
+        .addIntegerOption(opt =>
+          opt.setName('page').setDescription('Page number').setMinValue(1),
         ),
     ),
 
@@ -148,6 +162,47 @@ module.exports = {
         `🔥 Streak: ${streak.current} (Best: ${streak.best})`;
 
       return interaction.reply({ content: msg });
+    }
+
+    // ==== /puzzle history ====
+    if (sub === 'history') {
+      const user = interaction.options.getUser('user');
+      const today = getToday();
+
+      // Past and today's puzzles only; queued future puzzles stay secret
+      const entries = Object.entries(history.allPuzzles())
+        .filter(([date]) => date <= today)
+        .sort(([a], [b]) => b.localeCompare(a));
+
+      if (entries.length === 0)
+        return interaction.reply({ content: '📭 No puzzles yet.', flags: 64 });
+
+      const pages = Math.ceil(entries.length / HISTORY_PAGE_SIZE);
+      const page = Math.min(interaction.options.getInteger('page') || 1, pages);
+      const slice = entries.slice(
+        (page - 1) * HISTORY_PAGE_SIZE,
+        page * HISTORY_PAGE_SIZE,
+      );
+
+      const lines = slice.map(([date, p]) => {
+        const solvers = p.solvedBy?.length || 0;
+        const mark = user ? (p.solvedBy?.includes(user.id) ? '✅ ' : '❌ ') : '';
+        return (
+          `${mark}**${date}** · ${p.difficulty} · ${solvers} solver${solvers === 1 ? '' : 's'}` +
+          ` · [link](<${p.link}>)`
+        );
+      });
+
+      let header = `🧩 **Puzzle History** (page ${page}/${pages})`;
+      if (user) {
+        const solved = entries.filter(([, p]) => p.solvedBy?.includes(user.id)).length;
+        header += `\n👤 **${user.username}** solved **${solved}** of ${entries.length}`;
+      }
+
+      return interaction.reply({
+        content: `${header}\n\n${lines.join('\n')}`,
+        allowedMentions: { parse: [] },
+      });
     }
 
     // ==== /puzzle solve ====

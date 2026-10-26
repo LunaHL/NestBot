@@ -37,17 +37,16 @@ function ungagUser(guildId, targetId) {
 }
 
 function getGagInfo(guildId, targetId) {
-  let info = null;
-  db.perform(data => {
-    const g = data.gags?.[guildId] || {};
-    info = g[targetId] || null;
+  // Read-only on the hot path (runs for every message); only save when
+  // an expired gag actually needs removing.
+  const info = db.read(data => data.gags?.[guildId]?.[targetId] || null);
 
-    // Auto-cleanup if expired
-    if (info?.until && info.until <= _now()) {
-      delete g[targetId];
-      info = null;
-    }
-  });
+  if (info?.until && info.until <= _now()) {
+    db.perform(data => {
+      delete data.gags?.[guildId]?.[targetId];
+    });
+    return null;
+  }
   return info;
 }
 

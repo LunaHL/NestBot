@@ -8,65 +8,79 @@ const {
 const nestcoins = require('../services/nestcoins');
 const db = require('../utils/db');
 
-let activeDrop = null;
+async function spawnLootInGuild(guildId, guild) {
+  const settings = db.read(data => data.lootdrop?.[guildId]) || { blacklist: [] };
+  const me = guild.members.me;
+
+  // Only text channels the bot can actually post in
+  const channels = guild.channels.cache
+    .filter(
+      c =>
+        c.isTextBased() &&
+        !c.isThread() &&
+        !settings.blacklist.includes(c.id) &&
+        me?.permissionsIn(c).has(['ViewChannel', 'SendMessages']),
+    )
+    .map(c => c);
+
+  if (channels.length === 0) return;
+
+  const channel = channels[Math.floor(Math.random() * channels.length)];
+  const coins = Math.floor(Math.random() * 4) + 1;
+  const button = new ButtonBuilder()
+    .setCustomId('claim_loot')
+    .setLabel('💰 Claim Loot')
+    .setStyle(ButtonStyle.Success);
+  const row = new ActionRowBuilder().addComponents(button);
+
+  const msg = await channel.send({
+    content: `💰 **Loot Drop!** A pouch with **${coins} NestCoins** has appeared! First to claim gets it!`,
+    components: [row],
+  });
+
+  // State belongs to this one drop, so drops in different servers
+  // (or overlapping drops) can't interfere with each other.
+  let claimed = false;
+  const collector = msg.createMessageComponentCollector({ time: 300000 });
+
+  collector.on('collect', async i => {
+    if (i.customId !== 'claim_loot') return;
+    if (claimed) {
+      return i
+        .reply({ content: '😢 Too slow, someone already took it!', flags: 64 })
+        .catch(() => {});
+    }
+    // Mark as claimed BEFORE any await, so a second click can't also get paid
+    claimed = true;
+    collector.stop('claimed');
+    nestcoins.addCoins(i.guildId, i.user.id, coins);
+
+    await i
+      .reply({ content: `🎉 You claimed **${coins} NestCoins!**`, flags: 64 })
+      .catch(() => {});
+    await msg
+      .edit({
+        content: `🏆 **${i.user.username}** claimed the loot!`,
+        components: [],
+      })
+      .catch(() => {});
+  });
+
+  collector.on('end', async () => {
+    if (claimed) return;
+    await msg
+      .edit({ content: '⌛ The loot vanished into thin air.', components: [] })
+      .catch(() => {});
+  });
+}
 
 async function spawnLoot(client) {
   for (const [guildId, guild] of client.guilds.cache) {
-    let settings;
-    db.perform(data => {
-      data.lootdrop ||= {};
-      data.lootdrop[guildId] ||= { blacklist: [] };
-      settings = data.lootdrop[guildId];
-    });
-    const channels = guild.channels.cache
-      .filter(c => c.isTextBased() && !c.isThread() && !settings.blacklist.includes(c.id))
-      .map(c => c.id);
-
-    if (channels.length === 0) continue;
-
-    const channelId = channels[Math.floor(Math.random() * channels.length)];
-    const channel = await guild.channels.fetch(channelId).catch(() => null);
-    if (!channel) continue;
-
-    const coins = Math.floor(Math.random() * 4) + 1;
-    const button = new ButtonBuilder()
-      .setCustomId('claim_loot')
-      .setLabel('💰 Claim Loot')
-      .setStyle(ButtonStyle.Success);
-    const row = new ActionRowBuilder().addComponents(button);
-
-    const msg = await channel.send({
-      content: `💰 **Loot Drop!** A pouch with **${coins} NestCoins** has appeared! First to claim gets it!`,
-      components: [row],
-    });
-
-    activeDrop = { guildId, msgId: msg.id, coins };
-
-    const collector = msg.createMessageComponentCollector({ time: 300000 });
-    collector.on('collect', async i => {
-      if (i.customId !== 'claim_loot' || activeDrop === null) return;
-      nestcoins.addCoins(i.guildId, i.user.id, activeDrop.coins);
-      await i.reply({
-        content: `🎉 You claimed **${activeDrop.coins} NestCoins!**`,
-        ephemeral: true,
-      });
-      await msg.edit({
-        content: `🏆 **${i.user.username}** claimed the loot!`,
-        components: [],
-      });
-      activeDrop = null;
-      collector.stop();
-    });
-
-    collector.on('end', async () => {
-      if (activeDrop) {
-        await msg.edit({
-          content: '⌛ The loot vanished into thin air.',
-          components: [],
-        });
-        activeDrop = null;
-      }
-    });
+    try {
+      await spawnLootInGuild(guildId, guild);
+    } catch (e) {
+      console.error(`[LootDrop] Failed in guild ${guildId}:`, e);
+    }
   }
 }
 

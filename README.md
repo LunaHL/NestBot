@@ -8,7 +8,9 @@
 *   **Dynamic**: Reacts to the channel vibe (e.g., acts differently in a lab vs. a kitchen).
 *   **Commands**:
     *   Just ping the bot to talk!
-    *   `/ai status`: Check AI health and API usage.
+    *   `/ai status`: Check AI health, API usage and today's mood.
+    *   `/ai roast|compliment|poem <target>`: Pay NestCoins for a roast, a flustered compliment or a poem (refunded if the AI fails).
+    *   `/ai mood <mood>`: Pay NestCoins to set NestBot's personality for the rest of the day (sweet, grumpy, royal, pirate, sleepy, gremlin, poet).
 
 ### 💰 Economy (NestCoins)
 *   **Currency**: NestCoins are the server's currency.
@@ -29,7 +31,7 @@
     *   `/nestword guess`, `/nestword info`.
 *   **Puzzle of the Day**:
     *   Solve a daily riddle or code.
-    *   `/puzzle solve`, `/puzzle info`.
+    *   `/puzzle solve`, `/puzzle info`, `/puzzle history [user]`.
 *   **Punishment Wheel**:
     *   Spin the wheel for random outcomes (`/wheel spin`).
     *   Can target other users (costs coins).
@@ -48,7 +50,7 @@ Full-featured tournament manager built-in (`/event`).
 *   **Prizes**: Automatically distributes NestCoins to the Top 3 winners upon completion.
 
 ### 🎂 Social & Utility
-*   **Profiles**: View your rank, balance, and birthday with `/profile`.
+*   **Profiles**: `/profile` shows coins, rank, birthday, puzzle and NestWord stats (streaks, win rate, average tries), tournament wins and this week's pictures.
 *   **Birthdays**:
     *   Track user birthdays (`/birthday add`).
     *   Automated announcements and coin gifts on your special day.
@@ -75,6 +77,7 @@ Full-featured tournament manager built-in (`/event`).
 ### Games
 *   `/nestword guess <word>` - Play the daily word game.
 *   `/puzzle solve <code>` - Solve the daily puzzle.
+*   `/puzzle history [user] [page]` - Browse past puzzles.
 *   `/wheel spin [target]` - Spin the punishment wheel.
 
 ### Events
@@ -113,3 +116,7 @@ Minor:
 Major: 
 - Changed the gamble odds
 - Added Loot Drops
+
+## 💾 Data & Archive
+*   Live data is in `src/data/nestbot.json`. It's saved safely (temp file + rename) and backed up daily to `src/data/backups/` (last 7 kept).
+*   Every hour, NestWord days and puzzles older than 7 days, and tournaments finished more than 30 days ago, are moved to `src/data/archive/` (one file per month) to keep the main file small. Nothing is deleted except expired gags and old entries of NestWord's used-words list.

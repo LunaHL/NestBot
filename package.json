@@ -11,8 +11,11 @@
     "commands": "node src/deploy-commands.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "discord.js": "^14.22.1",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.2.2"
+  },
+  "devDependencies": {
     "prettier": "^3.6.2"
   }
 }

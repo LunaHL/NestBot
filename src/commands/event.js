@@ -212,8 +212,12 @@ module.exports = {
         data.events[guildId] = data.events[guildId] || [];
         const events = data.events[guildId];
 
-        // Simple ID generation
-        id = events.length + 1;
+        // Next ID after the highest ever used (old finished events get cleaned up,
+        // so events.length would reuse IDs)
+        data.eventNextId = data.eventNextId || {};
+        const maxExisting = events.reduce((m, e) => Math.max(m, e.id || 0), 0);
+        id = Math.max(data.eventNextId[guildId] || 1, maxExisting + 1);
+        data.eventNextId[guildId] = id + 1;
 
         events.push({
           id,
@@ -322,6 +326,8 @@ module.exports = {
         if (!event) return;
 
         event.active = false; // Mark as finished
+        event.endedAt = Date.now();
+        event.winnerId = winner.id;
         eventName = event.name;
         prize = event.prize;
         success = true;
@@ -609,6 +615,7 @@ module.exports = {
             // Tournament Finished
             tournamentFinished = true;
             event.active = false;
+            event.endedAt = Date.now();
 
             let winnerId,
               runnerUpId,
@@ -640,6 +647,7 @@ module.exports = {
             const p2 = Math.floor(p1 * 0.5);
             const p3 = Math.floor(p1 * 0.25);
 
+            event.winnerId = winnerId; // used by /profile
             payouts.push({ id: winnerId, amount: p1 });
             if (runnerUpId) payouts.push({ id: runnerUpId, amount: p2 });
             thirdPlaceIds.forEach(uid => payouts.push({ id: uid, amount: p3 }));
