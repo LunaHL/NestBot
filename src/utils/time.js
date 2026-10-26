@@ -4,11 +4,16 @@ const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 /** Current date/time as seen in the server's time zone. */
 const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
 
+/** Format a Date as "YYYY-MM-DD". */
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** "YYYY-MM-DD" for today (offsetDays = -1 for yesterday, etc.). */
 function localDate(offsetDays = 0) {
   const d = nowInTZ();
   d.setDate(d.getDate() + offsetDays);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return formatDate(d);
 }
 
 /** True on October 31 in the server's time zone. FORCE_HALLOWEEN=true in .env to test. */
@@ -27,4 +32,4 @@ function daysUntilHalloween() {
   return Math.round((target - now) / 86400000);
 }
 
-module.exports = { TZ, nowInTZ, localDate, isHalloween, daysUntilHalloween };
+module.exports = { TZ, nowInTZ, formatDate, localDate, isHalloween, daysUntilHalloween };

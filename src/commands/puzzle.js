@@ -4,6 +4,10 @@ const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
 const history = require('../services/history');
 const { streakReward, streakMessage } = require('../utils/streak');
+const { nowInTZ, formatDate: ymd, localDate } = require('../utils/time');
+
+const getToday = () => localDate(0);
+const getYesterday = () => localDate(-1);
 
 const HISTORY_PAGE_SIZE = 10;
 
