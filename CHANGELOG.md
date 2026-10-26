@@ -11,6 +11,7 @@
 - 🧩 `/puzzle history`, much bigger `/profile`
 - 💾 Archive for old data, daily backups, crash-safe saving
 - 🧪 `npm test` smoke test
+- ❓ `/help`: all features explained, by category, with a command search
 
 **Changed**
 - Puzzle and NestWord streaks: +10% per day (max +50%) plus milestone bonuses, instead of multiplying the reward by the streak

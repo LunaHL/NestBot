@@ -23,6 +23,7 @@ chat with by pinging `@NestBot`.
 | 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag` |
 | 🎂 **Social** | `/birthday` announcements with coins, `/pictracker` weekly picture leaderboard |
 | 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
+| ❓ **Help** | `/help` explains everything in Discord, with categories and a command search |
 
 ---
 
@@ -88,6 +89,7 @@ See [`tests/README.md`](tests/README.md).
 | What | Where |
 |---|---|
 | Café drinks, prices, serving lines, cup limit | `src/config/coffeeMenu.js` |
+| Texts of `/help` | `src/config/help.js` |
 | Coffee pictures | `src/assets/coffee-art/` ([README](src/assets/coffee-art/README.md)) |
 | AI personality, moods | `src/services/ai.js` (`buildSystemPrompt`, `MOODS`) |
 | Prices for roast / compliment / poem / mood | `src/commands/ai.js` (`PRICES`) |

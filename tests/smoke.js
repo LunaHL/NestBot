@@ -191,6 +191,23 @@ console.log = () => {}; // keep the output short
     }
   }
 
+  // Autocomplete (suggestions while typing), for commands that have it
+  for (const cmd of commands.filter(c => c.autocomplete)) {
+    count++;
+    try {
+      await cmd.autocomplete({
+        client,
+        commandName: cmd.data.name,
+        options: { getFocused: () => 'co' },
+        respond: async () => {},
+      });
+    } catch (e) {
+      problems.push(
+        `/${cmd.data.name} autocomplete: ${e.constructor.name}: ${e.message}`,
+      );
+    }
+  }
+
   // Event handlers + background jobs
   try {
     require(path.join(ROOT, 'src/events/ready'))(client);

@@ -4,6 +4,7 @@ Content that's meant to be edited without touching the code around it.
 
 | File | What's in it |
 |---|---|
+| `help.js` | The texts of `/help`: the categories (which commands go where, intro texts, notes about automatic features) and an explanation per command, including which subcommands are admin-only |
 | `coffeeMenu.js` | The café: every drink (name, emoji, price, serving lines, picture description), latte art designs, the daily cup limit, lucky bean and latte art chances, and the jittery / cut-off lines |
 
 After changing anything here, restart the bot. If you add a drink or a latte

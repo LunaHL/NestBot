@@ -1,5 +1,19 @@
 // Runs every slash command: finds the command by name and calls its execute().
+// Also answers "autocomplete" requests (suggestions while typing an option),
+// for commands that export an autocomplete() function, like /help.
 module.exports = async function onInteraction(interaction) {
+  if (interaction.isAutocomplete?.()) {
+    const command = interaction.client.commands.get(interaction.commandName);
+    try {
+      await command?.autocomplete?.(interaction);
+    } catch (e) {
+      console.error(
+        `❌ Autocomplete for /${interaction.commandName} failed:`,
+        e,
+      );
+    }
+    return;
+  }
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.client.commands.get(interaction.commandName);

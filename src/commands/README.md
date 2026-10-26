@@ -104,6 +104,17 @@ Chatting with `@NestBot` isn't a command; it's handled in
 | `pictracker.js` | `/pictracker show` | This week's picture leaderboard |
 | | `/pictracker setchannel` 🔒 / `reset` 🔒 | Which channel to count; reset the week |
 
+## ❓ Help
+
+| File | Command | What it does |
+|---|---|---|
+| `help.js` | `/help` | Overview of all features, with a dropdown per category |
+| | `/help category:` | One category straight away |
+| | `/help command:` | One command in detail: subcommands, options, 🔒 admin parts. Suggests matches while typing (searches names and explanations) |
+
+The explanations are in `config/help.js`; subcommands and options are read
+from the command files, so they're always current.
+
 ## 🎃 Halloween
 
 | File | Command | What it does |
@@ -128,8 +139,11 @@ Chatting with `@NestBot` isn't a command; it's handled in
      },
    };
    ```
-2. Run `npm test` to make sure nothing crashes.
-3. Restart the bot. The command shows up in Discord within a minute.
+2. Add it to `/help`: put its name in a category in `config/help.js` and
+   write an `explain` text in `COMMANDS` (mark admin-only subcommands there).
+   If you skip this, it still shows up in `/help` under "Other".
+3. Run `npm test` to make sure nothing crashes.
+4. Restart the bot. The command shows up in Discord within a minute.
 
 Useful building blocks:
 - **Coins:** `services/nestcoins.js` (`getBalance`, `addCoins`, `removeCoins`)
