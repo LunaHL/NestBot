@@ -1,8 +1,10 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const achievements = require('../services/achievements');
 const db = require('../utils/db');
 const fs = require('fs');
 const path = require('path');
 const nestcoins = require('../services/nestcoins');
+const { streakReward, streakMessage } = require('../utils/streak');
 
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -367,12 +369,10 @@ module.exports = {
           u.bestStreak = Math.max(u.bestStreak || 0, u.streakCount);
           u.totalSolved = (u.totalSolved || 0) + 1;
 
-          let coins = daily.reward;
-          let streakMsg = '';
-          if (u.streakCount > 1) {
-            coins *= u.streakCount;
-            streakMsg = `\n🔥 **${u.streakCount}-day streak!** Reward multiplied by **${u.streakCount}**!`;
-          }
+          const r = streakReward(daily.reward, u.streakCount);
+          const coins = r.total;
+          const msg = streakMessage(u.streakCount, r);
+          const streakMsg = msg ? `\n${msg}` : '';
 
           const newBalance = nestcoins.addCoins(guildId, userId, coins);
 
@@ -385,7 +385,8 @@ module.exports = {
         data.nestwordDaily[today] = daily;
       });
 
-      return interaction.reply({ content: replyContent, flags: 64 });
+      await interaction.reply({ content: replyContent, flags: 64 });
+      return achievements.announce(interaction, [userId]);
     }
 
     // ---------------- /nestword info ----------------

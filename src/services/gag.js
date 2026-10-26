@@ -24,6 +24,14 @@ function gagUser(guildId, targetId, durationSec, byUserId) {
       by: byUserId,
       updatedAt: _now(),
     };
+
+    // Lifetime counters (for achievements). Self-gags count as received only.
+    data.gagStats ||= {};
+    const stats = (data.gagStats[guildId] ||= {});
+    (stats[targetId] ||= { received: 0, given: 0 }).received++;
+    if (byUserId && byUserId !== targetId) {
+      (stats[byUserId] ||= { received: 0, given: 0 }).given++;
+    }
   });
 
   return getGagInfo(guildId, targetId);

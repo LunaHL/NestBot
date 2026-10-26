@@ -3,6 +3,7 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
 } = require('discord.js');
+const achievements = require('../services/achievements');
 const nestcoins = require('../services/nestcoins');
 const gag = require('../services/gag');
 const db = require('../utils/db');
@@ -240,7 +241,8 @@ module.exports = {
         });
       }
 
-      return interaction.reply({ embeds: [embed] });
+      await interaction.reply({ embeds: [embed] });
+      return achievements.announce(interaction, [userId, targetUser?.id]);
     }
   },
 };
