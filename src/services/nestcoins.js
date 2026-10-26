@@ -7,25 +7,19 @@ function ensureWallet(data, guildId) {
 }
 
 function getBalance(guildId, userId) {
-  let balance = 0;
-  db.perform(data => {
-    const wallet = ensureWallet(data, guildId);
-    const v = wallet[userId];
-    balance = Number.isInteger(v) ? v : 0;
+  return db.read(data => {
+    const v = data.nestcoins?.[guildId]?.[userId];
+    return Number.isInteger(v) ? v : 0;
   });
-  return balance;
 }
 
 function getAllBalances(guildId) {
-  let entries = [];
-  db.perform(data => {
-    const wallet = ensureWallet(data, guildId);
-    entries = Object.entries(wallet).map(([userId, amt]) => [
+  return db.read(data =>
+    Object.entries(data.nestcoins?.[guildId] || {}).map(([userId, amt]) => [
       userId,
       Number.isInteger(amt) ? amt : 0,
-    ]);
-  });
-  return entries;
+    ]),
+  );
 }
 
 function addCoins(guildId, userId, amount) {

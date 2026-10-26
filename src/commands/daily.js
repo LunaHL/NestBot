@@ -44,6 +44,14 @@ module.exports = {
     });
 
     if (!canClaim) {
+      // Time until the next local midnight
+      const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const msLeft = midnight - now;
+      const hours = Math.floor(msLeft / 3600000);
+      const mins = Math.floor((msLeft % 3600000) / 60000);
+
       return interaction.reply({
         content: `⏳ You already claimed your daily. Come back in **${hours}h ${mins}m**.`,
         flags: 64,

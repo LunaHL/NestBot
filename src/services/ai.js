@@ -31,8 +31,125 @@ const getToday = () => {
 };
 
 // ==========================================
+// 🎭 DAILY MOOD (bought with /ai mood)
+// ==========================================
+
+const MOODS = {
+  sweet: {
+    label: '🍬 Super Sweet',
+    prompt: 'You are in an unusually sweet mood. Drop the tsundere act completely: be warm, cheerful and openly affectionate to everyone, with lots of encouragement.',
+  },
+  grumpy: {
+    label: '💢 Extra Grumpy',
+    prompt: 'You are extra grumpy today. Maximum tsundere: complain about everything, sigh dramatically, call people "baka" a lot — but still help them in the end.',
+  },
+  royal: {
+    label: '👑 Royal Highness',
+    prompt: 'Today you are royalty. Speak like a dramatic, pompous queen, refer to yourself as "We", and call members your (beloved) subjects.',
+  },
+  pirate: {
+    label: '🏴‍☠️ Pirate',
+    prompt: 'Today you talk like a pirate captain. The Nest is your ship, NestCoins are your treasure, and members are your crew.',
+  },
+  sleepy: {
+    label: '😴 Sleepy',
+    prompt: 'You are extremely sleepy today. Yawn, trail off mid-sentence, mention wanting a nap, but still answer properly.',
+  },
+  gremlin: {
+    label: '😈 Chaos Gremlin',
+    prompt: 'You are a chaotic gremlin today: hyperactive, mischievous, random tangents, gleeful about pranks and gags. Still answer the question.',
+  },
+  poet: {
+    label: '📜 Poet',
+    prompt: 'Today every answer you give rhymes, like a short poem. Keep it understandable and still answer properly.',
+  },
+};
+
+/** Today's mood for a guild, or null. */
+function getMood(guildId) {
+  const m = db.read(d => d.aiMood?.[guildId]);
+  if (!m || m.date !== getToday() || !MOODS[m.mood]) return null;
+  return { ...m, ...MOODS[m.mood] };
+}
+
+/** Set today's mood. Returns false if one was already bought today. */
+function setMood(guildId, moodKey, userId) {
+  if (getMood(guildId)) return false;
+  db.perform(d => {
+    d.aiMood ||= {};
+    d.aiMood[guildId] = { mood: moodKey, by: userId, date: getToday() };
+  });
+  return true;
+}
+
+function moodPrompt(guildId) {
+  const mood = getMood(guildId);
+  if (!mood) return '';
+  return `\n\nTODAY'S SPECIAL MOOD (a member paid for this; it overrides the default personality where they conflict):\n${mood.prompt}`;
+}
+
+// ==========================================
 // 🛠️ HELPER FUNCTIONS
 // ==========================================
+
+let genAI = null;
+function getClient() {
+  if (!genAI) genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  return genAI;
+}
+
+const SAFETY = [
+  HarmCategory.HARM_CATEGORY_HARASSMENT,
+  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+].map(category => ({ category, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }));
+
+/**
+ * Ask Gemini, trying each model in MODELS with one retry on rate limits.
+ * Throws if every model fails. onRetry is called before a retry wait.
+ */
+async function generate(systemPrompt, prompt, onRetry) {
+  totalRequests++;
+  let lastError = null;
+
+  for (const modelName of MODELS) {
+    try {
+      const model = getClient().getGenerativeModel({
+        model: modelName,
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        safetySettings: SAFETY,
+      });
+
+      for (let retries = 0; ; retries++) {
+        try {
+          const result = await model.generateContent(prompt);
+          const text = result.response.text();
+          if (text) return text;
+          throw new Error('Empty response');
+        } catch (e) {
+          if (e.status === 429 && retries < 1) {
+            const delay = 1500 + Math.random() * 1000;
+            console.warn(`[AI] ${modelName} 429. Retrying in ${Math.floor(delay)}ms...`);
+            if (onRetry) await onRetry();
+            await new Promise(r => setTimeout(r, delay));
+          } else {
+            throw e;
+          }
+        }
+      }
+    } catch (e) {
+      lastError = e;
+      if (e.status === 429) lastRateLimit = Date.now();
+      console.warn(`[AI] Model ${modelName} failed: ${e.message}`);
+    }
+  }
+
+  failedRequests++;
+  throw lastError || new Error('All models failed');
+}
+
+const clip = text => (text.length > 2000 ? text.substring(0, 1997) + '...' : text);
 
 async function fetchContext(message) {
   let contextLog = '';
@@ -111,7 +228,7 @@ You are currently in #${channelName}.
 - If in #hanojs-weird-testing-lab: This is where you were created. You feel at home here, but maybe a bit experimental or technical.
 
 Instructions:
-1. Recognize text enclosed in asterisks (e.g., *waves*) as roleplay actions. Respond to them appropriately and use actions yourself to express your personality (e.g., *sighs*, *looks away*, *blushes*).`;
+1. Recognize text enclosed in asterisks (e.g., *waves*) as roleplay actions. Respond to them appropriately and use actions yourself to express your personality (e.g., *sighs*, *looks away*, *blushes*).${moodPrompt(message.guild.id)}`;
 }
 
 // ==========================================
@@ -127,30 +244,16 @@ async function handleMessage(message, client) {
   await message.channel.sendTyping();
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const userId = message.author.id;
     const guildId = message.guild.id;
-    totalRequests++;
 
-    // 2. Fetch Context & Attachments in parallel
     const contextLog = await fetchContext(message);
-
-    // 3. Fetch Dynamic Data (Shop & Balance)
     const userBalance = nestcoins.getBalance(guildId, userId);
-
-    // 4. Fetch Daily Word
     const today = getToday();
     const dailyWord = db.database.nestwordDaily?.[today]?.answer;
 
-    // 5. Build Prompt
-    const persona = buildSystemPrompt(
-      message,
-      contextLog,
-      userBalance,
-      dailyWord,
-    );
+    const persona = buildSystemPrompt(message, contextLog, userBalance, dailyWord);
 
-    // 4. Prepare Chat
     const prompt = message.content
       .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
       .trim();
@@ -159,62 +262,10 @@ async function handleMessage(message, client) {
       return;
     }
 
-    let response = null;
-    let lastError = null;
-
-    // 5. Try Models (Failover Strategy)
-    for (const modelName of MODELS) {
-      try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: { parts: [{ text: persona }] },
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
-          ],
-        });
-
-        // Retry loop for this specific model
-        let retries = 0;
-        while (true) {
-          try {
-            const result = await model.generateContent(prompt);
-            response = result.response.text();
-            break; // Success
-          } catch (e) {
-            if (e.status === 429 && retries < 1) {
-              retries++;
-              const delay = 1500 + Math.random() * 1000;
-              console.warn(`[AI] ${modelName} 429. Retrying in ${Math.floor(delay)}ms...`);
-              await message.channel.sendTyping().catch(() => {});
-              await new Promise(r => setTimeout(r, delay));
-            } else {
-              throw e;
-            }
-          }
-        }
-        
-        if (response) break; // We got a response, stop trying models
-
-      } catch (e) {
-        lastError = e;
-        if (e.status === 429) lastRateLimit = Date.now();
-        console.warn(`[AI] Model ${modelName} failed: ${e.message}`);
-      }
-    }
-
-    if (!response) {
-      failedRequests++;
-      throw lastError || new Error('All models failed');
-    }
-
-
-    // 8. Reply
-    const replyText =
-      response.length > 2000 ? response.substring(0, 1997) + '...' : response;
-    await message.reply(replyText);
+    const response = await generate(persona, prompt, () =>
+      message.channel.sendTyping().catch(() => {}),
+    );
+    await message.reply(clip(response));
   } catch (error) {
     if (error.status === 429) {
       console.warn('[AI] Rate limit exhausted after retries.');
@@ -228,4 +279,61 @@ async function handleMessage(message, client) {
   }
 }
 
-module.exports = { handleMessage, getStatus };
+// ==========================================
+// 🎁 PAID FUN FEATURES (/ai roast, compliment, poem)
+// ==========================================
+
+const FUN_TASKS = {
+  roast: name =>
+    `Write a short, playful roast of ${name}. Friendly teasing between friends: clever and funny, never actually hurtful. ` +
+    `Do NOT mention appearance, body, weight, race, religion, sexuality, disabilities or anything genuinely sensitive. ` +
+    `Base the jokes on their recent messages if any are given. Max ~100 words.`,
+  compliment: name =>
+    `Give ${name} a heartfelt compliment. You are a tsundere, so you are flustered and a bit embarrassed while doing it, ` +
+    `but the compliment itself is sincere and specific (use their recent messages if any are given). Max ~80 words.`,
+  poem: (name, topic) =>
+    `Write a short, fun poem (4 to 12 lines) about ${name}` +
+    (topic ? ` and this topic: "${topic}"` : '') +
+    `. Use their recent messages for inspiration if any are given. Title it in bold.`,
+};
+
+// The target's latest messages in this channel, as material for the AI
+async function fetchUserMessages(channel, userId) {
+  try {
+    const recent = await channel.messages.fetch({ limit: 50 });
+    return Array.from(recent.values())
+      .filter(m => m.author.id === userId && m.cleanContent)
+      .slice(0, 8)
+      .reverse()
+      .map(m => `- ${m.cleanContent.slice(0, 200)}`)
+      .join('\n');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Generate a roast / compliment / poem. Throws if the AI is unavailable,
+ * so the caller can refund the coins.
+ */
+async function generateFun(kind, { channel, guildId, buyerName, targetName, targetId, topic }) {
+  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is missing');
+  const task = FUN_TASKS[kind];
+  if (!task) throw new Error(`Unknown kind: ${kind}`);
+
+  const userMessages = await fetchUserMessages(channel, targetId);
+  const system =
+    `You are NestBot, a mild tsundere Discord bot and the caretaker of "The Nest", a cozy, slightly chaotic server. ` +
+    `Every user in this server is a girl: never use male pronouns or male honorifics. ` +
+    `Reply with only the requested text, no preamble.` +
+    moodPrompt(guildId);
+
+  const prompt =
+    `${buyerName} paid NestCoins for this.\n` +
+    `Task: ${task(targetName, topic)}\n` +
+    (userMessages ? `\nRecent messages from ${targetName}:\n${userMessages}` : '');
+
+  return clip(await generate(system, prompt));
+}
+
+module.exports = { handleMessage, getStatus, generateFun, getMood, setMood, MOODS };

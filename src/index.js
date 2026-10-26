@@ -4,6 +4,7 @@ const path = require('path');
 const db = require('./utils/db');
 const gag = require('./services/gag');
 const ai = require('./services/ai');
+const { startCleanup } = require('./services/cleanup');
 const gagRepostLimiter = new Map(); // key: `${guildId}:${userId}` -> { lastPost: number, dropped: number }
 const GAG_REPOST_COOLDOWN_MS = 1200; // bot repost max ~1 per 1.2s per user
 const GAG_DROP_NOTICE_EVERY = 8;     // optional: every 8 dropped msgs, send a small notice
@@ -81,15 +82,7 @@ function checkScoreboard(client) {
       const summary = `🧩 **Puzzle Results for ${yesterday}**\n${lines.join('\n')}`;
       channel.send(summary);
     }
-
-    // 🔥 Clean old entries (keep 7 days)
-    const cutoff = Date.now() - 7 * 86400000;
-    for (const [key] of Object.entries(data.nestwordDaily || {})) {
-      if (new Date(key).getTime() < cutoff) delete data.nestwordDaily[key];
-    }
-    for (const [key] of Object.entries(data.puzzles || {})) {
-      if (new Date(key).getTime() < cutoff) delete data.puzzles[key];
-    }
+    // Old entries are removed by services/cleanup.js
   });
 }
 
@@ -113,6 +106,7 @@ const schedulers = [];
 client.on('clientReady', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   nestword.initDailyPicker();
+  startCleanup();
   scheduleScoreboard(client);
   for (const scheduler of schedulers) {
     scheduler.schedule(client);
@@ -160,10 +154,17 @@ client.on('interactionCreate', async interaction => {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    await interaction.reply({
-      content: '❌ Error executing this command.',
-      flags: 64,
-    });
+    // If the command already replied/deferred, reply() would throw again
+    const msg = { content: '❌ Error executing this command.', flags: 64 };
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(msg);
+      } else {
+        await interaction.reply(msg);
+      }
+    } catch (e) {
+      console.error('Failed to send error message:', e);
+    }
   }
 });
 
@@ -262,19 +263,23 @@ client.on('messageCreate', async message => {
     }
 
     // 🖼️ PICTURE TRACKER 
-    db.perform(data => {
-      const board = data.pictracker?.[message.guild.id];
-      if (!board || !board.channelId) return;
-      if (message.channelId !== board.channelId) return;
-      if (!message.attachments.size) return;
+    // Only touch the DB for image posts in the tracked channel
+    if (!message.attachments.size) return;
+    const trackedChannel = db.read(
+      data => data.pictracker?.[message.guild.id]?.channelId,
+    );
+    if (!trackedChannel || message.channelId !== trackedChannel) return;
 
-      const images = Array.from(message.attachments.values()).filter(a =>
-        a.contentType?.startsWith('image/'),
-      );
-      if (images.length === 0) return;
+    const images = Array.from(message.attachments.values()).filter(a =>
+      a.contentType?.startsWith('image/'),
+    );
+    if (images.length === 0) return;
+
+    db.perform(data => {
+      let board = data.pictracker[message.guild.id];
 
       if (Date.now() > board.end) {
-        data.pictracker[message.guild.id] = {
+        board = data.pictracker[message.guild.id] = {
           users: {},
           ...getWeekRange(),
           channelId: board.channelId,
