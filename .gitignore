@@ -9,3 +9,7 @@ node_modules/
 npm-debug.log*
 *.log
 
+src/data/*.tmp
+src/data/*.broken-*
+src/data/backups/
+src/data/archive/
