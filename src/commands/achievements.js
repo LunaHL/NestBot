@@ -5,12 +5,18 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('achievements')
     .setDescription('Show unlocked and locked achievements')
-    .addUserOption(opt => opt.setName('user').setDescription('Whose achievements (default: you)')),
+    .addUserOption(opt =>
+      opt.setName('user').setDescription('Whose achievements (default: you)'),
+    ),
 
   async execute(interaction) {
     const user = interaction.options.getUser('user') || interaction.user;
-    const name = interaction.options.getMember('user')?.displayName ||
-      (user.id === interaction.user.id ? interaction.member?.displayName : null) || user.username;
+    const name =
+      interaction.options.getMember('user')?.displayName ||
+      (user.id === interaction.user.id
+        ? interaction.member?.displayName
+        : null) ||
+      user.username;
     const guildId = interaction.guildId;
 
     // Catch up on anything already earned (e.g. stats from before achievements existed)
@@ -36,10 +42,15 @@ module.exports = {
     const count = achievements.ACHIEVEMENTS.filter(a => have[a.id]).length;
     embed.setDescription(
       `**${count} / ${total}** unlocked` +
-        (fresh.length ? `\n✨ Just unlocked: ${fresh.map(a => `${a.emoji} ${a.name}`).join(', ')} ` +
-          `(+${fresh.reduce((s, a) => s + a.reward, 0)} coins)` : ''),
+        (fresh.length
+          ? `\n✨ Just unlocked: ${fresh.map(a => `${a.emoji} ${a.name}`).join(', ')} ` +
+            `(+${fresh.reduce((s, a) => s + a.reward, 0)} coins)`
+          : ''),
     );
 
-    return interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
+    return interaction.reply({
+      embeds: [embed],
+      allowedMentions: { parse: [] },
+    });
   },
 };

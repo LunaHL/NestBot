@@ -1,13 +1,18 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const db = require('../utils/db');
+const { isAdmin } = require('../utils/permissions');
 const nestcoins = require('../services/nestcoins');
 
-const TZ = process.env.TIMEZONE || 'Europe/Berlin';
+const { nowInTZ } = require('../utils/time');
+const { runEvery } = require('../utils/schedule');
+
+const BIRTHDAY_COINS = 200;
+
+// "MM-DD" for today, in the server's time zone
 function getLocalDayMonth() {
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+  const now = nowInTZ();
   return `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
-
 
 async function checkBirthdays(client) {
   const today = getLocalDayMonth();
@@ -26,7 +31,7 @@ async function checkBirthdays(client) {
         guildsToProcess.push({
           guildId: guildId,
           channelId: data.birthdayChannels?.[guildId],
-          entries: data.birthdays[guildId]
+          entries: data.birthdays[guildId],
         });
       }
     }
@@ -42,8 +47,10 @@ async function checkBirthdays(client) {
       for (const entry of Object.values(g.entries)) {
         if (entry.date === today) {
           if (entry.userId) {
-            nestcoins.addCoins(g.guildId, entry.userId, 200);
-            await channel.send(`🎉 Happy Birthday <@${entry.userId}>! 🎂 You received **200 NestCoins**!`);
+            nestcoins.addCoins(g.guildId, entry.userId, BIRTHDAY_COINS);
+            await channel.send(
+              `🎉 Happy Birthday <@${entry.userId}>! 🎂 You received **${BIRTHDAY_COINS} NestCoins**!`,
+            );
           } else {
             await channel.send(`🎉 Happy Birthday **${entry.name}**! 🎂`);
           }
@@ -59,18 +66,10 @@ async function checkBirthdays(client) {
   });
 }
 
+// Checked every 10 minutes; checkBirthdays itself makes sure it only
+// announces once per day.
 function schedule(client) {
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-  const nextMidnight = new Date(now);
-  nextMidnight.setHours(24, 1, 0, 0);
-  const msUntilMidnight = nextMidnight - now;
-
-  checkBirthdays(client);
-
-  setTimeout(() => {
-    checkBirthdays(client);
-    setInterval(() => checkBirthdays(client), 24 * 60 * 60 * 1000);
-  }, msUntilMidnight);
+  runEvery('Birthdays', 10, () => checkBirthdays(client));
 }
 
 module.exports = {
@@ -124,7 +123,9 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('announce')
-        .setDescription('Manually check and announce today\'s birthdays (Admins only)')
+        .setDescription(
+          "Manually check and announce today's birthdays (Admins only)",
+        ),
     ),
 
   async execute(interaction) {
@@ -202,14 +203,12 @@ module.exports = {
       const optName = interaction.options.getString('name');
       const date = interaction.options.getString('date');
 
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
+      const admin = isAdmin(interaction);
 
       let entryName;
       let userId = null;
 
-      if (!isAdmin) {
+      if (!admin) {
         // Normal users → only themselves
         entryName = interaction.user.username;
         userId = interaction.user.id;
@@ -264,9 +263,7 @@ module.exports = {
 
     if (sub === 'remove') {
       const id = interaction.options.getInteger('id');
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
+      const admin = isAdmin(interaction);
       const userId = interaction.user.id;
 
       let removedName = null;
@@ -282,7 +279,7 @@ module.exports = {
           });
         }
 
-        if (!isAdmin && entry.userId !== userId) {
+        if (!admin && entry.userId !== userId) {
           return interaction.reply({
             content: '❌ You can only remove your own birthday.',
             flags: 64,
@@ -310,10 +307,8 @@ module.exports = {
     }
 
     if (sub === 'channel') {
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
-      if (!isAdmin) {
+      const admin = isAdmin(interaction);
+      if (!admin) {
         return interaction.reply({
           content: "You don't have permission to use this subcommand.",
           flags: 64,
@@ -333,11 +328,9 @@ module.exports = {
       });
     }
     if (sub === 'announce') {
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
-      
-      if (!isAdmin) {
+      const admin = isAdmin(interaction);
+
+      if (!admin) {
         return interaction.reply({
           content: '❌ You need to be an administrator to use this subcommand.',
           flags: 64,
@@ -351,7 +344,8 @@ module.exports = {
         const channelId = data.birthdayChannels?.[guildId];
         if (!channelId) {
           return interaction.reply({
-            content: '❌ No birthday channel set! Use `/birthday channel` first.',
+            content:
+              '❌ No birthday channel set! Use `/birthday channel` first.',
             flags: 64,
           });
         }
@@ -365,18 +359,22 @@ module.exports = {
         }
 
         const guildBirthdays = data.birthdays?.[guildId] || {};
-        
+
         for (const entry of Object.values(guildBirthdays)) {
           if (entry.date === today) {
             if (entry.userId) {
-              // Hinweis: Ich habe die NestCoins hier absichtlich weggelassen, 
+              // Hinweis: Ich habe die NestCoins hier absichtlich weggelassen,
               // damit man durch mehrfaches "manuelles Announcen" kein Geld farmen kann.
               // Wenn du das möchtest, entferne die // vor der nächsten Zeile:
               // nestcoins.addCoins(guildId, entry.userId, 200);
-              
-              channel.send(`🎉 Happy Birthday <@${entry.userId}>! 🎂 (Manual Announcement)`);
+
+              channel.send(
+                `🎉 Happy Birthday <@${entry.userId}>! 🎂 (Manual Announcement)`,
+              );
             } else {
-              channel.send(`🎉 Happy Birthday **${entry.name}**! 🎂 (Manual Announcement)`);
+              channel.send(
+                `🎉 Happy Birthday **${entry.name}**! 🎂 (Manual Announcement)`,
+              );
             }
             announcedCount++;
           }

@@ -1,34 +1,14 @@
+// Registers all slash commands with Discord for your server (GUILD_ID).
+// Runs automatically on every start; `npm run commands` runs it on its own.
 require('dotenv').config();
 const { REST, Routes } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { loadCommands } = require('./utils/commands');
 
 async function deployCommands() {
-  const commands = [];
-  const commandsPath = path.join(__dirname, 'commands');
-  const commandFiles = fs
-    .readdirSync(commandsPath)
-    .filter(file => file.endsWith('.js'));
-  console.log(commandFiles);
-
-  for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-
-    if ('data' in command && 'execute' in command) {
-      commands.push(command.data.toJSON());
-    } else {
-      console.log(
-        `[WARNING] The command at ${filePath} is missing "data" or "execute".`,
-      );
-    }
-  }
-
+  const commands = loadCommands().map(c => c.data.toJSON());
   const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
   try {
-    console.log(`Registering ${commands.length} application (/) commands.`);
-
     await rest.put(
       Routes.applicationGuildCommands(
         process.env.CLIENT_ID,
@@ -36,19 +16,12 @@ async function deployCommands() {
       ),
       { body: commands },
     );
-
-    console.log(
-      `Successfully registered ${commands.length} application (/) commands.`,
-    );
+    console.log(`Registered ${commands.length} slash commands.`);
   } catch (error) {
-    console.error(error);
+    console.error('Registering slash commands failed:', error);
   }
 }
 
-if (require.main === module) {
-  (async () => {
-    await deployCommands();
-  })();
-}
+if (require.main === module) deployCommands();
 
 module.exports = { deployCommands };

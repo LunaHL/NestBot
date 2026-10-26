@@ -6,7 +6,10 @@ const STREAK_BONUS_MAX = 0.5;
 const STREAK_MILESTONES = { 7: 25, 14: 50, 30: 100, 100: 300 };
 
 function streakReward(base, streakDays) {
-  const bonusPct = Math.min(Math.max(streakDays - 1, 0) * STREAK_BONUS_PER_DAY, STREAK_BONUS_MAX);
+  const bonusPct = Math.min(
+    Math.max(streakDays - 1, 0) * STREAK_BONUS_PER_DAY,
+    STREAK_BONUS_MAX,
+  );
   const bonus = Math.round(base * bonusPct);
   const milestone = STREAK_MILESTONES[streakDays] || 0;
   return { total: base + bonus + milestone, bonus, bonusPct, milestone };
@@ -20,7 +23,8 @@ function streakMessage(streakDays, r) {
       `🔥 ${streakDays}-day streak! +${Math.round(r.bonusPct * 100)}% bonus (**+${r.bonus}**)` +
       (r.bonusPct >= STREAK_BONUS_MAX ? ' (max)' : '');
   }
-  if (r.milestone) msg += `\n🏅 **${streakDays}-day milestone!** Extra **${r.milestone}** coins!`;
+  if (r.milestone)
+    msg += `\n🏅 **${streakDays}-day milestone!** Extra **${r.milestone}** coins!`;
   return msg;
 }
 

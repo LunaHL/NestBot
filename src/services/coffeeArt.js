@@ -9,7 +9,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const ART_DIR = path.join(__dirname, '..', 'assets', 'coffee-art');
+const { ASSETS_DIR } = require('../utils/paths');
+
+const ART_DIR = path.join(ASSETS_DIR, 'coffee-art');
 const EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 
 function findFile(base) {

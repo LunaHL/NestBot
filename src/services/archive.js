@@ -4,7 +4,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const archiveDir = path.join(__dirname, '..', 'data', 'archive');
+const { DATA_DIR } = require('../utils/paths');
+
+const archiveDir = path.join(DATA_DIR, 'archive');
 const KINDS = ['puzzles', 'nestword', 'events'];
 const FILE_RE = /^(\w+)-(\d{4}-\d{2})\.json$/;
 
@@ -19,7 +21,10 @@ function readJson(file) {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch (e) {
-    console.error(`[Archive] Could not read ${path.basename(file)}:`, e.message);
+    console.error(
+      `[Archive] Could not read ${path.basename(file)}:`,
+      e.message,
+    );
     return null;
   }
 }
@@ -50,7 +55,8 @@ function add(kind, entries, monthOf) {
   if (keys.length === 0) return true;
 
   try {
-    if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+    if (!fs.existsSync(archiveDir))
+      fs.mkdirSync(archiveDir, { recursive: true });
 
     const byMonth = {};
     for (const key of keys) {

@@ -4,8 +4,20 @@ const db = require('../utils/db');
 const { getUserStats } = require('../services/stats');
 const achievements = require('../services/achievements');
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-  'August', 'September', 'October', 'November', 'December'];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 function getBirthday(guildId, userId) {
   const birthdays = db.read(d => d.birthdays?.[guildId] || {});
@@ -48,8 +60,16 @@ module.exports = {
       .setColor('#5865F2')
       .addFields(
         { name: '💰 NestCoins', value: `**${s.balance}**`, inline: true },
-        { name: '🏆 Rank', value: s.rank ? `**#${s.rank}** / ${s.rankedCount}` : 'Unranked', inline: true },
-        { name: '🎂 Birthday', value: getBirthday(guildId, userId), inline: true },
+        {
+          name: '🏆 Rank',
+          value: s.rank ? `**#${s.rank}** / ${s.rankedCount}` : 'Unranked',
+          inline: true,
+        },
+        {
+          name: '🎂 Birthday',
+          value: getBirthday(guildId, userId),
+          inline: true,
+        },
         {
           name: '🧩 Puzzles',
           value: `Solved **${s.puzzle.solved}** / ${s.puzzle.total}\n🔥 Streak **${s.puzzle.streak}** (best ${s.puzzle.best})`,
@@ -77,18 +97,27 @@ module.exports = {
             : 'No coffee yet',
           inline: true,
         },
-        { name: '📸 Pictures this week', value: `**${s.pictures}**`, inline: true },
+        {
+          name: '📸 Pictures this week',
+          value: `**${s.pictures}**`,
+          inline: true,
+        },
         {
           name: `🏅 Achievements (${badges.length}/${total})`,
           value: badges.length
-            ? badges.map(a => a.emoji).join(' ') + '\nSee `/achievements` for details'
+            ? badges.map(a => a.emoji).join(' ') +
+              '\nSee `/achievements` for details'
             : 'None yet. See `/achievements`',
         },
       )
       .setTimestamp();
 
     if (gagMs > 0) {
-      embed.addFields({ name: '🔇 Gagged', value: `~${Math.ceil(gagMs / 60000)} min left`, inline: true });
+      embed.addFields({
+        name: '🔇 Gagged',
+        value: `~${Math.ceil(gagMs / 60000)} min left`,
+        inline: true,
+      });
     }
     if (fresh.length) {
       embed.setDescription(
@@ -97,6 +126,9 @@ module.exports = {
       );
     }
 
-    await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
+    await interaction.reply({
+      embeds: [embed],
+      allowedMentions: { parse: [] },
+    });
   },
 };

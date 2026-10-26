@@ -10,7 +10,10 @@ function allPuzzles() {
 
 /** All NestWord days: { "YYYY-MM-DD": day } */
 function allNestwordDays() {
-  return { ...archive.getAll('nestword'), ...db.read(d => d.nestwordDaily || {}) };
+  return {
+    ...archive.getAll('nestword'),
+    ...db.read(d => d.nestwordDaily || {}),
+  };
 }
 
 /** All events of a guild, live and archived. */

@@ -3,15 +3,9 @@ const db = require('../utils/db');
 const nestcoins = require('../services/nestcoins');
 
 const DAILY_AMOUNT = 10;
-const TZ = process.env.TIMEZONE || 'Europe/Berlin';
+const { nowInTZ, localDate } = require('../utils/time');
 
-function getLocalDate() {
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+const getLocalDate = () => localDate(0);
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -45,7 +39,7 @@ module.exports = {
 
     if (!canClaim) {
       // Time until the next local midnight
-      const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+      const now = nowInTZ();
       const midnight = new Date(now);
       midnight.setHours(24, 0, 0, 0);
       const msLeft = midnight - now;

@@ -1,12 +1,9 @@
-const {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits,
-} = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const achievements = require('../services/achievements');
 const nestcoins = require('../services/nestcoins');
 const gag = require('../services/gag');
 const db = require('../utils/db');
+const { isAdmin } = require('../utils/permissions');
 
 function parseEffect(item) {
   const desc = item?.description || '';
@@ -19,7 +16,6 @@ function parseEffect(item) {
   if (!Number.isFinite(durationSec) || durationSec <= 0) return null;
   return { type, durationSec };
 }
-
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -87,10 +83,8 @@ module.exports = {
 
     //*Admin-only commands
     if (sub === 'add' || sub === 'remove') {
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
-      if (!isAdmin) {
+      const admin = isAdmin(interaction);
+      if (!admin) {
         return interaction.reply({
           content: "You don't have permission to use this subcommand.",
           flags: 64,
@@ -206,7 +200,10 @@ module.exports = {
           });
         }
         if (targetUser.bot) {
-          return interaction.reply({ content: `You can't gag a bot.`, flags: 64 });
+          return interaction.reply({
+            content: `You can't gag a bot.`,
+            flags: 64,
+          });
         }
       }
 
@@ -232,7 +229,12 @@ module.exports = {
         .setColor('Green');
 
       if (effect?.type === 'gag') {
-        const info = gag.gagUser(guildId, targetUser.id, effect.durationSec, userId);
+        const info = gag.gagUser(
+          guildId,
+          targetUser.id,
+          effect.durationSec,
+          userId,
+        );
         const remainingMin = Math.ceil((info.until - Date.now()) / 60000);
 
         embed.addFields({

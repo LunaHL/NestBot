@@ -1,10 +1,7 @@
-const {
-  SlashCommandBuilder,
-  PermissionFlagsBits,
-  EmbedBuilder,
-} = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const achievements = require('../services/achievements');
 const db = require('../utils/db');
+const { isAdmin } = require('../utils/permissions');
 const nestcoins = require('../services/nestcoins');
 
 function calculateStandings(event) {
@@ -190,9 +187,7 @@ module.exports = {
 
     // --- CREATE ---
     if (sub === 'create') {
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-      ) {
+      if (!isAdmin(interaction)) {
         return interaction.reply({
           content: '❌ Only admins can create events.',
           flags: 64,
@@ -306,9 +301,7 @@ module.exports = {
 
     // --- FINISH ---
     if (sub === 'finish') {
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-      ) {
+      if (!isAdmin(interaction)) {
         return interaction.reply({
           content: '❌ Only admins can end events.',
           flags: 64,
@@ -380,9 +373,7 @@ module.exports = {
 
     // --- ADD USER ---
     if (sub === 'add-user') {
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-      ) {
+      if (!isAdmin(interaction)) {
         return interaction.reply({
           content: '❌ Only admins can add users.',
           flags: 64,
@@ -418,9 +409,7 @@ module.exports = {
 
     // --- PAIRINGS ---
     if (sub === 'pairings') {
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-      ) {
+      if (!isAdmin(interaction)) {
         return interaction.reply({
           content: '❌ Only admins can create pairings.',
           flags: 64,
@@ -545,9 +534,7 @@ module.exports = {
 
     // --- WIN ---
     if (sub === 'win') {
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-      ) {
+      if (!isAdmin(interaction)) {
         return interaction.reply({
           content: '❌ Only admins can determine winners.',
           flags: 64,

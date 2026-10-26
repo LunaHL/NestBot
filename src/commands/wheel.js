@@ -1,12 +1,12 @@
 const {
   SlashCommandBuilder,
-  PermissionFlagsBits,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
 const achievements = require('../services/achievements');
 const db = require('../utils/db');
+const { isAdmin } = require('../utils/permissions');
 const nestcoins = require('../services/nestcoins');
 const gag = require('../services/gag');
 
@@ -23,9 +23,10 @@ function parseEffectFromText(text) {
 }
 
 function stripEffectMarker(text) {
-  return String(text || '').replace(/\s*\[effect:\w+;duration:\d+\]\s*/i, '').trim();
+  return String(text || '')
+    .replace(/\s*\[effect:\w+;duration:\d+\]\s*/i, '')
+    .trim();
 }
-
 
 // cost in Nestcoins for a targeted spin
 const PRICE_TARGETED_SPIN = 15;
@@ -193,7 +194,6 @@ module.exports = {
 
         const visiblePunishment = stripEffectMarker(punishment);
 
-
         const refreshed = currentList
           .map((txt, idx) => `#${idx}: ${txt}`)
           .join('\n');
@@ -236,9 +236,7 @@ module.exports = {
     if (sub === 'add') {
       const text = interaction.options.getString('text');
       let id;
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-      ) {
+      if (!isAdmin(interaction)) {
         return interaction.reply({
           content: '❌ You need to be an administrator to add punishments.',
           flags: 64,
@@ -257,9 +255,7 @@ module.exports = {
     if (sub === 'remove') {
       const id = interaction.options.getInteger('id');
       let removed;
-      if (
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-      ) {
+      if (!isAdmin(interaction)) {
         return interaction.reply({
           content: '❌ You need to be an administrator to remove punishments.',
           flags: 64,

@@ -10,7 +10,9 @@ const db = require('../utils/db');
 const { isHalloween } = require('../utils/time');
 
 async function spawnLootInGuild(guildId, guild) {
-  const settings = db.read(data => data.lootdrop?.[guildId]) || { blacklist: [] };
+  const settings = db.read(data => data.lootdrop?.[guildId]) || {
+    blacklist: [],
+  };
   const me = guild.members.me;
 
   // Only text channels the bot can actually post in
@@ -91,7 +93,8 @@ async function spawnLoot(client) {
 //* Schedules the next loot drop to drop
 function schedule(client) {
   // 3–8 per day, twice as many on Halloween
-  const dropsPerDay = (Math.floor(Math.random() * 6) + 3) * (isHalloween() ? 2 : 1);
+  const dropsPerDay =
+    (Math.floor(Math.random() * 6) + 3) * (isHalloween() ? 2 : 1);
   const interval = !process.env.DEBUG
     ? (24 * 60 * 60 * 1000) / dropsPerDay
     : (4 * 60 * 1000) / dropsPerDay;
@@ -143,9 +146,9 @@ module.exports = {
           data.lootdrop[guildId] = guildSettings;
         });
         return interaction.reply({
-          content:`🚫 Added <#${channel.id}> to the loot drop blacklist.`,
-          flags: 64
-      });
+          content: `🚫 Added <#${channel.id}> to the loot drop blacklist.`,
+          flags: 64,
+        });
       } else {
         guildSettings.blacklist.splice(idx, 1);
         db.perform(data => {
@@ -161,9 +164,9 @@ module.exports = {
       const list =
         guildSettings.blacklist.map(id => `<#${id}>`).join(', ') || 'none';
       return interaction.reply({
-        content:`💰 Loot Drop System is **active**\n**Blacklisted Channels:** ${list}`,
+        content: `💰 Loot Drop System is **active**\n**Blacklisted Channels:** ${list}`,
         flags: 64,
-    });
+      });
     }
   },
   schedule: schedule,

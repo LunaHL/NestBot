@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 //* Paths
-const dataPath = path.join(__dirname, '..', 'data');
+const { DATA_DIR: dataPath } = require('./paths');
 const filePath = path.join(dataPath, 'nestbot.json');
 const tmpPath = filePath + '.tmp';
 const backupDir = path.join(dataPath, 'backups');
@@ -46,7 +46,10 @@ function load() {
   }
 
   // A crash between writing .tmp and renaming leaves a good .tmp behind
-  const candidates = [tmpPath, ...listBackups().map(f => path.join(backupDir, f))];
+  const candidates = [
+    tmpPath,
+    ...listBackups().map(f => path.join(backupDir, f)),
+  ];
   for (const file of candidates) {
     const data = tryRead(file);
     if (data) {
@@ -57,7 +60,9 @@ function load() {
 
   if (main === undefined) {
     // Refuse to start with an empty DB over a broken one.
-    throw new Error('[DB] nestbot.json is broken and no backup could be loaded.');
+    throw new Error(
+      '[DB] nestbot.json is broken and no backup could be loaded.',
+    );
   }
   return {}; // first run
 }

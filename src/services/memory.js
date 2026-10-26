@@ -13,7 +13,8 @@ function getMemories(guildId, userId) {
 function addMemory(guildId, userId, text) {
   const clean = String(text).replace(/\s+/g, ' ').trim().slice(0, MAX_LENGTH);
   if (!clean) return { error: 'empty' };
-  if (getMemories(guildId, userId).length >= MAX_MEMORIES) return { error: 'full' };
+  if (getMemories(guildId, userId).length >= MAX_MEMORIES)
+    return { error: 'full' };
   db.perform(d => {
     d.memories ||= {};
     d.memories[guildId] ||= {};
@@ -39,4 +40,11 @@ function clearMemories(guildId, userId) {
   });
 }
 
-module.exports = { getMemories, addMemory, removeMemory, clearMemories, MAX_MEMORIES, MAX_LENGTH };
+module.exports = {
+  getMemories,
+  addMemory,
+  removeMemory,
+  clearMemories,
+  MAX_MEMORIES,
+  MAX_LENGTH,
+};

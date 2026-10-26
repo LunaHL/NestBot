@@ -1,13 +1,17 @@
-const { GoogleGenAI, HarmCategory, HarmBlockThreshold } = require('@google/genai');
+const {
+  GoogleGenAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} = require('@google/genai');
 const db = require('../utils/db');
 const nestcoins = require('./nestcoins');
 const memory = require('./memory');
-const { isHalloween } = require('../utils/time');
-
-const TZ = process.env.TIMEZONE || 'Europe/Berlin';
+const { TZ, isHalloween, localDate } = require('../utils/time');
 
 // Models to try in order. Override in .env, e.g. AI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite
-const MODELS = (process.env.AI_MODELS || 'gemini-2.5-flash,gemini-2.5-flash-lite')
+const MODELS = (
+  process.env.AI_MODELS || 'gemini-2.5-flash,gemini-2.5-flash-lite'
+)
   .split(',')
   .map(m => m.trim())
   .filter(Boolean);
@@ -17,20 +21,15 @@ let failedRequests = 0;
 
 function getStatus() {
   return {
-    isRateLimited: (Date.now() - lastRateLimit) < 60000,
+    isRateLimited: Date.now() - lastRateLimit < 60000,
     lastRateLimit,
     totalRequests,
     failedRequests,
-    models: MODELS
+    models: MODELS,
   };
 }
 
-const nowInTZ = () =>
-  new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-const getToday = () => {
-  const d = nowInTZ();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const getToday = () => localDate(0);
 
 // ==========================================
 // 🎭 DAILY MOOD (bought with /ai mood)
@@ -39,31 +38,38 @@ const getToday = () => {
 const MOODS = {
   sweet: {
     label: '🍬 Super Sweet',
-    prompt: 'You are in an unusually sweet mood. Drop the sarcasm completely: be warm, cheerful and openly affectionate to everyone, with lots of encouragement.',
+    prompt:
+      'You are in an unusually sweet mood. Drop the sarcasm completely: be warm, cheerful and openly affectionate to everyone, with lots of encouragement.',
   },
   grumpy: {
     label: '💢 Extra Grumpy',
-    prompt: 'You are extra grumpy today. Maximum tsundere: complain about everything, sigh dramatically, call people "baka" a lot — but still help them in the end.',
+    prompt:
+      'You are extra grumpy today. Maximum tsundere: complain about everything, sigh dramatically, call people "baka" a lot — but still help them in the end.',
   },
   royal: {
     label: '👑 Royal Highness',
-    prompt: 'Today you are royalty. Speak like a dramatic, pompous queen, refer to yourself as "We", and call members your (beloved) subjects.',
+    prompt:
+      'Today you are royalty. Speak like a dramatic, pompous queen, refer to yourself as "We", and call members your (beloved) subjects.',
   },
   pirate: {
     label: '🏴‍☠️ Pirate',
-    prompt: 'Today you talk like a pirate captain. The Nest is your ship, NestCoins are your treasure, and members are your crew.',
+    prompt:
+      'Today you talk like a pirate captain. The Nest is your ship, NestCoins are your treasure, and members are your crew.',
   },
   sleepy: {
     label: '😴 Sleepy',
-    prompt: 'You are extremely sleepy today. Yawn, trail off mid-sentence, mention wanting a nap, but still answer properly.',
+    prompt:
+      'You are extremely sleepy today. Yawn, trail off mid-sentence, mention wanting a nap, but still answer properly.',
   },
   gremlin: {
     label: '😈 Chaos Gremlin',
-    prompt: 'You are a chaotic gremlin today: hyperactive, mischievous, random tangents, gleeful about pranks and gags. Still answer the question.',
+    prompt:
+      'You are a chaotic gremlin today: hyperactive, mischievous, random tangents, gleeful about pranks and gags. Still answer the question.',
   },
   poet: {
     label: '📜 Poet',
-    prompt: 'Today every answer you give rhymes, like a short poem. Keep it understandable and still answer properly.',
+    prompt:
+      'Today every answer you give rhymes, like a short poem. Keep it understandable and still answer properly.',
   },
 };
 
@@ -109,7 +115,8 @@ async function checkModels() {
   try {
     const available = new Set();
     const pager = await getClient().models.list();
-    for await (const m of pager) available.add(String(m.name).replace(/^models\//, ''));
+    for await (const m of pager)
+      available.add(String(m.name).replace(/^models\//, ''));
 
     const missing = MODELS.filter(m => !available.has(m));
     if (missing.length === 0) {
@@ -131,7 +138,10 @@ const SAFETY = [
   HarmCategory.HARM_CATEGORY_HATE_SPEECH,
   HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
   HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-].map(category => ({ category, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }));
+].map(category => ({
+  category,
+  threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+}));
 
 /**
  * Ask Gemini, trying each model in MODELS with one retry on rate limits.
@@ -156,7 +166,9 @@ async function generate(systemPrompt, prompt, onRetry) {
         } catch (e) {
           if (e.status === 429 && retries < 1) {
             const delay = 1500 + Math.random() * 1000;
-            console.warn(`[AI] ${modelName} 429. Retrying in ${Math.floor(delay)}ms...`);
+            console.warn(
+              `[AI] ${modelName} 429. Retrying in ${Math.floor(delay)}ms...`,
+            );
             if (onRetry) await onRetry();
             await new Promise(r => setTimeout(r, delay));
           } else {
@@ -175,7 +187,8 @@ async function generate(systemPrompt, prompt, onRetry) {
   throw lastError || new Error('All models failed');
 }
 
-const clip = text => (text.length > 2000 ? text.substring(0, 1997) + '...' : text);
+const clip = text =>
+  text.length > 2000 ? text.substring(0, 1997) + '...' : text;
 
 async function fetchContext(message) {
   let contextLog = '';
@@ -202,7 +215,6 @@ async function fetchContext(message) {
   return contextLog;
 }
 
-
 // Facts the user asked NestBot to remember (/memory add)
 function memoryLines(message, nickname) {
   const facts = memory.getMemories(message.guild.id, message.author.id);
@@ -225,7 +237,10 @@ function halloweenPrompt(guildId) {
 // What the AI knows about the user's coffee habits
 function coffeeLine(message) {
   try {
-    const c = require('../commands/coffee').getCoffeeSummary(message.guild.id, message.author.id);
+    const c = require('./coffee').getCoffeeSummary(
+      message.guild.id,
+      message.author.id,
+    );
     if (!c) return "User's coffee: hasn't ordered any coffee yet.";
     return (
       `User's coffee: ${c.today} cups today, ${c.total} all time` +
@@ -238,12 +253,7 @@ function coffeeLine(message) {
   }
 }
 
-function buildSystemPrompt(
-  message,
-  contextLog,
-  userBalance,
-  dailyWord,
-) {
+function buildSystemPrompt(message, contextLog, userBalance, dailyWord) {
   const now = new Date().toLocaleString('en-US', {
     timeZone: TZ,
     dateStyle: 'full',
@@ -252,11 +262,11 @@ function buildSystemPrompt(
   const username = message.author.username;
   const nickname = message.member?.displayName || username;
   const channelName = message.channel.name;
-  
-  const gameInfo = dailyWord 
+
+  const gameInfo = dailyWord
     ? `Today's secret NestWord answer is "${dailyWord}". If the user asks for a hint, give a subtle clue. NEVER reveal the word directly.`
-    : "There is no NestWord set for today yet.";
-  
+    : 'There is no NestWord set for today yet.';
+
   return `You are NestBot, the caretaker bot of "The Nest" Discord server. You manage its economy and games.
 Current server time: ${now}.
 Current Channel: #${channelName}
@@ -310,7 +320,12 @@ async function handleMessage(message, client) {
     const today = getToday();
     const dailyWord = db.database.nestwordDaily?.[today]?.answer;
 
-    const persona = buildSystemPrompt(message, contextLog, userBalance, dailyWord);
+    const persona = buildSystemPrompt(
+      message,
+      contextLog,
+      userBalance,
+      dailyWord,
+    );
 
     const prompt = message.content
       .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
@@ -374,7 +389,10 @@ async function fetchUserMessages(channel, userId) {
  * Generate a roast / compliment / poem. Throws if the AI is unavailable,
  * so the caller can refund the coins.
  */
-async function generateFun(kind, { channel, guildId, buyerName, targetName, targetId, topic }) {
+async function generateFun(
+  kind,
+  { channel, guildId, buyerName, targetName, targetId, topic },
+) {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is missing');
   const task = FUN_TASKS[kind];
   if (!task) throw new Error(`Unknown kind: ${kind}`);
@@ -389,9 +407,19 @@ async function generateFun(kind, { channel, guildId, buyerName, targetName, targ
   const prompt =
     `${buyerName} paid NestCoins for this.\n` +
     `Task: ${task(targetName, topic)}\n` +
-    (userMessages ? `\nRecent messages from ${targetName}:\n${userMessages}` : '');
+    (userMessages
+      ? `\nRecent messages from ${targetName}:\n${userMessages}`
+      : '');
 
   return clip(await generate(system, prompt));
 }
 
-module.exports = { handleMessage, getStatus, generateFun, getMood, setMood, checkModels, MOODS };
+module.exports = {
+  handleMessage,
+  getStatus,
+  generateFun,
+  getMood,
+  setMood,
+  checkModels,
+  MOODS,
+};

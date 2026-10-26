@@ -3,20 +3,14 @@
 // Runs at startup and then every hour, independent of any channel settings.
 const db = require('../utils/db');
 const archive = require('./archive');
+const { localDate } = require('../utils/time');
+const { runEvery } = require('../utils/schedule');
 
-const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 const KEEP_DAILY_DAYS = 7; // NestWord days + past puzzles stay in the main DB this long
 const KEEP_FINISHED_EVENTS_DAYS = 30; // finished tournaments
-const RUN_EVERY_MS = 60 * 60 * 1000;
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 const monthOfDateKey = key => key.slice(0, 7);
-
-function localDate(offsetDays = 0) {
-  const d = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-  d.setDate(d.getDate() + offsetDays);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 // Move "YYYY-MM-DD" entries older than the cutoff into the archive.
 // Future dates are kept (e.g. puzzles queued with /puzzle set append).
@@ -40,7 +34,8 @@ function archiveOldEvents(data, now) {
     for (const e of events) {
       if (e.active) continue;
       if (!e.endedAt) e.endedAt = now; // old events: start the clock now
-      if (now - e.endedAt > maxAge) old[`${guildId}-${e.id}`] = { ...e, guildId };
+      if (now - e.endedAt > maxAge)
+        old[`${guildId}-${e.id}`] = { ...e, guildId };
     }
   }
 
@@ -84,7 +79,8 @@ function runCleanup() {
     console.error('[Cleanup] Wordlist cleanup failed:', e);
   }
 
-  const total = stats.nestword + stats.puzzles + stats.gags + stats.events + words;
+  const total =
+    stats.nestword + stats.puzzles + stats.gags + stats.events + words;
   if (total > 0) {
     console.log(
       `[Cleanup] Archived ${stats.nestword} NestWord days, ${stats.puzzles} puzzles, ` +
@@ -93,9 +89,9 @@ function runCleanup() {
   }
 }
 
+/** Called once when the bot is ready. */
 function startCleanup() {
-  runCleanup();
-  setInterval(runCleanup, RUN_EVERY_MS);
+  runEvery('Cleanup', 60, runCleanup);
 }
 
 module.exports = { startCleanup, runCleanup };

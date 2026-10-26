@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
+const { isAdmin } = require('../utils/permissions');
 const nestcoins = require('../services/nestcoins');
 
 module.exports = {
@@ -67,10 +68,8 @@ module.exports = {
 
     //*Admin-only commands
     if (sub === 'grant' || sub === 'remove') {
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
-      if (!isAdmin) {
+      const admin = isAdmin(interaction);
+      if (!admin) {
         return interaction.reply({
           content: "You don't have permission to use this subcommand.",
           flags: 64,

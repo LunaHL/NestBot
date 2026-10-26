@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { isAdmin } = require('../utils/permissions');
 const gag = require('../services/gag');
 
 module.exports = {
@@ -17,10 +18,8 @@ module.exports = {
     const guildId = interaction.guildId;
 
     // Safety: in case permissions aren’t enforced by Discord for some reason
-    const isAdmin = interaction.memberPermissions?.has(
-      PermissionFlagsBits.Administrator,
-    );
-    if (!isAdmin) {
+    const admin = isAdmin(interaction);
+    if (!admin) {
       return interaction.reply({
         content: "You don't have permission to use this command.",
         flags: 64,

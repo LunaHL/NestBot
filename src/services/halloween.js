@@ -4,13 +4,21 @@ const db = require('../utils/db');
 const nestcoins = require('./nestcoins');
 const gag = require('./gag');
 const { isHalloween, localDate, nowInTZ } = require('../utils/time');
+const { runEvery } = require('../utils/schedule');
 
 const TRIES_PER_DAY = 3;
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const between = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
-const CANDY = ['a lollipop 🍭', 'a chocolate bar 🍫', 'a handful of candy corn 🌽', 'a caramel apple 🍎',
-  'gummy worms 🪱', 'a pumpkin cookie 🎃', 'a suspicious unlabeled candy 🍬'];
+const CANDY = [
+  'a lollipop 🍭',
+  'a chocolate bar 🍫',
+  'a handful of candy corn 🌽',
+  'a caramel apple 🍎',
+  'gummy worms 🪱',
+  'a pumpkin cookie 🎃',
+  'a suspicious unlabeled candy 🍬',
+];
 
 // Weighted outcomes. Each returns { kind: 'treat'|'trick', text }.
 const OUTCOMES = [
@@ -19,14 +27,20 @@ const OUTCOMES = [
     run: ({ guildId, userId }) => {
       const coins = between(5, 20);
       nestcoins.addCoins(guildId, userId, coins);
-      return { kind: 'treat', text: `🍬 **Treat!** You got ${pick(CANDY)} and **${coins}** NestCoins.` };
+      return {
+        kind: 'treat',
+        text: `🍬 **Treat!** You got ${pick(CANDY)} and **${coins}** NestCoins.`,
+      };
     },
   },
   {
     weight: 5,
     run: ({ guildId, userId }) => {
       nestcoins.addCoins(guildId, userId, 75);
-      return { kind: 'treat', text: '🍫 **JACKPOT!** A FULL-SIZE chocolate bar! The rarest treat of all. **+75** NestCoins!' };
+      return {
+        kind: 'treat',
+        text: '🍫 **JACKPOT!** A FULL-SIZE chocolate bar! The rarest treat of all. **+75** NestCoins!',
+      };
     },
   },
   {
@@ -37,9 +51,10 @@ const OUTCOMES = [
       if (lost > 0) nestcoins.removeCoins(guildId, userId, lost);
       return {
         kind: 'trick',
-        text: lost > 0
-          ? `👻 **Trick!** A ghost picked your pocket and floated away with **${lost}** NestCoins.`
-          : '👻 **Trick!** A ghost tried to pick your pocket, found it empty and left looking disappointed.',
+        text:
+          lost > 0
+            ? `👻 **Trick!** A ghost picked your pocket and floated away with **${lost}** NestCoins.`
+            : '👻 **Trick!** A ghost tried to pick your pocket, found it empty and left looking disappointed.',
       };
     },
   },
@@ -47,7 +62,10 @@ const OUTCOMES = [
     weight: 10,
     run: ({ guildId, userId }) => {
       gag.gagUser(guildId, userId, 60, null);
-      return { kind: 'trick', text: '🧙‍♀️ **Trick!** A witch stole your voice. You are gagged for **1 minute**.' };
+      return {
+        kind: 'trick',
+        text: '🧙‍♀️ **Trick!** A witch stole your voice. You are gagged for **1 minute**.',
+      };
     },
   },
   {
@@ -88,7 +106,13 @@ function trickOrTreat(guildId, userId) {
     d.halloween ||= {};
     d.halloween[guildId] ||= {};
     d.halloween[guildId].users ||= {};
-    const u = (d.halloween[guildId].users[userId] ||= { treats: 0, tricks: 0, years: [], todayCount: 0, lastDate: null });
+    const u = (d.halloween[guildId].users[userId] ||= {
+      treats: 0,
+      tricks: 0,
+      years: [],
+      todayCount: 0,
+      lastDate: null,
+    });
     if (u.lastDate !== localDate(0)) {
       u.lastDate = localDate(0);
       u.todayCount = 0;
@@ -135,9 +159,9 @@ async function announceIfNeeded(client) {
     .catch(e => console.error('[Halloween] Announcement failed:', e.message));
 }
 
+/** Called once when the bot is ready. */
 function startHalloween(client) {
-  announceIfNeeded(client);
-  setInterval(() => announceIfNeeded(client), 60 * 60 * 1000);
+  runEvery('Halloween', 30, () => announceIfNeeded(client));
 }
 
 module.exports = { trickOrTreat, triesLeft, startHalloween, TRIES_PER_DAY };

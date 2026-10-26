@@ -11,7 +11,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
-const { MENU, LATTE_ART } = require('../commands/coffee');
+const { MENU, LATTE_ART } = require('../config/coffeeMenu');
 const { findFile, ART_DIR } = require('../services/coffeeArt');
 
 const MODEL = process.env.COFFEE_IMAGE_MODEL || 'gemini-2.5-flash-image';
@@ -22,7 +22,8 @@ function allPictures() {
   for (const [drinkKey, drink] of Object.entries(MENU)) {
     list.push({ base: `${drinkKey}-plain`, drink, art: null });
     if (drink.art) {
-      for (const art of LATTE_ART) list.push({ base: `${drinkKey}-${art.key}`, drink, art });
+      for (const art of LATTE_ART)
+        list.push({ base: `${drinkKey}-${art.key}`, drink, art });
     }
   }
   return list;
@@ -50,7 +51,9 @@ async function generate(client, { base, drink, art }) {
   const image = parts.find(p => p.inlineData?.data);
   if (!image) throw new Error('No image in the response');
 
-  const ext = (image.inlineData.mimeType || 'image/png').split('/')[1].replace('jpeg', 'jpg');
+  const ext = (image.inlineData.mimeType || 'image/png')
+    .split('/')[1]
+    .replace('jpeg', 'jpg');
   const file = path.join(ART_DIR, `${base}.${ext}`);
   fs.writeFileSync(file, Buffer.from(image.inlineData.data, 'base64'));
   return file;
@@ -60,23 +63,32 @@ async function main() {
   const args = process.argv.slice(2);
   const onlyDrink = args.find(a => !a.startsWith('--'));
   if (onlyDrink && !MENU[onlyDrink]) {
-    console.error(`Unknown drink "${onlyDrink}". Drinks: ${Object.keys(MENU).join(', ')}`);
+    console.error(
+      `Unknown drink "${onlyDrink}". Drinks: ${Object.keys(MENU).join(', ')}`,
+    );
     process.exit(1);
   }
 
-  const pictures = allPictures().filter(p => !onlyDrink || p.base.startsWith(`${onlyDrink}-`));
+  const pictures = allPictures().filter(
+    p => !onlyDrink || p.base.startsWith(`${onlyDrink}-`),
+  );
   const missing = pictures.filter(p => !findFile(p.base));
 
   if (args.includes('--list')) {
     for (const p of pictures) {
       const file = findFile(p.base);
-      console.log(`${file ? '✅' : '❌'} ${file ? path.basename(file) : `${p.base}.png`}`);
+      console.log(
+        `${file ? '✅' : '❌'} ${file ? path.basename(file) : `${p.base}.png`}`,
+      );
     }
-    console.log(`\n${pictures.length - missing.length} of ${pictures.length} pictures present in ${ART_DIR}`);
+    console.log(
+      `\n${pictures.length - missing.length} of ${pictures.length} pictures present in ${ART_DIR}`,
+    );
     return;
   }
 
-  if (missing.length === 0) return console.log('All pictures already exist. Nothing to do.');
+  if (missing.length === 0)
+    return console.log('All pictures already exist. Nothing to do.');
   if (!process.env.GEMINI_API_KEY) {
     console.error('GEMINI_API_KEY is missing in .env');
     process.exit(1);
@@ -95,12 +107,16 @@ async function main() {
     } catch (e) {
       console.error(`❌ ${p.base}: ${e.message}`);
       if (e.status === 429 || e.status === 403 || e.status === 400) {
-        console.error('Stopping. Check your API key, billing/quota and the model name, then run again.');
+        console.error(
+          'Stopping. Check your API key, billing/quota and the model name, then run again.',
+        );
         break; // it'll pick up where it left off next time
       }
     }
   }
-  console.log(`\nDone: ${done} new picture(s). Check them in ${ART_DIR}, then commit the folder.`);
+  console.log(
+    `\nDone: ${done} new picture(s). Check them in ${ART_DIR}, then commit the folder.`,
+  );
 }
 
 main();

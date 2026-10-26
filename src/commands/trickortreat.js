@@ -31,7 +31,9 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle(`🎃 ${name} knocks on a spooky door…`)
       .setDescription(result.text)
-      .setFooter({ text: `${result.left} tr${result.left === 1 ? 'y' : 'ies'} left today` })
+      .setFooter({
+        text: `${result.left} tr${result.left === 1 ? 'y' : 'ies'} left today`,
+      })
       .setColor(result.kind === 'treat' ? 0xff8c00 : 0x6a0dad);
 
     await interaction.reply({ embeds: [embed] });

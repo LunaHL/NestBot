@@ -2,7 +2,8 @@
 const TZ = process.env.TIMEZONE || 'Europe/Berlin';
 
 /** Current date/time as seen in the server's time zone. */
-const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
+const nowInTZ = () =>
+  new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
 
 /** Format a Date as "YYYY-MM-DD". */
 function formatDate(d) {
@@ -32,4 +33,11 @@ function daysUntilHalloween() {
   return Math.round((target - now) / 86400000);
 }
 
-module.exports = { TZ, nowInTZ, formatDate, localDate, isHalloween, daysUntilHalloween };
+module.exports = {
+  TZ,
+  nowInTZ,
+  formatDate,
+  localDate,
+  isHalloween,
+  daysUntilHalloween,
+};

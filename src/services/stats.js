@@ -7,12 +7,16 @@ const { localDate } = require('../utils/time');
 
 // A stored streak only counts if it was continued today or yesterday
 function liveStreak(lastDate, count) {
-  return lastDate === localDate(0) || lastDate === localDate(-1) ? count || 0 : 0;
+  return lastDate === localDate(0) || lastDate === localDate(-1)
+    ? count || 0
+    : 0;
 }
 
 function puzzleStats(userId) {
   const today = localDate(0);
-  const puzzles = Object.entries(history.allPuzzles()).filter(([date]) => date <= today);
+  const puzzles = Object.entries(history.allPuzzles()).filter(
+    ([date]) => date <= today,
+  );
   const s = db.read(d => d.puzzleStreaks?.[userId]) || {};
   return {
     solved: puzzles.filter(([, p]) => p.solvedBy?.includes(userId)).length,
@@ -62,7 +66,7 @@ function eventStats(guildId, userId) {
 
 function coffeeStats(guildId, userId) {
   const s = db.read(d => d.coffee?.[guildId]?.[userId]);
-  const summary = require('../commands/coffee').getCoffeeSummary(guildId, userId);
+  const summary = require('./coffee').getCoffeeSummary(guildId, userId);
   return {
     total: s?.total || 0,
     today: summary?.today || 0,
@@ -91,9 +95,21 @@ function getUserStats(guildId, userId) {
     nestword: nestwordStats(userId),
     events: eventStats(guildId, userId),
     coffee: coffeeStats(guildId, userId),
-    gags: db.read(d => d.gagStats?.[guildId]?.[userId]) || { received: 0, given: 0 },
-    duels: db.read(d => d.duelStats?.[guildId]?.[userId]) || { wins: 0, losses: 0, ties: 0, coinsWon: 0 },
-    halloween: db.read(d => d.halloween?.[guildId]?.users?.[userId]) || { treats: 0, tricks: 0, years: [] },
+    gags: db.read(d => d.gagStats?.[guildId]?.[userId]) || {
+      received: 0,
+      given: 0,
+    },
+    duels: db.read(d => d.duelStats?.[guildId]?.[userId]) || {
+      wins: 0,
+      losses: 0,
+      ties: 0,
+      coinsWon: 0,
+    },
+    halloween: db.read(d => d.halloween?.[guildId]?.users?.[userId]) || {
+      treats: 0,
+      tricks: 0,
+      years: [],
+    },
     pictures: db.read(d => d.pictracker?.[guildId]?.users?.[userId]) || 0,
     memories: (db.read(d => d.memories?.[guildId]?.[userId]) || []).length,
   };

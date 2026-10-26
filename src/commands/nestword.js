@@ -6,28 +6,35 @@ const path = require('path');
 const nestcoins = require('../services/nestcoins');
 const { streakReward, streakMessage } = require('../utils/streak');
 
-const TZ = process.env.TIMEZONE || 'Europe/Berlin';
-const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const nowInTZ = () => new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-const getToday = () => ymd(nowInTZ());
-const getYesterday = () => { const d = nowInTZ(); d.setDate(d.getDate()-1); return ymd(d); };
+const { DATA_DIR } = require('../utils/paths');
+const { runEvery } = require('../utils/schedule');
+const { isAdmin } = require('../utils/permissions');
+const { nowInTZ, formatDate: ymd, localDate } = require('../utils/time');
 
-const WORDLIST_PATH = path.join(__dirname, '..', 'data', 'wordlist.json');
+const getToday = () => localDate(0);
+const getYesterday = () => localDate(-1);
+
+const WORDLIST_PATH = path.join(DATA_DIR, 'wordlist.json');
 
 // ---------------- Utils ----------------
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-const isAlphaLowerLen = (s, min=3, max=7) => new RegExp(`^[a-z]{${min},${max}}$`).test(s);
-const attemptsForLen = len => clamp(8 - (len - 3), 5, 8);  // 3→8, 4→7, 5→6, 6→5, 7→5
-const rewardForAttempts = att => Math.max(1, Math.round(15 * 6 / att)); // Base 15 @ 6 attempts
+const isAlphaLowerLen = (s, min = 3, max = 7) =>
+  new RegExp(`^[a-z]{${min},${max}}$`).test(s);
+const attemptsForLen = len => clamp(8 - (len - 3), 5, 8); // 3→8, 4→7, 5→6, 6→5, 7→5
+const rewardForAttempts = att => Math.max(1, Math.round((15 * 6) / att)); // Base 15 @ 6 attempts
 
 let _cachedWordlist = null;
 
 const ensureWordlistFile = () => {
   if (!fs.existsSync(WORDLIST_PATH)) {
     const init = {
-      pool3: [], pool4: [], pool5: [], pool6: [], pool7: [],
+      pool3: [],
+      pool4: [],
+      pool5: [],
+      pool6: [],
+      pool7: [],
       usedWords: [],
-      config: { cooldownDays: 30, requireGuessInPool: false, defaultLen: 5 }
+      config: { cooldownDays: 30, requireGuessInPool: false, defaultLen: 5 },
     };
     fs.writeFileSync(WORDLIST_PATH, JSON.stringify(init, null, 2));
   }
@@ -39,7 +46,14 @@ const loadWordlist = () => {
     _cachedWordlist = JSON.parse(fs.readFileSync(WORDLIST_PATH, 'utf8'));
   } catch (e) {
     console.error('[NestWord] Failed to load wordlist:', e);
-    _cachedWordlist = { pool3: [], pool4: [], pool5: [], pool6: [], pool7: [], usedWords: [] };
+    _cachedWordlist = {
+      pool3: [],
+      pool4: [],
+      pool5: [],
+      pool6: [],
+      pool7: [],
+      usedWords: [],
+    };
   }
   return _cachedWordlist;
 };
@@ -106,13 +120,14 @@ function desiredLength(data, wl) {
   });
 
   if (available.length === 0) {
-    throw new Error("No words available in any pool (3–7). Please add some with /nestword pool-bulkadd.");
+    throw new Error(
+      'No words available in any pool (3–7). Please add some with /nestword pool-bulkadd.',
+    );
   }
 
   const randomLen = available[Math.floor(Math.random() * available.length)];
   return randomLen;
 }
-
 
 function pickWordForToday(data) {
   const today = getToday();
@@ -128,11 +143,16 @@ function pickWordForToday(data) {
   const cutoff = new Date(nowInTZ());
   cutoff.setDate(cutoff.getDate() - cd);
   const cutoffYMD = ymd(cutoff);
-  const recent = new Set((wl.usedWords || []).filter(e => e.len === len && e.date > cutoffYMD).map(e => e.word));
+  const recent = new Set(
+    (wl.usedWords || [])
+      .filter(e => e.len === len && e.date > cutoffYMD)
+      .map(e => e.word),
+  );
 
   let candidates = pool.filter(w => !recent.has(w));
   if (candidates.length === 0) candidates = pool.slice();
-  if (!candidates.length) throw new Error(`Pool${len} is empty, please add words of length ${len}.`);
+  if (!candidates.length)
+    throw new Error(`Pool${len} is empty, please add words of length ${len}.`);
 
   const answer = candidates[Math.floor(Math.random() * candidates.length)];
   const attempts = attemptsForLen(len);
@@ -145,7 +165,7 @@ function pickWordForToday(data) {
     reward,
     solvedBy: [],
     guesses: {}, // userId -> number
-    rows: {}     // userId -> array of emoji rows
+    rows: {}, // userId -> array of emoji rows
   };
 
   wl.usedWords = wl.usedWords || [];
@@ -158,48 +178,32 @@ function pickWordForToday(data) {
 function ensureUserBlock(data, userId) {
   if (!data.nestwordUsers) data.nestwordUsers = {};
   if (!data.nestwordUsers[userId]) {
-    data.nestwordUsers[userId] = { streakCount: 0, bestStreak: 0, lastDate: null, totalSolved: 0 };
+    data.nestwordUsers[userId] = {
+      streakCount: 0,
+      bestStreak: 0,
+      lastDate: null,
+      totalSolved: 0,
+    };
   }
   return data.nestwordUsers[userId];
 }
 
-function isAdminMember(interaction) {
-  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-}
-
-// --------- Midnight scheduler (Europe/Berlin) ----------
-let _midnightTimeout = null;
-function msUntilNextBerlinMidnight() {
-  const now = new Date();
-  const tzNow = new Date(now.toLocaleString('en-US', { timeZone: TZ }));
-  const tzMidnight = new Date(tzNow);
-  tzMidnight.setHours(24, 0, 0, 0); // next local midnight
-  return tzMidnight - tzNow;        // handles DST automatically
-}
+// Make sure today's word exists. Checked every 10 minutes, so a new word is
+// picked shortly after midnight and after every restart.
 function setWordForTodaySafely() {
+  if (db.read(data => data.nestwordDaily?.[getToday()])) return;
   db.perform(data => {
     try {
       pickWordForToday(data);
     } catch {
-      // ignore (e.g., pool empty); admin can fill later
+      // e.g. word pools are empty; an admin can fill them later
     }
   });
 }
-function scheduleNextMidnight() {
-  const ms = msUntilNextBerlinMidnight();
-  _midnightTimeout = setTimeout(() => {
-    setWordForTodaySafely(); // 00:00 Berlin
-    scheduleNextMidnight();  // schedule following midnight
-  }, ms);
-}
-/** Call once after client ready:
- *   const nestword = require('./commands/nestword');
- *   nestword.initDailyPicker();
- */
+
+/** Called once when the bot is ready. */
 function initDailyPicker() {
-  setWordForTodaySafely();       // ensure word exists after boot
-  try { if (_midnightTimeout) clearTimeout(_midnightTimeout); } catch {}
-  scheduleNextMidnight();
+  runEvery('NestWord', 10, setWordForTodaySafely);
 }
 
 // -------------- Slash Commands --------------
@@ -212,42 +216,89 @@ module.exports = {
     .setDescription('Daily Nest Wordle with variable lengths (3–7)')
     // set / guess / info
     .addSubcommand(sub =>
-      sub.setName('set')
-        .setDescription('Set or override the daily word for a specific date (admins only)')
-        .addStringOption(opt => opt.setName('word').setDescription('The word (3–7 letters, a–z)').setRequired(true))
-        .addStringOption(opt => opt.setName('date').setDescription('Date YYYY-MM-DD (default: today)'))
-        .addIntegerOption(opt => opt.setName('reward').setDescription('Override reward in NestCoins (optional)'))
+      sub
+        .setName('set')
+        .setDescription(
+          'Set or override the daily word for a specific date (admins only)',
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('word')
+            .setDescription('The word (3–7 letters, a–z)')
+            .setRequired(true),
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('date')
+            .setDescription('Date YYYY-MM-DD (default: today)'),
+        )
+        .addIntegerOption(opt =>
+          opt
+            .setName('reward')
+            .setDescription('Override reward in NestCoins (optional)'),
+        ),
     )
     .addSubcommand(sub =>
-      sub.setName('guess')
+      sub
+        .setName('guess')
         .setDescription('Guess today’s word')
-        .addStringOption(opt => opt.setName('word').setDescription('Your guess (3–7 letters)').setRequired(true))
+        .addStringOption(opt =>
+          opt
+            .setName('word')
+            .setDescription('Your guess (3–7 letters)')
+            .setRequired(true),
+        ),
     )
     .addSubcommand(sub =>
-      sub.setName('info')
-        .setDescription('Show today’s word settings: length, attempts, reward')
+      sub
+        .setName('info')
+        .setDescription('Show today’s word settings: length, attempts, reward'),
     )
     // pool-* (no subcommand group)
     .addSubcommand(sub =>
-      sub.setName('pool-bulkadd')
-        .setDescription('Add many words at once (length auto-detected, admins only)')
-        .addStringOption(opt => opt.setName('words').setDescription('Words separated by newline/comma/space').setRequired(true))
+      sub
+        .setName('pool-bulkadd')
+        .setDescription(
+          'Add many words at once (length auto-detected, admins only)',
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('words')
+            .setDescription('Words separated by newline/comma/space')
+            .setRequired(true),
+        ),
     )
     .addSubcommand(sub =>
-      sub.setName('pool-remove')
-        .setDescription('Remove a single word (length auto-detected, admins only)')
-        .addStringOption(opt => opt.setName('word').setDescription('The exact word to remove').setRequired(true))
+      sub
+        .setName('pool-remove')
+        .setDescription(
+          'Remove a single word (length auto-detected, admins only)',
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('word')
+            .setDescription('The exact word to remove')
+            .setRequired(true),
+        ),
     )
     .addSubcommand(sub =>
-      sub.setName('pool-list')
+      sub
+        .setName('pool-list')
         .setDescription('List words in a pool length (admins only)')
-        .addIntegerOption(opt => opt.setName('length').setDescription('3–7').setRequired(true))
-        .addIntegerOption(opt => opt.setName('page').setDescription('Page number (1-based)'))
+        .addIntegerOption(opt =>
+          opt.setName('length').setDescription('3–7').setRequired(true),
+        )
+        .addIntegerOption(opt =>
+          opt.setName('page').setDescription('Page number (1-based)'),
+        ),
     )
     .addSubcommand(sub =>
-      sub.setName('pool-clear')
+      sub
+        .setName('pool-clear')
         .setDescription('Clear a pool by length (admins only)')
-        .addIntegerOption(opt => opt.setName('length').setDescription('3–7').setRequired(true))
+        .addIntegerOption(opt =>
+          opt.setName('length').setDescription('3–7').setRequired(true),
+        ),
     ),
 
   async execute(interaction) {
@@ -256,17 +307,29 @@ module.exports = {
 
     // ---------------- /nestword set ----------------
     if (sub === 'set') {
-      if (!isAdminMember(interaction)) {
-        return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
+      if (!isAdmin(interaction)) {
+        return interaction.reply({
+          content: "❌ You don't have permission.",
+          flags: 64,
+        });
       }
-      const wordRaw = interaction.options.getString('word').trim().toLowerCase();
+      const wordRaw = interaction.options
+        .getString('word')
+        .trim()
+        .toLowerCase();
       const date = interaction.options.getString('date') || getToday();
       const manualReward = interaction.options.getInteger('reward');
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
-        return interaction.reply({ content: '❌ Invalid date format. Use YYYY-MM-DD.', flags: 64 });
+        return interaction.reply({
+          content: '❌ Invalid date format. Use YYYY-MM-DD.',
+          flags: 64,
+        });
       if (!isAlphaLowerLen(wordRaw, 3, 7))
-        return interaction.reply({ content: '❌ Word must be 3–7 letters, a–z only.', flags: 64 });
+        return interaction.reply({
+          content: '❌ Word must be 3–7 letters, a–z only.',
+          flags: 64,
+        });
 
       const len = wordRaw.length;
       const attempts = attemptsForLen(len);
@@ -281,7 +344,7 @@ module.exports = {
           reward,
           solvedBy: [],
           guesses: {},
-          rows: {}
+          rows: {},
         };
         const wl = loadWordlist();
         wl.usedWords = wl.usedWords || [];
@@ -292,15 +355,21 @@ module.exports = {
 
       return interaction.reply({
         content: `✅ Set word for **${date}** → **${wordRaw}** (len=${len}, attempts=${attempts}, reward=${reward})`,
-        flags: 64
+        flags: 64,
       });
     }
 
     // ---------------- /nestword guess ----------------
     if (sub === 'guess') {
-      const guessRaw = interaction.options.getString('word').trim().toLowerCase();
+      const guessRaw = interaction.options
+        .getString('word')
+        .trim()
+        .toLowerCase();
       if (!isAlphaLowerLen(guessRaw, 3, 7)) {
-        return interaction.reply({ content: '❌ Guess must be 3–7 letters, a–z only.', flags: 64 });
+        return interaction.reply({
+          content: '❌ Guess must be 3–7 letters, a–z only.',
+          flags: 64,
+        });
       }
       const userId = interaction.user.id;
       const today = getToday();
@@ -412,7 +481,9 @@ module.exports = {
           `• **Length:** ${daily.len}\n` +
           `• **Attempts:** ${daily.attempts}\n` +
           `• **Reward:** ${daily.reward} NestCoins` +
-          (used ? `\n• **Your attempts used:** ${used} (left: ${Math.max(0,left)})` : '');
+          (used
+            ? `\n• **Your attempts used:** ${used} (left: ${Math.max(0, left)})`
+            : '');
       });
 
       return interaction.reply({ content, flags: 64 });
@@ -420,32 +491,49 @@ module.exports = {
 
     // ----- pool-* (admins only) -----
     if (sub.startsWith('pool-')) {
-      if (!isAdminMember(interaction)) {
-        return interaction.reply({ content: "❌ You don't have permission.", flags: 64 });
+      if (!isAdmin(interaction)) {
+        return interaction.reply({
+          content: "❌ You don't have permission.",
+          flags: 64,
+        });
       }
 
       // /nestword pool-bulkadd
       if (sub === 'pool-bulkadd') {
         const raw = interaction.options.getString('words');
         const words = parseBulkWords(raw);
-        if (!words.length) return interaction.reply({ content: '❌ No valid words found in input.', flags: 64 });
+        if (!words.length)
+          return interaction.reply({
+            content: '❌ No valid words found in input.',
+            flags: 64,
+          });
 
         const wl = loadWordlist();
         const addedByLen = { 3: [], 4: [], 5: [], 6: [], 7: [] };
         const skipped = [];
 
         for (const w of words) {
-          if (!/^[a-z]+$/.test(w) || w.length < 3 || w.length > 7) { skipped.push(w); continue; }
+          if (!/^[a-z]+$/.test(w) || w.length < 3 || w.length > 7) {
+            skipped.push(w);
+            continue;
+          }
           const key = `pool${w.length}`;
           wl[key] = wl[key] || [];
-          if (!wl[key].includes(w)) { wl[key].push(w); addedByLen[w.length].push(w); }
+          if (!wl[key].includes(w)) {
+            wl[key].push(w);
+            addedByLen[w.length].push(w);
+          }
         }
         saveWordlist(wl);
 
         const summary = [
           `✅ Added: 3:${addedByLen[3].length}, 4:${addedByLen[4].length}, 5:${addedByLen[5].length}, 6:${addedByLen[6].length}, 7:${addedByLen[7].length}`,
-          skipped.length ? `⚠️ Skipped: ${skipped.slice(0,10).join(', ')}${skipped.length>10?'…':''}` : null
-        ].filter(Boolean).join('\n');
+          skipped.length
+            ? `⚠️ Skipped: ${skipped.slice(0, 10).join(', ')}${skipped.length > 10 ? '…' : ''}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('\n');
         return interaction.reply({ content: summary, flags: 64 });
       }
 
@@ -453,7 +541,10 @@ module.exports = {
       if (sub === 'pool-remove') {
         const word = interaction.options.getString('word').trim().toLowerCase();
         if (!/^[a-z]+$/.test(word) || word.length < 3 || word.length > 7)
-          return interaction.reply({ content: '❌ Word must be 3–7 letters, a–z only.', flags: 64 });
+          return interaction.reply({
+            content: '❌ Word must be 3–7 letters, a–z only.',
+            flags: 64,
+          });
 
         const wl = loadWordlist();
         const key = `pool${word.length}`;
@@ -462,10 +553,11 @@ module.exports = {
         saveWordlist(wl);
 
         return interaction.reply({
-          content: (wl[key].length < before)
-            ? `✅ Removed **${word}** from pool${word.length}.`
-            : `ℹ️ **${word}** not found in pool${word.length}.`,
-          flags: 64
+          content:
+            wl[key].length < before
+              ? `✅ Removed **${word}** from pool${word.length}.`
+              : `ℹ️ **${word}** not found in pool${word.length}.`,
+          flags: 64,
         });
       }
 
@@ -473,7 +565,11 @@ module.exports = {
       if (sub === 'pool-list') {
         const length = interaction.options.getInteger('length');
         const page = Math.max(1, interaction.options.getInteger('page') || 1);
-        if (length < 3 || length > 7) return interaction.reply({ content: '❌ Length must be between 3 and 7.', flags: 64 });
+        if (length < 3 || length > 7)
+          return interaction.reply({
+            content: '❌ Length must be between 3 and 7.',
+            flags: 64,
+          });
 
         const wl = loadWordlist();
         const key = `pool${length}`;
@@ -481,7 +577,10 @@ module.exports = {
         const pageSize = 50;
         const totalPages = Math.max(1, Math.ceil(arr.length / pageSize));
         const p = Math.min(page, totalPages);
-        const chunk = arr.slice((p-1)*pageSize, (p-1)*pageSize + pageSize);
+        const chunk = arr.slice(
+          (p - 1) * pageSize,
+          (p - 1) * pageSize + pageSize,
+        );
 
         const header = `📚 pool${length} (size=${arr.length}) — page ${p}/${totalPages}`;
         const body = chunk.length ? chunk.join(', ') : '_empty_';
@@ -491,16 +590,26 @@ module.exports = {
       // /nestword pool-clear
       if (sub === 'pool-clear') {
         const length = interaction.options.getInteger('length');
-        if (length < 3 || length > 7) return interaction.reply({ content: '❌ Length must be between 3 and 7.', flags: 64 });
+        if (length < 3 || length > 7)
+          return interaction.reply({
+            content: '❌ Length must be between 3 and 7.',
+            flags: 64,
+          });
 
         const wl = loadWordlist();
         wl[`pool${length}`] = [];
         saveWordlist(wl);
-        return interaction.reply({ content: `✅ Cleared pool${length}.`, flags: 64 });
+        return interaction.reply({
+          content: `✅ Cleared pool${length}.`,
+          flags: 64,
+        });
       }
     }
 
     // Fallback
-    return interaction.reply({ content: '❌ Unknown command usage.', flags: 64 });
-  }
+    return interaction.reply({
+      content: '❌ Unknown command usage.',
+      flags: 64,
+    });
+  },
 };

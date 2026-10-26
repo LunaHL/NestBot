@@ -29,3 +29,6 @@ special, vampire): heart, bird, nest, cat, leaf, star, swan, moon
 - Existing files are never overwritten. Delete a file and run it again to redo it.
 
 Commit the pictures afterwards so they ship with the bot.
+
+Drinks and latte art designs are defined in `src/config/coffeeMenu.js`. If you
+add one there, its pictures show up as missing in `--list`.

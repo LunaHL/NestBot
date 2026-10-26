@@ -69,16 +69,6 @@ function getRemainingMs(guildId, targetId) {
   return Math.max(0, info.until - _now());
 }
 
-function cleanupGuild(guildId) {
-  db.perform(data => {
-    const g = data.gags?.[guildId];
-    if (!g) return;
-    for (const [uid, info] of Object.entries(g)) {
-      if (!info?.until || info.until <= _now()) delete g[uid];
-    }
-  });
-}
-
 function doubleRemaining(guildId, targetId) {
   let doubled = false;
   let newUntil = null;
@@ -106,7 +96,6 @@ function doubleRemaining(guildId, targetId) {
   return doubled ? { until: newUntil } : null;
 }
 
-
 // Simple “gagged speech”
 function garble(text) {
   if (!text) return text;
@@ -118,41 +107,52 @@ function garble(text) {
   let out = '';
   let last = 0;
 
-  const garblePlain = (plain) => {
+  const garblePlain = plain => {
     if (!plain) return plain;
 
     const tokens = plain.split(/(\s+)/);
 
-    return tokens.map(tok => {
-      if (/^\s+$/.test(tok)) return tok;
+    return tokens
+      .map(tok => {
+        if (/^\s+$/.test(tok)) return tok;
 
-      // Mentions/channels/roles
-      if (/^<@!?(\d+)>$/.test(tok)) return tok;
-      if (/^<@&(\d+)>$/.test(tok)) return tok;
-      if (/^<#(\d+)>$/.test(tok)) return tok;
+        // Mentions/channels/roles
+        if (/^<@!?(\d+)>$/.test(tok)) return tok;
+        if (/^<@&(\d+)>$/.test(tok)) return tok;
+        if (/^<#(\d+)>$/.test(tok)) return tok;
 
-      // Custom emojis
-      if (/^<a?:\w+:\d+>$/.test(tok)) return tok;
+        // Custom emojis
+        if (/^<a?:\w+:\d+>$/.test(tok)) return tok;
 
-      // Links
-      if (/^https?:\/\/\S+$/i.test(tok)) return tok;
+        // Links
+        if (/^https?:\/\/\S+$/i.test(tok)) return tok;
 
-      // Garble ASCII letters; preserve digits/punct/non-ascii (emoji)
-      let s = '';
-      for (const ch of tok) {
-        const code = ch.codePointAt(0);
+        // Garble ASCII letters; preserve digits/punct/non-ascii (emoji)
+        let s = '';
+        for (const ch of tok) {
+          const code = ch.codePointAt(0);
 
-        if (code > 127) { s += ch; continue; } // emoji etc.
-        if (/[a-z]/.test(ch)) s += 'm';
-        else if (/[A-Z]/.test(ch)) s += 'M';
-        else if (/\d/.test(ch)) s += ch;
-        else s += ch;
-      }
+          if (code > 127) {
+            s += ch;
+            continue;
+          } // emoji etc.
+          if (/[a-z]/.test(ch)) s += 'm';
+          else if (/[A-Z]/.test(ch)) s += 'M';
+          else if (/\d/.test(ch)) s += ch;
+          else s += ch;
+        }
 
-      s = s.replace(/m{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'ph');
-      s = s.replace(/M{4,}/g, m => m.slice(0, Math.max(2, m.length - 1)) + 'PH');
-      return s;
-    }).join('');
+        s = s.replace(
+          /m{4,}/g,
+          m => m.slice(0, Math.max(2, m.length - 1)) + 'ph',
+        );
+        s = s.replace(
+          /M{4,}/g,
+          m => m.slice(0, Math.max(2, m.length - 1)) + 'PH',
+        );
+        return s;
+      })
+      .join('');
   };
 
   for (const match of text.matchAll(protectRe)) {
@@ -164,9 +164,9 @@ function garble(text) {
     // Make protected segments more obvious:
     // match[1] = *action*, match[2] = (ooc)
     if (match[1]) {
-      out += `**${match[1]}**`;      // actions pop (bold)
+      out += `**${match[1]}**`; // actions pop (bold)
     } else if (match[2]) {
-      out += `\`${match[2]}\``;      // OOC looks like OOC (code style)
+      out += `\`${match[2]}\``; // OOC looks like OOC (code style)
     } else {
       out += match[0];
     }
@@ -178,14 +178,80 @@ function garble(text) {
   return out;
 }
 
+// ==========================================
+// Message handling for gagged members
+// ==========================================
 
+const REPOST_COOLDOWN_MS = 1200; // repost a gagged member's message at most every 1.2s
+const SPAM_NOTICE_EVERY = 8; // every 8 dropped messages: double the gag + notice
+const repostLimiter = new Map(); // "guildId:userId" -> { lastPost, dropped, punishedAt }
+
+/**
+ * Called for every message. If the author is gagged: delete the message and
+ * repost it garbled (rate-limited; spamming doubles the gag).
+ * Returns true if the message was handled (nothing else should react to it).
+ */
+async function handleGaggedMessage(message) {
+  const guildId = message.guild.id;
+  const userId = message.author.id;
+  if (!isGagged(guildId, userId)) return false;
+
+  const name = message.member?.displayName || message.author.username;
+
+  // Delete the readable original if we can; otherwise mark it
+  const canDelete = message.guild.members.me
+    ?.permissionsIn(message.channel)
+    ?.has('ManageMessages');
+  if (canDelete) await message.delete().catch(() => {});
+  else await message.react('🔇').catch(() => {});
+
+  const key = `${guildId}:${userId}`;
+  const now = Date.now();
+  const state = repostLimiter.get(key) || {
+    lastPost: 0,
+    dropped: 0,
+    punishedAt: 0,
+  };
+  repostLimiter.set(key, state);
+
+  // Too fast: drop the repost, and punish spam
+  if (now - state.lastPost < REPOST_COOLDOWN_MS) {
+    state.dropped++;
+    if (state.dropped % SPAM_NOTICE_EVERY === 0) {
+      // At most one doubling every 5 seconds, so it can't escalate endlessly
+      if (now - state.punishedAt > 5000 && doubleRemaining(guildId, userId))
+        state.punishedAt = now;
+      const remainingMin = Math.ceil(getRemainingMs(guildId, userId) / 60000);
+      await message.channel
+        .send({
+          content: `⛓️🔇 **${name}** spam detected. Gag time doubled. **~${remainingMin} min** left.`,
+          allowedMentions: { parse: [] },
+        })
+        .catch(() => {});
+    }
+    return true;
+  }
+
+  state.lastPost = now;
+  const garbled = garble(message.content);
+  if (garbled && garbled.trim()) {
+    const remainingSec = Math.ceil(getRemainingMs(guildId, userId) / 1000);
+    await message.channel
+      .send({
+        content: `🔇 **${name}**: ${garbled}\n*(gagged • ${remainingSec}s left)*`,
+        allowedMentions: { parse: [] },
+      })
+      .catch(() => {});
+  }
+  return true;
+}
 
 module.exports = {
+  handleGaggedMessage,
   gagUser,
   ungagUser,
   isGagged,
   getRemainingMs,
-  cleanupGuild,
   garble,
   doubleRemaining,
 };

@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const achievements = require('../services/achievements');
 const db = require('../utils/db');
+const { isAdmin } = require('../utils/permissions');
 const nestcoins = require('../services/nestcoins');
 const history = require('../services/history');
 const { streakReward, streakMessage } = require('../utils/streak');
@@ -69,7 +70,9 @@ module.exports = {
         .setName('history')
         .setDescription('Show past puzzles')
         .addUserOption(opt =>
-          opt.setName('user').setDescription('Show which ones this user solved'),
+          opt
+            .setName('user')
+            .setDescription('Show which ones this user solved'),
         )
         .addIntegerOption(opt =>
           opt.setName('page').setDescription('Page number').setMinValue(1),
@@ -83,10 +86,8 @@ module.exports = {
 
     // ==== /puzzle set ====
     if (sub === 'set') {
-      const isAdmin = interaction.memberPermissions?.has(
-        PermissionFlagsBits.Administrator,
-      );
-      if (!isAdmin)
+      const admin = isAdmin(interaction);
+      if (!admin)
         return interaction.reply({ content: '❌ No permission.', flags: 64 });
 
       const link = interaction.options.getString('link');
@@ -180,7 +181,11 @@ module.exports = {
 
       const lines = slice.map(([date, p]) => {
         const solvers = p.solvedBy?.length || 0;
-        const mark = user ? (p.solvedBy?.includes(user.id) ? '✅ ' : '❌ ') : '';
+        const mark = user
+          ? p.solvedBy?.includes(user.id)
+            ? '✅ '
+            : '❌ '
+          : '';
         return (
           `${mark}**${date}** · ${p.difficulty} · ${solvers} solver${solvers === 1 ? '' : 's'}` +
           ` · [link](<${p.link}>)`
@@ -189,7 +194,9 @@ module.exports = {
 
       let header = `🧩 **Puzzle History** (page ${page}/${pages})`;
       if (user) {
-        const solved = entries.filter(([, p]) => p.solvedBy?.includes(user.id)).length;
+        const solved = entries.filter(([, p]) =>
+          p.solvedBy?.includes(user.id),
+        ).length;
         header += `\n👤 **${user.username}** solved **${solved}** of ${entries.length}`;
       }
 

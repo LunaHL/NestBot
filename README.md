@@ -1,144 +1,131 @@
-**NESTBOT**
+# 🪺 NestBot
 
-**Features** 
+The Discord bot of **The Nest**: a NestCoins economy, daily games, a café,
+tournaments, duels, achievements and an AI caretaker (Google Gemini) you can
+chat with by pinging `@NestBot`.
 
-### 🤖 AI Personality (Gemini Powered)
-*   **Persona**: Acts as the caretaker of the server: dry, witty and a little sassy, but helpful. Short replies by default.
-*   **Context Aware**: Remembers the last few messages in the channel to hold a conversation.
-*   **Dynamic**: Reacts to the channel vibe (e.g., acts differently in a lab vs. a kitchen).
-*   **Commands**:
-    *   Just ping the bot to talk!
-    *   `/ai status`: Check AI health, API usage and today's mood.
-    *   `/ai roast|compliment|poem <target>`: Pay NestCoins for a roast, a flustered compliment or a poem (refunded if the AI fails).
-    *   `/memory add|list|forget`: Tell NestBot things to remember about you (max 10). It uses them in chat. Nothing is saved unless you add it.
-    *   `/ai mood <mood>`: Pay NestCoins to set NestBot's personality for the rest of the day (sweet, grumpy, royal, pirate, sleepy, gremlin, poet).
+- **All commands:** [`src/commands/README.md`](src/commands/README.md)
+- **How the code is organized:** [`src/README.md`](src/README.md)
+- **What changed when:** [`CHANGELOG.md`](CHANGELOG.md)
 
-### 💰 Economy (NestCoins)
-*   **Currency**: NestCoins are the server's currency.
-*   **Daily Rewards**: Claim free coins every 24h with `/daily`.
-*   **Management**:
-    *   `/balance view`: Check your wallet.
-    *   `/balance transfer`: Pay other users.
-    *   `/leaderboard`: See the richest members.
-    *   *(Admin)* `/balance grant` / `/balance remove`.
-*   **Shop**: Buy items with `/shop`. Items can have active effects (like gagging other users).
-*   **Loot Drops**: Random pouches of coins appear in chat. First to click wins! Configurable via `/drop`.
-*   **Gambling**: Try your luck with `/gamble` (Roulette style).
+---
 
-### 🎮 Games
-*   **NestWord (Wordle-like)**:
-    *   Guess the daily word (3-7 letters).
-    *   Earn coins and build streaks for multipliers.
-    *   `/nestword guess`, `/nestword info`.
-*   **Puzzle of the Day**:
-    *   Solve a daily riddle or code.
-    *   `/puzzle solve`, `/puzzle info`, `/puzzle history [user]`.
-*   **Punishment Wheel**:
-    *   Spin the wheel for random outcomes (`/wheel spin`).
-    *   Can target other users (costs coins).
-    *   Outcomes can trigger system effects (e.g., gag).
+## Features at a glance
 
-### 🏆 Events & Tournaments
-Full-featured tournament manager built-in (`/event`).
-*   **Formats**: Supports **Single Elimination** and **Swiss System**.
-*   **Management**:
-    *   Create events with prize pools (`/event create`).
-    *   Users join via `/event join`.
-    *   Automated pairings generation (`/event pairings`).
-    *   Track wins (`/event win`).
-    *   Visual bracket status (`/event bracket`).
-    *   Leaderboards/Standings for Swiss format (`/event standings`).
-*   **Prizes**: Automatically distributes NestCoins to the Top 3 winners upon completion.
+| | |
+|---|---|
+| 💰 **Economy** | NestCoins, `/daily`, `/balance`, `/leaderboard`, `/shop`, `/gamble`, random loot drops in chat |
+| 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters), `/puzzle` (puzzle of the day), streak bonuses, daily results post |
+| ☕ **Café** | `/coffee` to order or gift drinks, with pictures, latte art, streaks and a leaderboard |
+| ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss), `/duel` rock-paper-scissors with bets |
+| 🏅 **Progress** | `/profile` with all stats, 30 `/achievements` with coin rewards |
+| 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, `/memory` |
+| 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag` |
+| 🎂 **Social** | `/birthday` announcements with coins, `/pictracker` weekly picture leaderboard |
+| 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
 
-### ☕ The Nest Café
-*   `/coffee menu` - See the drinks and prices.
-*   `/coffee order <drink>` - Buy yourself a coffee with NestCoins. Random serving lines, latte art, and a 5% "lucky bean" chance that makes it free.
-*   `/coffee gift <user> <drink> [note]` - Treat someone to a coffee.
-*   `/coffee stats [user]` and `/coffee leaderboard` - Cups, streaks, favorite drink, gifts.
-*   Every coffee comes with a premade picture of the cup and its latte art, from `src/assets/coffee-art/` (see the README in that folder). Create them yourself, or once with `npm run coffee-art`, then commit them.
-*   Max 6 cups per person per day. Coffee stats also show in `/profile`, and NestBot knows your coffee habits in chat.
+---
 
-### 🏅 Achievements
-*   30 achievements across puzzles, NestWord, the café, tournaments, duels, gags and Halloween (some secret). Each pays a small coin reward.
-*   Unlocked automatically and announced in chat. `/achievements [user]` shows all of them; `/profile` shows the badges.
+## Setup (first time)
 
-### 🤺 Duels
-*   `/duel challenge <opponent> [bet]` - Rock · Paper · Scissors, both bet the same amount (0–500), winner takes all. Ties replay (3 ties = draw, bets returned).
-*   `/duel stats [user]` - Win/loss record.
+Needs **Node.js 20 or newer** (`node -v`).
 
-### 🎃 Halloween (October 31 only)
-*   `/trickortreat` - 3 tries per day: candy coins, a rare jackpot, or tricks (a ghost steals coins, a witch gags you for a minute…).
-*   Café specials (🧪 Witch's Brew, 🩸 Vampire Latte), haunted loot drops twice as often, a spooky NestBot, and a morning announcement in the scoreboard channel.
-*   Test it on any day with `FORCE_HALLOWEEN=true` in `.env`.
+1. **Install:**
+   ```bash
+   git clone https://github.com/LunaHL/NestBot.git
+   cd NestBot
+   npm install
+   ```
+2. **Settings:** copy `.env.example` to `.env` and fill it in. Every setting is
+   explained in that file. Required: `BOT_TOKEN`, `CLIENT_ID`, `GUILD_ID`,
+   `SCOREBOARD_CHANNEL_ID`, and `GEMINI_API_KEY` for the AI.
+3. **Start:**
+   ```bash
+   npm start
+   ```
+   The bot registers its slash commands and logs in. Data files are created
+   automatically in `src/data/`.
 
-### 🎂 Social & Utility
-*   **Profiles**: `/profile` shows coins, rank, birthday, puzzle and NestWord stats (streaks, win rate, average tries), tournament wins and this week's pictures.
-*   **Birthdays**:
-    *   Track user birthdays (`/birthday add`).
-    *   Automated announcements and coin gifts on your special day.
-*   **Picture Tracker**:
-    *   Tracks who posts the most images weekly (`/pictracker`).
-    *   Weekly leaderboard with coin rewards for top contributors.
+In the Discord Developer Portal, the bot needs the **Message Content** intent
+turned on (for the AI chat, gags and the picture tracker).
 
-### 🔇 Fun Moderation (The Gag System)
-*   **Gagging**: Users can be "gagged" (via Shop items or Wheel spins).
-*   **Effect**: Gagged users have their messages garbled (e.g., "Hello" -> "Hmph").
-*   **Anti-Spam**: If a gagged user spams, the bot doubles their punishment duration.
-*   **Commands**: `/ungag` (Admin) to remove it early.
+## Updating the bot
 
-## 🛠️ Commands List
+On the server:
+```bash
+git pull
+npm install        # only needed when package.json changed, but never hurts
+```
+Then restart the bot. Your data (`src/data/`) and `.env` are not in git, so an
+update never touches them.
 
-### General
-*   `/profile` - View your stats.
-*   `/daily` - Claim daily coins.
-*   `/balance` - View or transfer coins.
-*   `/leaderboard` - Economy rankings.
-*   `/shop` - Buy items.
-*   `/gamble` - Bet 5 coins.
+**Rule of thumb:** make code changes on your PC, run `npm test`, push, then
+`git pull` on the server. Don't edit code directly on the server, or the two
+copies drift apart.
 
-### Games
-*   `/nestword guess <word>` - Play the daily word game.
-*   `/puzzle solve <code>` - Solve the daily puzzle.
-*   `/puzzle history [user] [page]` - Browse past puzzles.
-*   `/wheel spin [target]` - Spin the punishment wheel.
+## Testing
 
-### Events
-*   `/event list` - See active events.
-*   `/event join <id>` - Join an event.
-*   `/event bracket <id>` - View tournament state.
-*   `/event standings <id>` - View Swiss standings.
+```bash
+npm test
+```
+Runs every command with fake input and reports anything that crashes. It uses
+a temporary data folder, so it's safe to run anywhere, even on the server.
+See [`tests/README.md`](tests/README.md).
 
-### Admin / Configuration
-*   `/event create` - Start a tournament.
-*   `/event pairings` - Generate matches.
-*   `/event win` - Declare match results.
-*   `/drop blacklist` - Stop loot drops in specific channels.
-*   `/birthday add/remove` - Manage birthdays.
-*   `/pictracker setchannel` - Configure picture tracker output.
-*   `/puzzle set` - Configure the daily puzzle.
-*   `/nestword set` - Configure the daily word.
-*   `/wheel add/remove` - Manage wheel options.
-*   `/shop add/remove` - Manage shop items.
-*   `/ungag` - Remove a gag.
+## Other scripts
 
+| Command | What it does |
+|---|---|
+| `npm start` | Start the bot |
+| `npm test` | Run the smoke test |
+| `npm run commands` | Only register the slash commands with Discord (the bot also does this on every start) |
+| `npm run coffee-art` | Generate missing café pictures once ([details](src/scripts/README.md)) |
 
-**Nest Bot Changelog**
+---
 
-*V 1.1*
-Major:
-- Removed PicQuota 
-- Added Pictracker
+## Where do I change…?
 
-Minor:
-- Puzzle code isnt case sensitive anymore
+| What | Where |
+|---|---|
+| Café drinks, prices, serving lines, cup limit | `src/config/coffeeMenu.js` |
+| Coffee pictures | `src/assets/coffee-art/` ([README](src/assets/coffee-art/README.md)) |
+| AI personality, moods | `src/services/ai.js` (`buildSystemPrompt`, `MOODS`) |
+| Prices for roast / compliment / poem / mood | `src/commands/ai.js` (`PRICES`) |
+| Achievements (add, change rewards) | `src/services/achievements.js` |
+| Streak bonus for Puzzle and NestWord | `src/utils/streak.js` |
+| Puzzle rewards per difficulty | `src/commands/puzzle.js` (`rewards`) |
+| Daily coins | `src/commands/daily.js` (`DAILY_AMOUNT`) |
+| Birthday coins | `src/commands/birthday.js` (`BIRTHDAY_COINS`) |
+| Picture tracker rewards | `src/services/pictracker.js` |
+| Duel limits | `src/commands/duel.js` (`MAX_BET`, timers) |
+| Targeted wheel spin price | `src/commands/wheel.js` (`PRICE_TARGETED_SPIN`) |
+| Halloween outcomes and tries | `src/services/halloween.js` |
+| How long old data stays before archiving | `src/services/cleanup.js` |
+| Number of daily backups | `src/utils/db.js` (`BACKUPS_TO_KEEP`) |
+| Gemini models, time zone, test switches | `.env` (see `.env.example`) |
 
+Restart the bot after changing anything.
 
-*V 1.1.1*
+---
 
-Major: 
-- Changed the gamble odds
-- Added Loot Drops
+## Data, backups and the archive
 
-## 💾 Data & Archive
-*   Live data is in `src/data/nestbot.json`. It's saved safely (temp file + rename) and backed up daily to `src/data/backups/` (last 7 kept).
-*   Every hour, NestWord days and puzzles older than 7 days, and tournaments finished more than 30 days ago, are moved to `src/data/archive/` (one file per month) to keep the main file small. Nothing is deleted except expired gags and old entries of NestWord's used-words list.
+Everything the bot remembers is in `src/data/`. Details and how to restore a
+backup: [`src/data/README.md`](src/data/README.md).
+
+- `nestbot.json`: all live data (coins, games, stats…), saved safely within
+  2 seconds of any change.
+- `backups/`: one copy per day, the last 7 days.
+- `archive/`: old puzzles, NestWord days and tournaments, moved out of the main
+  file every hour so it stays small. Used by `/puzzle history` and `/profile`.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Bot doesn't answer when pinged | Check `GEMINI_API_KEY`, and the log for `[AI]` warnings |
+| `[AI] ⚠️ Model(s) not available` | Set `AI_MODELS=` in `.env` to one of the models listed in that warning |
+| New commands don't show up | Wait a minute and restart Discord. Check the log for "Registered N slash commands" |
+| `Scoreboard channel invalid` | `SCOREBOARD_CHANNEL_ID` in `.env` is wrong or the bot can't see that channel |
+| `nestbot.json is broken` at startup | The bot restores the newest backup automatically; see `src/data/README.md` |
+| A command says "Error executing this command" | The bot log shows the cause. Run `npm test` to find crashes |
