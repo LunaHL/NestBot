@@ -1,5 +1,19 @@
 # NestBot Changelog
 
+## V 1.3 (October 2026)
+
+**New**
+- 🍹 `/coffee` is now `/drinks`: the Nest Café & Bar with 40 drinks
+  - 🫖 10 teas, including 5 black teas (Black Tea, Earl Grey, English Breakfast, Darjeeling, Chai Latte)
+  - 🍫 3 hot chocolates, 🍹 6 cocktails + an alcohol-free one, 🍺 3 beers, 🍷 4 wines
+  - Drinks are picked by typing (search), the menu can be filtered by section
+  - Daily limits: 6 with caffeine, 3 with alcohol, 12 in total
+- 🏅 6 new achievements (Tried Everything, Tea Time, Black Tea Devotee, Cozy, Cheers!, Last Call), 36 in total
+
+**Changed**
+- Existing drink stats and achievements are kept; "Tried Everything" for coffees is now "Coffee Connoisseur"
+- Picture folder `src/assets/coffee-art/` → `src/assets/drink-art/`, script `npm run coffee-art` → `npm run drink-art`
+
 ## V 1.2 (October 2026)
 
 **New**

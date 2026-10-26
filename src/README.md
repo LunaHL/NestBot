@@ -7,13 +7,13 @@ src/
 ├── index.js            Start here: creates the bot, loads commands, logs in
 ├── deploy-commands.js  Registers the slash commands with Discord
 │
-├── commands/   One file per slash command (/coffee, /puzzle, …): the Discord side
+├── commands/   One file per slash command (/drinks, /puzzle, …): the Discord side
 ├── events/     What happens on startup, on every slash command, on every message
 ├── services/   The actual logic (coins, AI, gags, achievements, background jobs…)
-├── config/     Content you'll want to edit (the café menu)
+├── config/     Content you'll want to edit (the drinks menu, /help texts)
 ├── utils/      Small shared helpers (database, dates, timers, permissions)
-├── scripts/    One-off tools you run by hand (npm run coffee-art)
-├── assets/     Files that ship with the bot (coffee pictures)
+├── scripts/    One-off tools you run by hand (npm run drink-art)
+├── assets/     Files that ship with the bot (drink pictures)
 └── data/       The bot's memory: database, backups, archive (NOT in git)
 ```
 
@@ -40,10 +40,10 @@ right time even after a restart or a daylight saving change.
 ## What happens on a slash command
 
 ```
-User types /coffee order
+User types /drinks order
   → events/interactionCreate.js finds the command by name
-  → commands/coffee.js reads the options and builds the reply
-  → services/coffee.js does the work (check limit, take coins, record the cup)
+  → commands/drinks.js reads the options and builds the reply
+  → services/drinks.js does the work (check limits, take coins, record the drink)
   → utils/db.js saves the change to data/nestbot.json
   → services/achievements.js checks for new achievements and announces them
 ```

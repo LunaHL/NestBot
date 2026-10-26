@@ -90,11 +90,11 @@ module.exports = {
           inline: true,
         },
         {
-          name: '☕ Coffee',
-          value: s.coffee.total
-            ? `**${s.coffee.total}** cups (${s.coffee.today} today)\n🔥 Streak **${s.coffee.streak}**` +
-              (s.coffee.favorite ? `\n❤️ ${s.coffee.favorite.name}` : '')
-            : 'No coffee yet',
+          name: '🍹 Drinks',
+          value: s.drinks.total
+            ? `**${s.drinks.total}** drinks (${s.drinks.today} today)\n🔥 Streak **${s.drinks.streak}**` +
+              (s.drinks.favorite ? `\n❤️ ${s.drinks.favorite.name}` : '')
+            : 'No drinks yet',
           inline: true,
         },
         {

@@ -34,7 +34,7 @@ function isAdminOnly(json, sub) {
   return admin.includes('*') || (sub && admin.includes(sub));
 }
 
-/** "/coffee gift <user> <drink> [note]" */
+/** "/drinks gift <user> <drink> [note]" */
 function usage(name, sub, options = []) {
   const args = options
     .filter(o => o.type !== 1 && o.type !== 2)

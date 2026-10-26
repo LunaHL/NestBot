@@ -64,18 +64,36 @@ function eventStats(guildId, userId) {
   };
 }
 
-function coffeeStats(guildId, userId) {
-  const s = db.read(d => d.coffee?.[guildId]?.[userId]);
-  const summary = require('./coffee').getCoffeeSummary(guildId, userId);
+// Drinks from /drinks, plus a few facts the achievements need
+function drinksStats(guildId, userId) {
+  const { MENU } = require('../config/drinksMenu');
+  const s = require('./drinks').getDrinksSummary(guildId, userId);
+  const tried = new Set(s?.tried || []);
+  const regular = Object.entries(MENU).filter(([, d]) => !d.halloween);
+  const triedAll = list => list.length > 0 && list.every(([k]) => tried.has(k));
+  const raw = db.read(d => d.coffee?.[guildId]?.[userId]?.drinks) || {};
+  const alcoholTotal = Object.entries(raw)
+    .filter(([k]) => MENU[k]?.alcohol)
+    .reduce((n, [, c]) => n + c, 0);
+
   return {
     total: s?.total || 0,
-    today: summary?.today || 0,
-    streak: summary?.streak || 0,
+    today: s?.today || 0,
+    todayCaffeine: s?.todayCaffeine || 0,
+    todayAlcohol: s?.todayAlcohol || 0,
+    streak: s?.streak || 0,
     bestStreak: s?.bestStreak || 0,
     given: s?.given || 0,
     received: s?.received || 0,
-    favorite: summary?.favorite || null,
-    drinksTried: Object.keys(s?.drinks || {}).length,
+    favorite: s?.favorite || null,
+    byCategory: s?.byCategory || {},
+    blackTea: s?.blackTea || 0,
+    alcoholTotal,
+    triedAllCoffee: triedAll(
+      regular.filter(([, d]) => d.category === 'coffee'),
+    ),
+    triedEverything: triedAll(regular),
+    hadDecaf: tried.has('decaf'),
   };
 }
 
@@ -94,7 +112,7 @@ function getUserStats(guildId, userId) {
     puzzle: puzzleStats(userId),
     nestword: nestwordStats(userId),
     events: eventStats(guildId, userId),
-    coffee: coffeeStats(guildId, userId),
+    drinks: drinksStats(guildId, userId),
     gags: db.read(d => d.gagStats?.[guildId]?.[userId]) || {
       received: 0,
       given: 0,

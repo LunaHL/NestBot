@@ -8,7 +8,7 @@ reply to Discord interactions themselves (except `achievements.announce`).
 | File | What it does | Used by |
 |---|---|---|
 | `nestcoins.js` | Balances: `getBalance`, `addCoins`, `removeCoins` (returns `null` if not enough), `getAllBalances` | Almost everything |
-| `stats.js` | Collects every stat about one member (puzzles, NestWord, coffee, duels, gags…) in one object | `/profile`, achievements |
+| `stats.js` | Collects every stat about one member (puzzles, NestWord, drinks, duels, gags…) in one object | `/profile`, achievements |
 | `achievements.js` | The list of all achievements, unlocking, coin rewards, and `announce()` for the chat message | Many commands, `/achievements`, `/profile` |
 | `history.js` | Combines current data with the archive (all puzzles, NestWord days, events ever) | `/puzzle history`, stats |
 
@@ -23,8 +23,8 @@ used. Members who already qualify get it the next time they do something.
 |---|---|
 | `ai.js` | Everything Gemini: the personality (`buildSystemPrompt`), chat replies, roast/compliment/poem texts, daily moods, model fallback and the startup model check |
 | `memory.js` | The facts members save with `/memory` (max 10 each, max 150 characters) |
-| `coffee.js` | Café logic: serving, charging, daily limit, streaks, coffee stats |
-| `coffeeArt.js` | Finds the right picture in `assets/coffee-art/` for a drink and latte art |
+| `drinks.js` | Café & bar logic: serving, charging, daily limits (caffeine, alcohol, total), streaks, drink stats, the search while typing |
+| `drinkArt.js` | Finds the right picture in `assets/drink-art/` for a drink and latte art |
 | `gag.js` | Gagging: who is gagged and until when, garbling text, and handling messages of gagged members (delete, repost garbled, double the gag on spam) |
 | `halloween.js` | Trick-or-treat outcomes, daily tries, the October 31 announcement |
 

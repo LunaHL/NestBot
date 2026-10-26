@@ -6,7 +6,7 @@ never touches it. Back this folder up if you move the bot to another machine.
 
 | File / folder | What it is |
 |---|---|
-| `nestbot.json` | All live data: coins, game state, streaks, coffee, achievements, memories, settings set with commands (channels, shop, wheel…). Created automatically |
+| `nestbot.json` | All live data: coins, game state, streaks, drinks (stored as `coffee`, the old name), achievements, memories, settings set with commands (channels, shop, wheel…). Created automatically |
 | `wordlist.json` | NestWord's word pools (managed with `/nestword pool-*`) |
 | `backups/` | A copy of `nestbot.json` once per day, the last 7 days (`nestbot-YYYY-MM-DD.json`) |
 | `archive/` | Old data moved out of `nestbot.json` every hour, one file per kind and month (`puzzles-2026-10.json`, `nestword-…`, `events-…`). Still used by `/puzzle history` and `/profile` |

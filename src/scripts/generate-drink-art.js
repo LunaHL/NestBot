@@ -1,8 +1,8 @@
-// One-time helper to create the premade /coffee pictures.
+// One-time helper to create the premade /drinks pictures.
 //
-//   npm run coffee-art -- --list     show which pictures exist / are missing
-//   npm run coffee-art               generate all missing pictures with Gemini
-//   npm run coffee-art -- latte      only missing pictures for one drink
+//   npm run drink-art -- --list     show which pictures exist / are missing
+//   npm run drink-art               generate all missing pictures with Gemini
+//   npm run drink-art -- latte      only missing pictures for one drink
 //
 // Existing files are never overwritten, so you can mix your own pictures with
 // generated ones. To redo a picture, delete its file and run this again.
@@ -11,10 +11,13 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
-const { MENU, LATTE_ART } = require('../config/coffeeMenu');
-const { findFile, ART_DIR } = require('../services/coffeeArt');
+const { MENU, LATTE_ART, CATEGORIES } = require('../config/drinksMenu');
+const { findFile, ART_DIR } = require('../services/drinkArt');
 
-const MODEL = process.env.COFFEE_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const MODEL =
+  process.env.DRINK_IMAGE_MODEL ||
+  process.env.COFFEE_IMAGE_MODEL || // older name, still works
+  'gemini-2.5-flash-image';
 
 // Every picture the bot can use: one per drink + latte art, plus a plain one
 function allPictures() {
@@ -29,13 +32,21 @@ function allPictures() {
   return list;
 }
 
+// Café drinks sit on a café table in the morning; bar drinks on a bar
+// counter in the evening (see `place` in CATEGORIES in drinksMenu.js).
+const SCENES = {
+  cafe: 'Sitting on a wooden table in a cozy café, soft warm morning light, gentle steam, ',
+  bar: 'Standing on a polished wooden bar counter in a cozy bar in the evening, warm dim fairy lights in the background, ',
+};
+
 function buildPrompt(drink, art) {
+  const place = CATEGORIES[drink.category]?.place || 'cafe';
   return (
     `Anime-style illustration of ${drink.imagePrompt}, ` +
     (art
       ? `with beautiful latte art in the milk foam shaped like ${art.imagePrompt}, clearly visible from above. `
       : 'without any latte art. ') +
-    `Sitting on a wooden table in a cozy café, soft warm morning light, gentle steam, ` +
+    SCENES[place] +
     `pastel colors, clean anime lineart, cute cozy aesthetic, slightly top-down view. ` +
     `No text, no letters, no logos, no people. Square image.`
   );

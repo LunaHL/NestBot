@@ -234,18 +234,18 @@ function halloweenPrompt(guildId) {
   );
 }
 
-// What the AI knows about the user's coffee habits
-function coffeeLine(message) {
+// What the AI knows about the user's drinking habits (/drinks)
+function drinksLine(message) {
   try {
-    const c = require('./coffee').getCoffeeSummary(
+    const c = require('./drinks').getDrinksSummary(
       message.guild.id,
       message.author.id,
     );
-    if (!c) return "User's coffee: hasn't ordered any coffee yet.";
+    if (!c || !c.total) return "User's drinks: hasn't ordered anything yet.";
     return (
-      `User's coffee: ${c.today} cups today, ${c.total} all time` +
+      `User's drinks today: ${c.today} (${c.todayCaffeine} with caffeine, ${c.todayAlcohol} alcoholic), ${c.total} all time` +
       (c.favorite ? `, favorite drink: ${c.favorite.name}` : '') +
-      (c.streak > 1 ? `, ${c.streak}-day coffee streak` : '') +
+      (c.streak > 1 ? `, ${c.streak}-day drink streak` : '') +
       '.'
     );
   } catch {
@@ -272,7 +272,7 @@ Current server time: ${now}.
 Current Channel: #${channelName}
 User: ${nickname} (@${username}).
 User's Balance: ${userBalance} NestCoins.
-${coffeeLine(message)}${memoryLines(message, nickname)}
+${drinksLine(message)}${memoryLines(message, nickname)}
 ${contextLog ? `\n[RECENT CHANNEL MESSAGES (Context)]:\n${contextLog}` : ''}
 
 Server:
@@ -282,7 +282,7 @@ Server:
 What you run:
 - Economy: NestCoins (/daily, /balance, /gamble) and the Shop (/shop).
 - Games: the daily NestWord (/nestword), the Puzzle of the Day (/puzzle) and the Punishment Wheel (/wheel).
-- The Nest Café (/coffee): members order coffee or gift it to each other. A lot of people here love coffee; feel free to bring it up when it fits.
+- The Nest Café & Bar (/drinks): members order or gift coffee, tea (black tea is a favorite here), hot chocolate, cocktails, beer and wine. A lot of people here love coffee and tea; feel free to bring it up when it fits. If someone had a lot of alcohol today, be caring, never encouraging.
 ${gameInfo}
 
 Personality:

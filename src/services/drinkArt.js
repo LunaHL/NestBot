@@ -1,17 +1,17 @@
-// Premade pictures for /coffee, stored in src/assets/coffee-art/.
+// Premade pictures for /drinks, stored in src/assets/drink-art/.
 //
 // File names (png, jpg, jpeg, webp or gif):
 //   <drink>-<art>.png   e.g. latte-cat.png      (a drink with that latte art)
 //   <drink>-plain.png   e.g. espresso-plain.png (a drink without latte art)
 //   <drink>.png         e.g. latte.png          (fallback for that drink)
-// Missing pictures are fine: the coffee is then served without one.
-// Run `npm run coffee-art -- --list` to see every file name the bot looks for.
+// Missing pictures are fine: the drink is then served without one.
+// Run `npm run drink-art -- --list` to see every file name the bot looks for.
 const fs = require('fs');
 const path = require('path');
 
 const { ASSETS_DIR } = require('../utils/paths');
 
-const ART_DIR = path.join(ASSETS_DIR, 'coffee-art');
+const ART_DIR = path.join(ASSETS_DIR, 'drink-art');
 const EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 
 function findFile(base) {

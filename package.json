@@ -9,8 +9,8 @@
   "scripts": {
     "start": "node src/index.js",
     "commands": "node src/deploy-commands.js",
-    "coffee-art": "node src/scripts/generate-coffee-art.js",
-    "test": "node tests/smoke.js"
+    "test": "node tests/smoke.js",
+    "drink-art": "node src/scripts/generate-drink-art.js"
   },
   "dependencies": {
     "@google/genai": "2.28.0",

@@ -1,6 +1,6 @@
 # 🪺 NestBot
 
-The Discord bot of **The Nest**: a NestCoins economy, daily games, a café,
+The Discord bot of **The Nest**: a NestCoins economy, daily games, a café & bar,
 tournaments, duels, achievements and an AI caretaker (Google Gemini) you can
 chat with by pinging `@NestBot`.
 
@@ -16,9 +16,9 @@ chat with by pinging `@NestBot`.
 |---|---|
 | 💰 **Economy** | NestCoins, `/daily`, `/balance`, `/leaderboard`, `/shop`, `/gamble`, random loot drops in chat |
 | 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters), `/puzzle` (puzzle of the day), streak bonuses, daily results post |
-| ☕ **Café** | `/coffee` to order or gift drinks, with pictures, latte art, streaks and a leaderboard |
+| 🍹 **Café & Bar** | `/drinks` to order or gift coffee, tea, hot chocolate, cocktails, beer and wine, with pictures, latte art, streaks and daily limits |
 | ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss), `/duel` rock-paper-scissors with bets |
-| 🏅 **Progress** | `/profile` with all stats, 30 `/achievements` with coin rewards |
+| 🏅 **Progress** | `/profile` with all stats, 36 `/achievements` with coin rewards |
 | 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, `/memory` |
 | 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag` |
 | 🎂 **Social** | `/birthday` announcements with coins, `/pictracker` weekly picture leaderboard |
@@ -80,7 +80,7 @@ See [`tests/README.md`](tests/README.md).
 | `npm start` | Start the bot |
 | `npm test` | Run the smoke test |
 | `npm run commands` | Only register the slash commands with Discord (the bot also does this on every start) |
-| `npm run coffee-art` | Generate missing café pictures once ([details](src/scripts/README.md)) |
+| `npm run drink-art` | Generate missing drink pictures once ([details](src/scripts/README.md)) |
 
 ---
 
@@ -88,9 +88,9 @@ See [`tests/README.md`](tests/README.md).
 
 | What | Where |
 |---|---|
-| Café drinks, prices, serving lines, cup limit | `src/config/coffeeMenu.js` |
+| Drinks, prices, serving lines, daily limits | `src/config/drinksMenu.js` |
 | Texts of `/help` | `src/config/help.js` |
-| Coffee pictures | `src/assets/coffee-art/` ([README](src/assets/coffee-art/README.md)) |
+| Drink pictures | `src/assets/drink-art/` ([README](src/assets/drink-art/README.md)) |
 | AI personality, moods | `src/services/ai.js` (`buildSystemPrompt`, `MOODS`) |
 | Prices for roast / compliment / poem / mood | `src/commands/ai.js` (`PRICES`) |
 | Achievements (add, change rewards) | `src/services/achievements.js` |

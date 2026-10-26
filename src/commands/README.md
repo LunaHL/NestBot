@@ -42,16 +42,19 @@ replies and embeds. The real work (coins, stats, saving) is in
 Both games give a streak bonus (`utils/streak.js`), and yesterday's results are
 posted after midnight (`services/scoreboard.js`).
 
-## ☕ Café
+## 🍹 Café & Bar
 
 | File | Command | What it does |
 |---|---|---|
-| `coffee.js` | `/coffee menu` | Drinks and prices |
-| | `/coffee order` | Buy yourself a drink (with picture and maybe latte art) |
-| | `/coffee gift` | Buy someone a drink, with an optional note |
-| | `/coffee stats` / `leaderboard` | Cups, streaks, favorite drink, biggest drinkers |
+| `drinks.js` | `/drinks menu` | All drinks and prices, or one section (`category:`) |
+| | `/drinks order` | Buy yourself a drink (with picture and maybe latte art). The drink is chosen by typing: "tea", "earl", "beer" … |
+| | `/drinks gift` | Buy someone a drink, with an optional note |
+| | `/drinks stats` / `leaderboard` | Drinks per category, today's limits, streak, favorite, most drinks |
 
-Menu and prices: `config/coffeeMenu.js`. Pictures: `assets/coffee-art/`.
+Sections: ☕ coffee, 🫖 tea (5 black teas), 🍫 hot chocolate, 🍹 cocktails,
+🍺 beer, 🍷 wine, 🎃 Halloween specials. Per day: max 6 with caffeine, 3 with
+alcohol, 12 in total. Menu, prices and limits: `config/drinksMenu.js`.
+Pictures: `assets/drink-art/`.
 
 ## ⚔️ Tournaments and duels
 

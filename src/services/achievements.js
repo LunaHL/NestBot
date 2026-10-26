@@ -4,11 +4,12 @@
 const db = require('../utils/db');
 const nestcoins = require('./nestcoins');
 const { getUserStats } = require('./stats');
+const { CAFFEINE_LIMIT, ALCOHOL_LIMIT } = require('../config/drinksMenu');
 
 const CATEGORIES = {
   puzzle: '🧩 Puzzles',
   nestword: '🟩 NestWord',
-  coffee: '☕ Café',
+  drinks: '🍹 Drinks',
   social: '⚔️ Tournaments & Duels',
   gag: '🔇 Gags',
   misc: '✨ Other',
@@ -119,79 +120,134 @@ const ACHIEVEMENTS = [
     check: s => s.nestword.lastTry >= 1,
   },
 
-  // ☕ Café
+  // 🍹 Drinks (ids starting with "coffee_" are from before /drinks existed;
+  // they're kept so nobody loses an unlocked achievement)
   {
     id: 'coffee_1',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '☕',
     name: 'First Sip',
-    desc: 'Have your first coffee',
+    desc: 'Have your first drink',
     reward: 5,
-    check: s => s.coffee.total >= 1,
+    check: s => s.drinks.total >= 1,
   },
   {
     id: 'coffee_50',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '🪑',
     name: 'Regular',
-    desc: 'Have 50 coffees',
+    desc: 'Have 50 drinks',
     reward: 25,
-    check: s => s.coffee.total >= 50,
+    check: s => s.drinks.total >= 50,
   },
   {
     id: 'coffee_200',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '👑',
     name: 'Caffeine Royalty',
     desc: 'Have 200 coffees',
     reward: 75,
-    check: s => s.coffee.total >= 200,
+    check: s => (s.drinks.byCategory.coffee || 0) >= 200,
   },
   {
     id: 'coffee_limit',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '⚡',
     name: 'Overcaffeinated',
-    desc: 'Get cut off by the café for the day',
+    desc: 'Reach the daily caffeine limit',
     reward: 10,
-    check: s => s.coffee.today >= 6,
+    check: s => s.drinks.todayCaffeine >= CAFFEINE_LIMIT,
   },
   {
     id: 'coffee_streak_7',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '🌅',
     name: 'Daily Ritual',
-    desc: 'Have coffee 7 days in a row',
+    desc: 'Have a drink 7 days in a row',
     reward: 20,
-    check: s => s.coffee.bestStreak >= 7,
+    check: s => s.drinks.bestStreak >= 7,
   },
   {
     id: 'coffee_gift_10',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '🎁',
     name: "Barista's Friend",
-    desc: 'Gift 10 coffees',
+    desc: 'Gift 10 drinks',
     reward: 25,
-    check: s => s.coffee.given >= 10,
+    check: s => s.drinks.given >= 10,
   },
   {
     id: 'coffee_menu',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '📋',
+    name: 'Coffee Connoisseur',
+    desc: 'Try every coffee on the menu',
+    reward: 50,
+    check: s => s.drinks.triedAllCoffee,
+  },
+  {
+    id: 'drinks_menu',
+    cat: 'drinks',
+    emoji: '🗺️',
     name: 'Tried Everything',
     desc: 'Try every drink on the regular menu',
-    reward: 50,
-    check: s => s.coffee.triedWholeMenu,
+    reward: 100,
+    check: s => s.drinks.triedEverything,
+  },
+  {
+    id: 'tea_10',
+    cat: 'drinks',
+    emoji: '🫖',
+    name: 'Tea Time',
+    desc: 'Have 10 teas',
+    reward: 15,
+    check: s => (s.drinks.byCategory.tea || 0) >= 10,
+  },
+  {
+    id: 'blacktea_25',
+    cat: 'drinks',
+    emoji: '🖤',
+    name: 'Black Tea Devotee',
+    desc: 'Have 25 black teas',
+    reward: 40,
+    check: s => s.drinks.blackTea >= 25,
+  },
+  {
+    id: 'cocoa_1',
+    cat: 'drinks',
+    emoji: '🍫',
+    name: 'Cozy',
+    desc: 'Have a hot chocolate',
+    reward: 5,
+    check: s => (s.drinks.byCategory.chocolate || 0) >= 1,
+  },
+  {
+    id: 'bar_1',
+    cat: 'drinks',
+    emoji: '🥂',
+    name: 'Cheers!',
+    desc: 'Have your first drink at the bar',
+    reward: 5,
+    check: s => s.drinks.alcoholTotal >= 1,
+  },
+  {
+    id: 'bar_limit',
+    cat: 'drinks',
+    emoji: '🥴',
+    name: 'Last Call',
+    desc: 'Get cut off at the bar for the night',
+    reward: 10,
+    check: s => s.drinks.todayAlcohol >= ALCOHOL_LIMIT,
   },
   {
     id: 'coffee_decaf',
-    cat: 'coffee',
+    cat: 'drinks',
     emoji: '😐',
     name: 'Why Though',
     desc: 'Order a decaf',
     reward: 1,
     secret: true,
-    check: s => s.coffee.hadDecaf,
+    check: s => s.drinks.hadDecaf,
   },
 
   // ⚔️ Tournaments & Duels
@@ -307,29 +363,13 @@ function getUnlocked(guildId, userId) {
   return db.read(d => d.achievements?.[guildId]?.[userId]) || {};
 }
 
-// Extra coffee facts the achievements need
-function withCoffeeExtras(guildId, userId, stats) {
-  const { MENU } = require('../config/coffeeMenu');
-  const drinks = db.read(d => d.coffee?.[guildId]?.[userId]?.drinks) || {};
-  const regular = Object.entries(MENU)
-    .filter(([, d]) => !d.halloween)
-    .map(([k]) => k);
-  stats.coffee.triedWholeMenu = regular.every(k => drinks[k] > 0);
-  stats.coffee.hadDecaf = (drinks.decaf || 0) > 0;
-  return stats;
-}
-
 /**
  * Unlock everything this member has earned but not received yet, pay the
  * rewards, and return the newly unlocked achievements.
  */
 function checkAchievements(guildId, userId) {
   const have = getUnlocked(guildId, userId);
-  const stats = withCoffeeExtras(
-    guildId,
-    userId,
-    getUserStats(guildId, userId),
-  );
+  const stats = getUserStats(guildId, userId);
   const fresh = ACHIEVEMENTS.filter(a => !have[a.id] && a.check(stats));
   if (!fresh.length) return [];
 

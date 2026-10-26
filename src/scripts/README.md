@@ -2,15 +2,15 @@
 
 Tools you run by hand. They're not part of the running bot.
 
-## `generate-coffee-art.js`
+## `generate-drink-art.js`
 
-Creates the café pictures in `src/assets/coffee-art/` with Gemini's image
+Creates the drink pictures in `src/assets/drink-art/` with Gemini's image
 model. Only needed once (and after adding drinks or latte art designs).
 
 ```bash
-npm run coffee-art -- --list    # what exists / what's missing
-npm run coffee-art -- latte     # only one drink (good for testing the style)
-npm run coffee-art              # everything that's missing
+npm run drink-art -- --list     # what exists / what's missing
+npm run drink-art -- blacktea   # only one drink (good for testing the style)
+npm run drink-art               # everything that's missing
 ```
 
 - Never overwrites existing pictures. To redo one, delete its file and run again.
@@ -18,9 +18,10 @@ npm run coffee-art              # everything that's missing
   paid-only, about 4 cents per picture). Stops on quota or permission errors;
   just run it again later to continue.
 - The picture style is described in `buildPrompt()` in this file; each drink's
-  own description is `imagePrompt` in `src/config/coffeeMenu.js`.
-- Other model: `COFFEE_IMAGE_MODEL=` in `.env`.
-- Afterwards, commit the pictures (`git add src/assets/coffee-art`) so they
+  own description is `imagePrompt` in `src/config/drinksMenu.js`. Café drinks
+  get a café scene, bar drinks a bar scene (`SCENES` in this file).
+- Other model: `DRINK_IMAGE_MODEL=` in `.env`.
+- Afterwards, commit the pictures (`git add src/assets/drink-art`) so they
   ship with the bot.
 
 It's safe to run while the bot is running; the bot picks up new pictures

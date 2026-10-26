@@ -9,7 +9,7 @@
 // Subcommands, options and their short descriptions are read from the
 // commands themselves, so they're always up to date. A command missing here
 // still appears in /help, under "Other".
-const { DAILY_LIMIT } = require('./coffeeMenu');
+const { CAFFEINE_LIMIT, ALCOHOL_LIMIT } = require('./drinksMenu');
 const { TRIES_PER_DAY } = require('../services/halloween');
 
 const CATEGORIES = [
@@ -18,7 +18,7 @@ const CATEGORIES = [
     emoji: '💰',
     name: 'Economy',
     intro:
-      'NestCoins are the currency of the Nest. You earn them with games, streaks, achievements and loot drops, and spend them in the café, the shop, on duels and AI extras.',
+      'NestCoins are the currency of the Nest. You earn them with games, streaks, achievements and loot drops, and spend them in the café & bar, the shop, on duels and AI extras.',
     commands: ['daily', 'balance', 'leaderboard', 'shop', 'gamble', 'drop'],
     features: [
       {
@@ -46,16 +46,20 @@ const CATEGORIES = [
     ],
   },
   {
-    id: 'cafe',
-    emoji: '☕',
-    name: 'Café',
+    id: 'drinks',
+    emoji: '🍹',
+    name: 'Café & Bar',
     intro:
-      'The Nest Café: order drinks for yourself or treat your friends. Every drink comes with a picture, sometimes with latte art.',
-    commands: ['coffee'],
+      'The Nest Café & Bar: coffee, tea (lots of black tea), hot chocolate, cocktails, beer and wine. Order for yourself or treat your friends. Every drink comes with a picture.',
+    commands: ['drinks'],
     features: [
       {
         name: '🍀 Little surprises',
-        text: `Latte art on milky drinks, a rare **lucky bean** that makes your drink free, and a coffee streak. After ${DAILY_LIMIT} cups a day the café cuts you off.`,
+        text: 'Latte art on milky drinks, the occasional drink **on the house**, and a drink streak for every day in a row.',
+      },
+      {
+        name: '⛔ Daily limits',
+        text: `After ${CAFFEINE_LIMIT} caffeinated drinks NestBot cuts you off, after ${ALCOHOL_LIMIT} alcoholic ones the bar closes for you. Herbal tea, hot chocolate and the alcohol-free Nest Sunrise are always fine.`,
       },
     ],
   },
@@ -72,7 +76,7 @@ const CATEGORIES = [
     emoji: '🏅',
     name: 'Profile & achievements',
     intro:
-      'Everything you do in the Nest is tracked: games, coffee, duels, tournaments, gags.',
+      'Everything you do in the Nest is tracked: games, drinks, duels, tournaments, gags.',
     commands: ['profile', 'achievements'],
     features: [
       {
@@ -124,7 +128,7 @@ const CATEGORIES = [
     features: [
       {
         name: '👻 Halloween day',
-        text: `${TRIES_PER_DAY} trick-or-treat tries, spooky café drinks (🧪 Witch's Brew, 🩸 Vampire Latte), haunted loot drops twice as often, and a spooky NestBot.`,
+        text: `${TRIES_PER_DAY} trick-or-treat tries, spooky drinks (🧪 Witch's Brew, 🩸 Vampire Latte), haunted loot drops twice as often, and a spooky NestBot.`,
       },
     ],
   },
@@ -177,10 +181,11 @@ const COMMANDS = {
     tips: 'Use `/puzzle history` to replay old puzzles.',
   },
 
-  // ☕ Café
-  coffee: {
+  // 🍹 Café & Bar
+  drinks: {
     explain:
-      'Order a drink for yourself or gift one to a friend (with a note on the cup). Each drink costs a few coins and is served with a picture.',
+      'Order a drink for yourself or gift one to a friend (with a note on the cup). Start typing in the `drink` option to search, e.g. "tea", "earl" or "beer". Each drink costs a few coins and is served with a picture.',
+    tips: 'See everything with `/drinks menu`, or just one section with `/drinks menu category:`.',
   },
 
   // ⚔️ Competition
@@ -197,7 +202,7 @@ const COMMANDS = {
   // 🏅 Progress
   profile: {
     explain:
-      'Your stats in one place: coins and rank, puzzles, NestWord, tournaments, duels, coffee, pictures, achievements.',
+      'Your stats in one place: coins and rank, puzzles, NestWord, tournaments, duels, drinks, pictures, achievements.',
   },
   achievements: {
     explain: 'All achievements, which ones you have, and what the others need.',

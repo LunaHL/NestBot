@@ -151,7 +151,7 @@ async function announceIfNeeded(client) {
       '🎃 **Happy Halloween, Nest!** 👻\n' +
         `Today only:\n` +
         `• \`/trickortreat\`: ${TRIES_PER_DAY} tries for candy and coins… or a trick\n` +
-        `• Spooky drinks at the café: 🧪 Witch's Brew and 🩸 Vampire Latte (\`/coffee menu\`)\n` +
+        `• Spooky drinks at the café: 🧪 Witch's Brew and 🩸 Vampire Latte (\`/drinks menu\`)\n` +
         `• Haunted loot drops appear twice as often\n` +
         `• And NestBot is feeling a little… spooky.\n` +
         `Unlock the 🎃 **Trick or Treater** achievement while you can!`,
