@@ -9,6 +9,7 @@ const { CAFFEINE_LIMIT, ALCOHOL_LIMIT } = require('../config/drinksMenu');
 const CATEGORIES = {
   puzzle: '🧩 Puzzles',
   nestword: '🟩 NestWord',
+  wordle: '🟩 Wordle app',
   drinks: '🍹 Drinks',
   social: '⚔️ Tournaments & Duels',
   gag: '🔇 Gags',
@@ -250,6 +251,54 @@ const ACHIEVEMENTS = [
     check: s => s.drinks.hadDecaf,
   },
 
+  // 🟩 Wordle app
+  {
+    id: 'wordleapp_1',
+    cat: 'wordle',
+    emoji: '🟩',
+    name: 'Daily Wordler',
+    desc: 'Play the Wordle app',
+    reward: 5,
+    check: s => s.wordle.played >= 1,
+  },
+  {
+    id: 'wordleapp_crown',
+    cat: 'wordle',
+    emoji: '👑',
+    name: 'Crowned',
+    desc: 'Have the best Wordle score of the day',
+    reward: 15,
+    check: s => s.wordle.crowns >= 1,
+  },
+  {
+    id: 'wordleapp_two',
+    cat: 'wordle',
+    emoji: '🎯',
+    name: 'Sharp Shooter',
+    desc: 'Solve the Wordle in 2 guesses',
+    reward: 25,
+    check: s => (s.wordle.dist[2] || 0) >= 1,
+  },
+  {
+    id: 'wordleapp_streak_30',
+    cat: 'wordle',
+    emoji: '📆',
+    name: 'Wordle Month',
+    desc: 'Solve the Wordle 30 days in a row',
+    reward: 75,
+    check: s => s.wordle.bestStreak >= 30,
+  },
+  {
+    id: 'wordleapp_one',
+    cat: 'wordle',
+    emoji: '🤯',
+    name: 'Hole in One',
+    desc: 'Solve the Wordle on the first guess',
+    reward: 100,
+    secret: true,
+    check: s => (s.wordle.dist[1] || 0) >= 1,
+  },
+
   // ⚔️ Tournaments & Duels
   {
     id: 'event_join',
@@ -385,12 +434,18 @@ function checkAchievements(guildId, userId) {
 }
 
 /**
- * Check the given members after a command and post any unlocks as a
- * follow-up message. Never throws, so it can't break the command itself.
+ * Check the given members and post any unlocks, as a follow-up to a command
+ * or as a message in a channel. Never throws, so it can't break the caller.
  */
-async function announce(interaction, userIds) {
+async function announce(target, userIds) {
   try {
-    const guildId = interaction.guildId;
+    // target: a slash command interaction (answers with followUp) or a
+    // channel (posts a normal message), e.g. for the Wordle app results
+    const guildId = target.guildId ?? target.guild?.id;
+    const send =
+      typeof target.followUp === 'function'
+        ? msg => target.followUp(msg)
+        : msg => target.send(msg);
     const lines = [];
     const mentioned = [];
     for (const userId of [...new Set(userIds.filter(Boolean))]) {
@@ -411,10 +466,7 @@ async function announce(interaction, userIds) {
       text =
         lines.slice(0, 12).join('\n') +
         `\n…and ${lines.length - 12} more! See \`/achievements\`.`;
-    await interaction.followUp({
-      content: text,
-      allowedMentions: { users: mentioned },
-    });
+    await send({ content: text, allowedMentions: { users: mentioned } });
   } catch (e) {
     console.error('[Achievements] announce failed:', e);
   }

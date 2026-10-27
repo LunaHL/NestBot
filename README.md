@@ -15,10 +15,10 @@ chat with by pinging `@NestBot`.
 | | |
 |---|---|
 | 💰 **Economy** | NestCoins, `/daily`, `/balance`, `/leaderboard`, `/shop`, `/gamble`, random loot drops in chat |
-| 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters), `/puzzle` (puzzle of the day), streak bonuses, daily results post |
+| 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters), `/puzzle` (puzzle of the day), coins for the Discord **Wordle app** (`/wordle`), streak bonuses, daily results post |
 | 🍹 **Café & Bar** | `/drinks` to order or gift coffee, tea, hot chocolate, cocktails, beer and wine, with pictures, latte art, streaks and daily limits |
 | ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss), `/duel` rock-paper-scissors with bets |
-| 🏅 **Progress** | `/profile` with all stats, 36 `/achievements` with coin rewards |
+| 🏅 **Progress** | `/profile` with all stats, 41 `/achievements` with coin rewards |
 | 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, `/memory` |
 | 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag` |
 | 🎂 **Social** | `/birthday` announcements with coins, `/pictracker` weekly picture leaderboard |
@@ -96,6 +96,7 @@ See [`tests/README.md`](tests/README.md).
 | Achievements (add, change rewards) | `src/services/achievements.js` |
 | Streak bonus for Puzzle and NestWord | Switch old/new with `/settings streak` in Discord; numbers in `src/utils/streak.js` |
 | Puzzle rewards, first-solver bonus, tries per day | `src/services/puzzle.js` (top of the file) |
+| Wordle app rewards | `src/services/wordle.js` (`REWARDS`, `CROWN_BONUS`) |
 | Daily coins | `src/commands/daily.js` (`DAILY_AMOUNT`) |
 | Birthday coins | `src/commands/birthday.js` (`BIRTHDAY_COINS`) |
 | Picture tracker rewards | `src/services/pictracker.js` |

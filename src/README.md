@@ -27,6 +27,7 @@ src/
 |---|---|---|---|
 | NestWord | `commands/nestword.js` | every 10 min | Picks today's word if there isn't one yet |
 | Puzzle announcement | `services/puzzle.js` | every 10 min | Posts today's puzzle in the puzzle channel (once a day, also when set later) |
+| Wordle app | `services/wordle.js` | every 30 min | Looks for Wordle app results the bot missed (e.g. while offline) and pays them |
 | Scoreboard | `services/scoreboard.js` | every 10 min | After midnight: posts yesterday's NestWord and Puzzle results (once a day) |
 | Birthdays | `commands/birthday.js` | every 10 min | Announces today's birthdays and pays coins (once a day) |
 | Picture tracker | `services/pictracker.js` | every 30 min | When a week is over: posts the leaderboard and pays rewards |
@@ -56,6 +57,7 @@ If a command crashes, `interactionCreate.js` logs the error and tells the user
 
 `events/messageCreate.js`, in this order:
 
+0. **From a bot?** Only checked for the Wordle app's daily results in the Wordle channel (`services/wordle.js`), otherwise ignored.
 1. **Gagged?** The message is deleted and reposted garbled (`services/gag.js`).
 2. **@NestBot pinged?** The AI answers (`services/ai.js`). Replies to the
    bot's own messages don't count as a ping.

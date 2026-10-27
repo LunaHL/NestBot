@@ -2,10 +2,18 @@
 const ai = require('../services/ai');
 const gag = require('../services/gag');
 const { countImages } = require('../services/pictracker');
+const wordle = require('../services/wordle');
 
 module.exports = async function onMessage(message) {
   try {
-    if (!message.guild || message.author.bot) return;
+    if (!message.guild) return;
+
+    // 0. The Wordle app's daily results (posted by an app, so before the
+    //    "ignore bots" check). Only in the channel set with /wordle channel.
+    if (message.author.bot) {
+      await wordle.processMessage(message);
+      return;
+    }
 
     // 1. Gagged members: their message is replaced by a garbled version
     if (await gag.handleGaggedMessage(message)) return;

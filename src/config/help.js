@@ -14,6 +14,7 @@ const { CAFFEINE_LIMIT, ALCOHOL_LIMIT } = require('./drinksMenu');
 const { TRIES_PER_DAY } = require('../services/halloween');
 const { describeStreakRule } = require('../utils/streak');
 const { getStreakMode } = require('../services/settings');
+const { rewardsTable } = require('../services/wordle');
 
 const CATEGORIES = [
   {
@@ -35,13 +36,19 @@ const CATEGORIES = [
     emoji: '🎮',
     name: 'Daily games',
     intro:
-      'Two daily challenges that reset at midnight. Play every day to build a streak.',
-    commands: ['nestword', 'puzzle'],
+      'Daily challenges that reset at midnight: NestWord, the Puzzle of the Day and the Wordle app. Play every day to build a streak.',
+    commands: ['nestword', 'puzzle', 'wordle'],
     features: [
       {
         name: '🔥 Streaks',
         // A function: the text depends on the server's /settings streak mode
         text: guildId => describeStreakRule(getStreakMode(guildId)),
+      },
+      {
+        name: '🟩 Wordle app rewards',
+        text:
+          'Play the **Wordle app** in the Wordle channel. When it posts the daily results, NestBot pays everyone automatically:\n' +
+          rewardsTable(),
       },
       {
         name: '📣 Announcements',
@@ -184,6 +191,12 @@ const COMMANDS = {
       'A Wordle-style word game. Every day there is a new word with 3–7 letters. 🟩 = right letter, right spot; 🟨 = right letter, wrong spot. Fewer letters means more attempts.',
     admin: ['set', 'pool-bulkadd', 'pool-remove', 'pool-list', 'pool-clear'],
     tips: 'Ask @NestBot for a hint if you’re stuck.',
+  },
+  wordle: {
+    explain:
+      'Coins for playing the Wordle app (the Wordle activity in Discord). The app posts the results every day; NestBot reads them and pays everyone automatically, with a 👑 bonus for the best score. Nothing to type: just play.',
+    admin: ['channel', 'scan'],
+    tips: 'See the rewards with `/wordle rewards`. Admins: if the bot was offline, `/wordle scan` pays missed days.',
   },
   puzzle: {
     explain:

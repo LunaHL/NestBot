@@ -112,6 +112,13 @@ function getUserStats(guildId, userId) {
     puzzle: puzzleStats(userId),
     nestword: nestwordStats(userId),
     events: eventStats(guildId, userId),
+    wordle: require('./wordle').getSummary(guildId, userId) || {
+      played: 0,
+      solved: 0,
+      crowns: 0,
+      bestStreak: 0,
+      dist: {},
+    },
     drinks: drinksStats(guildId, userId),
     gags: db.read(d => d.gagStats?.[guildId]?.[userId]) || {
       received: 0,

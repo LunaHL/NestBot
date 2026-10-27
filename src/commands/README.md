@@ -42,7 +42,16 @@ replies and embeds. The real work (coins, stats, saving) is in
 | | `/puzzle queue` 🔒 / `remove` 🔒 | Today's and upcoming puzzles with their codes; remove one |
 | | `/puzzle channel` 🔒 | Puzzle channel (+ optional role ping): new puzzles are announced there, solves are posted there |
 
-Both games give a streak bonus (`utils/streak.js`), and yesterday's results are
+| `wordle.js` | `/wordle stats` / `leaderboard` | Stats and best players of the **Wordle app** (the Wordle activity in Discord) |
+| | `/wordle rewards` | How many coins each result pays |
+| | `/wordle channel` 🔒 | The channel where the Wordle app posts its daily results. NestBot reads them there and pays automatically |
+| | `/wordle scan` 🔒 | Pay results the bot missed while it was offline (it also does this every 30 minutes) |
+
+Wordle app rewards: 1/6 = 50, 2/6 = 35, 3/6 = 25, 4/6 = 15, 5/6 = 10, 6/6 = 5,
+X/6 = 2, plus +10 for the best score of the day (👑). Change them in
+`services/wordle.js`.
+
+NestWord and Puzzle give a streak bonus (`utils/streak.js`), and yesterday's results are
 posted after midnight (`services/scoreboard.js`).
 
 ## 🍹 Café & Bar

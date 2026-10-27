@@ -1,5 +1,12 @@
 # NestBot Changelog
 
+## V 1.6 (October 2026)
+
+**New**
+- 🟩 Coins for the Discord **Wordle app**: NestBot reads the app's daily results in the Wordle channel (`/wordle channel`) and pays automatically (1/6 = 50 … 6/6 = 5, X/6 = 2, 👑 best of the day +10). Missed days are paid later, each day only once
+- `/wordle stats`, `/wordle leaderboard`, `/wordle rewards`, `/wordle scan` (admins)
+- 5 Wordle achievements (one secret), Wordle stats in `/profile`, rewards table in `/help`
+
 ## V 1.5 (October 2026)
 
 **New**

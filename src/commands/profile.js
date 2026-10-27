@@ -98,6 +98,13 @@ module.exports = {
           inline: true,
         },
         {
+          name: '🟩 Wordle app',
+          value: s.wordle.played
+            ? `**${s.wordle.played}** played · ⌀ ${s.wordle.average}\n👑 ${s.wordle.crowns} · 🔥 ${s.wordle.streak}`
+            : 'Not played yet',
+          inline: true,
+        },
+        {
           name: '📸 Pictures this week',
           value: `**${s.pictures}**`,
           inline: true,
