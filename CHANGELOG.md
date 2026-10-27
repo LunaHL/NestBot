@@ -1,5 +1,10 @@
 # NestBot Changelog
 
+## V 1.7 (October 2026)
+
+**New**
+- 🎉 `/settings free` (admins): free mode. Drinks, shop items, AI extras and targeted wheel spins cost nothing while it's on; earning works as usual. Menus, autocomplete and `/help` show it live. Gamble and duel bets and transfers still cost
+
 ## V 1.6 (October 2026)
 
 **New**

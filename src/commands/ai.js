@@ -154,24 +154,25 @@ module.exports = {
         });
       }
 
-      if (nestcoins.removeCoins(guildId, userId, PRICES.mood) === null) {
+      const payment = nestcoins.pay(guildId, userId, PRICES.mood);
+      if (!payment.ok) {
         return interaction.reply({
-          content: `💸 You need **${PRICES.mood}** NestCoins, you have **${nestcoins.getBalance(guildId, userId)}**.`,
+          content: `💸 You need **${PRICES.mood}** NestCoins, you have **${payment.balance}**.`,
           flags: 64,
         });
       }
 
       if (!ai.setMood(guildId, moodKey, userId)) {
         // Someone else bought one at the same moment
-        nestcoins.addCoins(guildId, userId, PRICES.mood);
+        if (payment.paid) nestcoins.addCoins(guildId, userId, payment.paid);
         return interaction.reply({
-          content: '🎭 Someone was faster! Coins refunded.',
+          content: `🎭 Someone was faster!${payment.paid ? ' Coins refunded.' : ''}`,
           flags: 64,
         });
       }
 
       return interaction.reply(
-        `🎭 ${interaction.user} paid **${PRICES.mood}** NestCoins: NestBot is now in **${ai.MOODS[moodKey].label}** mode until midnight!`,
+        `🎭 ${interaction.user} ${payment.paid ? `paid **${payment.paid}** NestCoins` : 'picked a mood (free today 🎉)'}: NestBot is now in **${ai.MOODS[moodKey].label}** mode until midnight!`,
       );
     }
 
@@ -193,9 +194,10 @@ module.exports = {
       }
 
       const price = PRICES[sub];
-      if (nestcoins.removeCoins(guildId, userId, price) === null) {
+      const payment = nestcoins.pay(guildId, userId, price);
+      if (!payment.ok) {
         return interaction.reply({
-          content: `💸 You need **${price}** NestCoins, you have **${nestcoins.getBalance(guildId, userId)}**.`,
+          content: `💸 You need **${price}** NestCoins, you have **${payment.balance}**.`,
           flags: 64,
         });
       }
@@ -228,7 +230,7 @@ module.exports = {
                 : 0x9b59b6,
           )
           .setFooter({
-            text: `Ordered by ${interaction.user.username} for ${price} NestCoins`,
+            text: `Ordered by ${interaction.user.username} ${payment.paid ? `for ${payment.paid} NestCoins` : 'for free'}`,
           });
 
         return interaction.editReply({
@@ -238,9 +240,12 @@ module.exports = {
         });
       } catch (e) {
         console.error(`[AI] ${sub} failed:`, e);
-        nestcoins.addCoins(guildId, userId, price);
+        if (payment.paid) nestcoins.addCoins(guildId, userId, payment.paid);
         return interaction.editReply(
-          `😵‍💫 I couldn't think of anything right now. Your **${price}** NestCoins were refunded.`,
+          `😵‍💫 I couldn't think of anything right now.` +
+            (payment.paid
+              ? ` Your **${payment.paid}** NestCoins were refunded.`
+              : ''),
         );
       }
     }

@@ -6,7 +6,11 @@ const {
   PermissionFlagsBits,
 } = require('discord.js');
 const { isAdmin, denyNonAdmin } = require('../utils/permissions');
-const { getStreakMode, setSetting } = require('../services/settings');
+const {
+  getStreakMode,
+  getSetting,
+  setSetting,
+} = require('../services/settings');
 const { STREAK_MODES, streakReward } = require('../utils/streak');
 
 // Example table: what a hard puzzle (30 coins) pays on these streak days
@@ -49,6 +53,20 @@ module.exports = {
               })),
             ),
         ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('free')
+        .setDescription(
+          'Make everything you can buy free (drinks, shop, AI, wheel)',
+        )
+        .addBooleanOption(opt =>
+          opt
+            .setName('enabled')
+            .setDescription(
+              'true = free, false = normal prices. Leave empty to see the current state',
+            ),
+        ),
     ),
 
   async execute(interaction) {
@@ -77,6 +95,28 @@ module.exports = {
         )
         .setFooter({ text: 'Switch with /settings streak mode:' });
 
+      return interaction.reply({ embeds: [embed], flags: 64 });
+    }
+
+    if (sub === 'free') {
+      const chosen = interaction.options.getBoolean('enabled');
+      if (chosen !== null) setSetting(guildId, 'freeMode', chosen);
+      const free = !!getSetting(guildId, 'freeMode');
+
+      const embed = new EmbedBuilder()
+        .setTitle(free ? '🎉 Free mode is ON' : '💰 Free mode is OFF')
+        .setColor(free ? 0x2ecc71 : 0x95a5a6)
+        .setDescription(
+          (free
+            ? 'Everything you can buy costs **0 coins**. Coins can still be earned as usual.'
+            : 'Everything costs its normal price.') +
+            '\n\n**Affected:** 🍹 drinks, 🛍️ shop items, 🤖 AI roast / compliment / poem / mood, 🎡 targeted wheel spins' +
+            '\n**Not affected:** 🎲 gamble and 🤺 duel bets (free bets would create coins from nothing), 💸 transfers' +
+            (chosen === null
+              ? ''
+              : '\n\nMenus and prices in Discord show the change right away.'),
+        )
+        .setFooter({ text: 'Switch with /settings free enabled:' });
       return interaction.reply({ embeds: [embed], flags: 64 });
     }
   },

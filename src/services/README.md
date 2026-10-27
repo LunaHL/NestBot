@@ -7,7 +7,7 @@ reply to Discord interactions themselves (except `achievements.announce`).
 
 | File | What it does | Used by |
 |---|---|---|
-| `nestcoins.js` | Balances: `getBalance`, `addCoins`, `removeCoins` (returns `null` if not enough), `getAllBalances` | Almost everything |
+| `nestcoins.js` | Balances: `getBalance`, `addCoins`, `removeCoins` (returns `null` if not enough), `getAllBalances`. Purchases use `pay()`, which takes nothing in free mode (`/settings free`) | Almost everything |
 | `stats.js` | Collects every stat about one member (puzzles, NestWord, drinks, duels, gags…) in one object | `/profile`, achievements |
 | `achievements.js` | The list of all achievements, unlocking, coin rewards, and `announce()` for the chat message | Many commands, `/achievements`, `/profile` |
 | `history.js` | Combines current data with the archive (all puzzles, NestWord days, events ever) | `/puzzle history`, stats |
@@ -27,7 +27,7 @@ used. Members who already qualify get it the next time they do something.
 | `drinkArt.js` | Finds the right picture in `assets/drink-art/` for a drink and latte art |
 | `gag.js` | Gagging: who is gagged and until when, garbling text, and handling messages of gagged members (delete, repost garbled, double the gag on spam) |
 | `puzzle.js` | Puzzle of the Day: setting (with date/link checks), solving (tries limit, first-solver bonus), queue, leaderboard, the puzzle card and the daily announcement in the puzzle channel. Rewards and limits are at the top of the file |
-| `settings.js` | Server settings changed with `/settings` (e.g. the streak mode), stored per server |
+| `settings.js` | Server settings changed with `/settings` (streak mode, free mode), stored per server |
 | `wordle.js` | Wordle app rewards: recognizes the app's daily results message in the Wordle channel, reads who got which score (from @mentions or names), pays coins once per day, keeps Wordle stats. Rewards table at the top of the file |
 | `halloween.js` | Trick-or-treat outcomes, daily tries, the October 31 announcement |
 

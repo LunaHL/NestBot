@@ -96,9 +96,11 @@ module.exports = {
       const lines = wheelList.map((txt, i) => `#${i}: ${txt}`).join('\n');
       const isTargeted = target.id !== interaction.user.id;
 
-      const priceInfo = isTargeted
-        ? `This targeted spin will cost **${PRICE_TARGETED_SPIN}** Nestcoins.`
-        : `Self spin is free.`;
+      const priceInfo = !isTargeted
+        ? `Self spin is free.`
+        : nestcoins.isFreeMode(interaction.guildId)
+          ? `Targeted spins are free right now 🎉`
+          : `This targeted spin will cost **${PRICE_TARGETED_SPIN}** Nestcoins.`;
 
       const tokenTarget = isTargeted ? target.id : 'self';
       const customId = `wheel:spin:${tokenTarget}:${interaction.user.id}`;
@@ -162,13 +164,13 @@ module.exports = {
 
         // Charge Nestcoins only for targeted spins
         if (isTargetedClick) {
-          const newBal = nestcoins.removeCoins(
+          const payment = nestcoins.pay(
             i.guildId,
             issuerId,
             PRICE_TARGETED_SPIN,
           );
-          if (newBal === null) {
-            const current = nestcoins.getBalance(i.guildId, issuerId);
+          if (!payment.ok) {
+            const current = payment.balance;
             return i.reply({
               content:
                 `💸 Not enough Nestcoins for a targeted spin.\n` +
@@ -176,8 +178,8 @@ module.exports = {
                 `Come back when your wallet isn't echoing.`,
               flags: 64,
             });
-          } else {
-            chargeLine = `\n💳 Charged **${PRICE_TARGETED_SPIN}** Nestcoins from <@${issuerId}>.`;
+          } else if (payment.paid) {
+            chargeLine = `\n💳 Charged **${payment.paid}** Nestcoins from <@${issuerId}>.`;
           }
         }
 

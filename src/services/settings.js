@@ -4,6 +4,7 @@ const db = require('../utils/db');
 
 const DEFAULTS = {
   streakMode: 'capped', // see utils/streak.js
+  freeMode: false, // true = everything you can buy is free (/settings free)
 };
 
 function getSetting(guildId, key) {

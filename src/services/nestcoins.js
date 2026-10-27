@@ -1,4 +1,5 @@
 const db = require('../utils/db');
+const { getSetting } = require('./settings');
 
 function ensureWallet(data, guildId) {
   if (!data.nestcoins) data.nestcoins = {};
@@ -57,4 +58,42 @@ function removeCoins(guildId, userId, amount) {
   return result;
 }
 
-module.exports = { getBalance, getAllBalances, addCoins, removeCoins };
+// ---------- Purchases ----------
+// Everything you can BUY (drinks, shop, AI extras, targeted wheel spins) goes
+// through pay(). In free mode (/settings free) nothing is taken. Bets
+// (gamble, duels) and transfers use removeCoins directly and always cost.
+
+/** Is everything free right now on this server? */
+function isFreeMode(guildId) {
+  return !!getSetting(guildId, 'freeMode');
+}
+
+/**
+ * Charge for a purchase. Returns { ok, paid, balance }:
+ * ok = false if the buyer can't afford it; paid = coins actually taken
+ * (0 in free mode, use it for refunds).
+ */
+function pay(guildId, userId, price) {
+  if (isFreeMode(guildId) || price <= 0) {
+    return { ok: true, paid: 0, balance: getBalance(guildId, userId) };
+  }
+  const left = removeCoins(guildId, userId, price);
+  if (left === null)
+    return { ok: false, paid: 0, balance: getBalance(guildId, userId) };
+  return { ok: true, paid: price, balance: left };
+}
+
+/** "5 NestCoins", or "free" in free mode. */
+function priceText(guildId, price) {
+  return isFreeMode(guildId) ? 'free' : `${price} NestCoins`;
+}
+
+module.exports = {
+  isFreeMode,
+  pay,
+  priceText,
+  getBalance,
+  getAllBalances,
+  addCoins,
+  removeCoins,
+};

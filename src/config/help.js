@@ -15,6 +15,7 @@ const { TRIES_PER_DAY } = require('../services/halloween');
 const { describeStreakRule } = require('../utils/streak');
 const { getStreakMode } = require('../services/settings');
 const { rewardsTable } = require('../services/wordle');
+const { isFreeMode } = require('../services/nestcoins');
 
 const CATEGORIES = [
   {
@@ -25,6 +26,14 @@ const CATEGORIES = [
       'NestCoins are the currency of the Nest. You earn them with games, streaks, achievements and loot drops, and spend them in the café & bar, the shop, on duels and AI extras.',
     commands: ['daily', 'balance', 'leaderboard', 'shop', 'gamble', 'drop'],
     features: [
+      {
+        name: '🎉 Free mode',
+        // Shown live: depends on /settings free
+        text: guildId =>
+          isFreeMode(guildId)
+            ? '**Active right now:** drinks, shop items, AI extras and targeted wheel spins cost nothing. You still earn coins as usual.'
+            : 'Admins can make everything you can buy free for a while with `/settings free`.',
+      },
       {
         name: '💰 Loot drops',
         text: 'A few times a day a coin pouch appears in a random channel. The first person to click **Claim** gets the coins.',
@@ -275,7 +284,7 @@ const COMMANDS = {
   // 🛠️ Admin
   settings: {
     explain:
-      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). Without a mode it shows the current one and a comparison table.',
+      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). `free` makes everything you can buy free (drinks, shop, AI extras, targeted wheel spins); coins can still be earned. Without an option, both show the current state.',
     admin: ['*'],
   },
 

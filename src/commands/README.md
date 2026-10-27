@@ -135,6 +135,7 @@ from the command files, so they're always current.
 | File | Command | What it does |
 |---|---|---|
 | `settings.js` | `/settings streak` 🔒 | Switch how Puzzle and NestWord streaks are rewarded: **new** (+10% per day, max +50%, milestones) or **old** (reward × streak days, no limit). Without `mode` it shows the current one and a comparison table |
+| | `/settings free` 🔒 | **Free mode** on/off: drinks, shop items, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
 
 ## 🎃 Halloween
 
@@ -167,7 +168,7 @@ from the command files, so they're always current.
 4. Restart the bot. The command shows up in Discord within a minute.
 
 Useful building blocks:
-- **Coins:** `services/nestcoins.js` (`getBalance`, `addCoins`, `removeCoins`)
+- **Coins:** `services/nestcoins.js` (`getBalance`, `addCoins`, `removeCoins`). For anything people *buy*, use `pay()` so free mode works
 - **Data:** `utils/db.js` (`db.read(...)`, `db.perform(...)`)
 - **Admin only:** `const { isAdmin } = require('../utils/permissions')`
 - **Dates:** `utils/time.js` (`localDate()`, `isHalloween()`)

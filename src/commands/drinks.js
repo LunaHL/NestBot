@@ -96,7 +96,8 @@ function replyWithPicture(interaction, payload, embed, drinkKey, art) {
   });
 }
 
-function menuEmbed(categoryFilter) {
+function menuEmbed(categoryFilter, guildId) {
+  const free = nestcoins.isFreeMode(guildId);
   const embed = new EmbedBuilder()
     .setTitle('🍹 The Nest Café & Bar')
     .setColor(COLOR_CAFE);
@@ -110,7 +111,10 @@ function menuEmbed(categoryFilter) {
     embed.addFields({
       name: `${cat.emoji} ${cat.name}`,
       value: list
-        .map(([, d]) => `${d.emoji} **${d.name}** — ${d.price}`)
+        .map(
+          ([, d]) =>
+            `${d.emoji} **${d.name}** — ${free ? `~~${d.price}~~ free` : d.price}`,
+        )
         .join('\n'),
       inline: !categoryFilter,
     });
@@ -124,7 +128,10 @@ function menuEmbed(categoryFilter) {
   embed.addFields({
     name: '​',
     value:
-      'Prices in NestCoins. Order with `/drinks order`, treat a friend with `/drinks gift`.\n' +
+      (free
+        ? '🎉 **Everything is free right now!** '
+        : 'Prices in NestCoins. ') +
+      'Order with `/drinks order`, treat a friend with `/drinks gift`.\n' +
       `Per day: max ${CAFFEINE_LIMIT} with caffeine, ${ALCOHOL_LIMIT} with alcohol, ${TOTAL_LIMIT} in total.`,
   });
   return embed;
@@ -202,7 +209,10 @@ module.exports = {
   // Suggestions while typing the drink name
   async autocomplete(interaction) {
     await interaction.respond(
-      drinks.searchDrinks(interaction.options.getFocused()),
+      drinks.searchDrinks(
+        interaction.options.getFocused(),
+        interaction.guildId,
+      ),
     );
   },
 
@@ -215,7 +225,7 @@ module.exports = {
     // ---------- menu ----------
     if (sub === 'menu') {
       const category = interaction.options.getString('category');
-      return interaction.reply({ embeds: [menuEmbed(category)] });
+      return interaction.reply({ embeds: [menuEmbed(category, guildId)] });
     }
 
     // ---------- order ----------

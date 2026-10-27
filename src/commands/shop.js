@@ -111,7 +111,7 @@ module.exports = {
         for (const [id, item] of items) {
           embed.addFields({
             name: `#${id}: ${item.name}`,
-            value: `${item.price} Nestcoins - ${item.description}`,
+            value: `${nestcoins.priceText(guildId, item.price)} - ${item.description}`,
           });
         }
 
@@ -207,25 +207,19 @@ module.exports = {
         }
       }
 
-      const balance = nestcoins.getBalance(guildId, userId);
-      if (balance < item.price) {
+      const payment = nestcoins.pay(guildId, userId, item.price);
+      if (!payment.ok) {
         return interaction.reply({
-          content: `You don't have enough Nestcoins to buy "${item.name}".`,
-          flags: 64,
-        });
-      }
-
-      const newBalance = nestcoins.removeCoins(guildId, userId, item.price);
-      if (newBalance === null) {
-        return interaction.reply({
-          content: `Something went wrong while processing your purchase.`,
+          content: `You don't have enough Nestcoins to buy "${item.name}" (${item.price}, you have ${payment.balance}).`,
           flags: 64,
         });
       }
 
       const embed = new EmbedBuilder()
         .setTitle(`${interaction.user.username} bought ${item.name}`)
-        .setDescription(`${item.price} Nestcoins – ${item.description}`)
+        .setDescription(
+          `${payment.paid ? `${item.price} Nestcoins` : '🎉 Free'} – ${item.description}`,
+        )
         .setColor('Green');
 
       if (effect?.type === 'gag') {

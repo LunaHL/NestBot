@@ -33,7 +33,8 @@ function availableDrinks() {
 }
 
 /** Drinks matching a search text, for the autocomplete while typing. */
-function searchDrinks(query) {
+function searchDrinks(query, guildId) {
+  const free = nestcoins.isFreeMode(guildId);
   const q = String(query || '')
     .toLowerCase()
     .trim();
@@ -51,7 +52,7 @@ function searchDrinks(query) {
     .sort((a, b) => b.score - a.score)
     .slice(0, 25)
     .map(({ key, d }) => ({
-      name: `${d.emoji} ${d.name} (${d.price} coins)${d.halloween ? ' 🎃' : ''}`,
+      name: `${d.emoji} ${d.name} (${free ? 'free' : `${d.price} coins`})${d.halloween ? ' 🎃' : ''}`,
       value: key,
     }));
 }
@@ -169,7 +170,7 @@ function getDrinksSummary(guildId, userId) {
 
 /**
  * Check limits, charge, serve and record.
- * Returns { error, count } or { stats, lucky }.
+ * Returns { error, count } or { stats, lucky, paid }.
  * Errors: 'full' (total limit), 'caffeine', 'alcohol', 'coins'.
  */
 function serve(guildId, buyerId, drinkerId, drinkKey) {
@@ -184,22 +185,26 @@ function serve(guildId, buyerId, drinkerId, drinkKey) {
     return { error: 'alcohol', count: today.alcohol };
   }
 
-  const lucky = Math.random() < LUCKY_CHANCE;
-  if (!lucky && nestcoins.removeCoins(guildId, buyerId, drink.price) === null) {
-    return { error: 'coins' };
+  // In free mode there's nothing to be lucky about, so no "on the house" roll
+  const lucky = !nestcoins.isFreeMode(guildId) && Math.random() < LUCKY_CHANCE;
+  let paid = 0;
+  if (!lucky) {
+    const payment = nestcoins.pay(guildId, buyerId, drink.price);
+    if (!payment.ok) return { error: 'coins' };
+    paid = payment.paid;
   }
 
   let stats;
   db.perform(data => {
     stats = addDrink(data, guildId, drinkerId, drinkKey);
     const buyer = (data.coffee[guildId][buyerId] ||= emptyStats());
-    if (!lucky) buyer.spent += drink.price;
+    buyer.spent += paid;
     if (buyerId !== drinkerId) {
       buyer.given++;
       stats.received++;
     }
   });
-  return { stats, lucky };
+  return { stats, lucky, paid };
 }
 
 function serveLine(drink) {
