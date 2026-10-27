@@ -11,7 +11,12 @@ const {
 const db = require('../utils/db');
 const nestcoins = require('./nestcoins');
 const history = require('./history');
-const { streakReward, streakMessage } = require('../utils/streak');
+const {
+  streakReward,
+  streakMessage,
+  STREAK_MODES,
+} = require('../utils/streak');
+const { getStreakMode } = require('./settings');
 const { nowInTZ, formatDate, localDate } = require('../utils/time');
 const { runEvery } = require('../utils/schedule');
 
@@ -181,7 +186,11 @@ function solve(guildId, userId, code) {
     puzzle.solvedBy.push(userId);
     const position = puzzle.solvedBy.length;
     const bonus = FIRST_SOLVER_BONUS[position - 1] || 0;
-    const r = streakReward(puzzle.reward, streak.current);
+    const r = streakReward(
+      puzzle.reward,
+      streak.current,
+      getStreakMode(guildId),
+    );
     const reward = r.total + bonus;
     nestcoins.addCoins(guildId, userId, reward);
 
@@ -240,7 +249,7 @@ const medalList = ids =>
     .join('  ');
 
 /** The puzzle card used for the announcement and /puzzle info. */
-function puzzleEmbed(date, puzzle, { recap = false } = {}) {
+function puzzleEmbed(date, puzzle, { recap = false, guildId } = {}) {
   const diff = difficultyOf(puzzle);
   const solvers = puzzle.solvedBy?.length || 0;
   const embed = new EmbedBuilder()
@@ -270,7 +279,7 @@ function puzzleEmbed(date, puzzle, { recap = false } = {}) {
       },
     )
     .setFooter({
-      text: '🔥 Solve daily for a streak bonus: +10% per day, up to +50%',
+      text: `🔥 Solve daily for a streak bonus: ${STREAK_MODES[getStreakMode(guildId)].short}`,
     });
 
   if (solvers > 0 && !recap) {
@@ -350,7 +359,7 @@ async function announceToday(client) {
     await channel
       .send({
         content: settings.roleId ? `<@&${settings.roleId}>` : undefined,
-        embeds: [puzzleEmbed(today, puzzle, { recap: true })],
+        embeds: [puzzleEmbed(today, puzzle, { recap: true, guildId })],
         components: linkButton(puzzle),
         allowedMentions: settings.roleId
           ? { roles: [settings.roleId] }

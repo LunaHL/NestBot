@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const nestcoins = require('../services/nestcoins');
 const { streakReward, streakMessage } = require('../utils/streak');
+const { getStreakMode } = require('../services/settings');
 
 const { DATA_DIR } = require('../utils/paths');
 const { runEvery } = require('../utils/schedule');
@@ -438,7 +439,11 @@ module.exports = {
           u.bestStreak = Math.max(u.bestStreak || 0, u.streakCount);
           u.totalSolved = (u.totalSolved || 0) + 1;
 
-          const r = streakReward(daily.reward, u.streakCount);
+          const r = streakReward(
+            daily.reward,
+            u.streakCount,
+            getStreakMode(guildId),
+          );
           const coins = r.total;
           const msg = streakMessage(u.streakCount, r);
           const streakMsg = msg ? `\n${msg}` : '';

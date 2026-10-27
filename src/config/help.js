@@ -2,7 +2,8 @@
 //
 // CATEGORIES: the sections shown in /help, in order.
 //   commands: command names (without /) shown in that section
-//   features: things that aren't commands (automatic stuff), shown as notes
+//   features: things that aren't commands (automatic stuff), shown as notes.
+//     `text` can also be a function (guildId) => text for server-dependent texts
 // COMMANDS: the explanation for each command, plus which subcommands are
 //   admin-only (marked 🔒).
 //
@@ -11,6 +12,8 @@
 // still appears in /help, under "Other".
 const { CAFFEINE_LIMIT, ALCOHOL_LIMIT } = require('./drinksMenu');
 const { TRIES_PER_DAY } = require('../services/halloween');
+const { describeStreakRule } = require('../utils/streak');
+const { getStreakMode } = require('../services/settings');
 
 const CATEGORIES = [
   {
@@ -37,7 +40,8 @@ const CATEGORIES = [
     features: [
       {
         name: '🔥 Streaks',
-        text: 'Solving on consecutive days gives **+10% per day** (up to +50%), plus big one-time bonuses on day 7, 14, 30 and 100.',
+        // A function: the text depends on the server's /settings streak mode
+        text: guildId => describeStreakRule(getStreakMode(guildId)),
       },
       {
         name: '📣 Announcements',
@@ -131,6 +135,13 @@ const CATEGORIES = [
         text: `${TRIES_PER_DAY} trick-or-treat tries, spooky drinks (🧪 Witch's Brew, 🩸 Vampire Latte), haunted loot drops twice as often, and a spooky NestBot.`,
       },
     ],
+  },
+  {
+    id: 'admin',
+    emoji: '🛠️',
+    name: 'Admin',
+    intro: 'Settings for server admins.',
+    commands: ['settings'],
   },
   {
     id: 'help',
@@ -246,6 +257,13 @@ const COMMANDS = {
   trickortreat: {
     explain:
       'Knock on spooky doors: candy and coins, or a trick (a ghost steals coins, a witch takes your voice…). Only on Halloween.',
+  },
+
+  // 🛠️ Admin
+  settings: {
+    explain:
+      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). Without a mode it shows the current one and a comparison table.',
+    admin: ['*'],
   },
 
   // ❓

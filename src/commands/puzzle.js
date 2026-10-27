@@ -148,7 +148,7 @@ module.exports = {
         ? `✅ Solved ${MEDALS[position - 1] || ''} (#${position})`
         : `❌ Not solved yet · ${puzzles.wrongTriesLeft(puzzle, user.id)} tries left`;
 
-      const embed = puzzles.puzzleEmbed(today, puzzle).addFields({
+      const embed = puzzles.puzzleEmbed(today, puzzle, { guildId }).addFields({
         name: `👤 ${user.username}`,
         value: `${status}\n🔥 Streak: **${streak.current}** (best ${streak.best})`,
       });

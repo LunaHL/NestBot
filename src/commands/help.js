@@ -81,7 +81,7 @@ function overviewEmbed(cats) {
   return embed;
 }
 
-function categoryEmbed(cat, commands) {
+function categoryEmbed(cat, commands, guildId) {
   const embed = new EmbedBuilder()
     .setTitle(`${cat.emoji} ${cat.name}`)
     .setDescription(cat.intro || null)
@@ -103,7 +103,8 @@ function categoryEmbed(cat, commands) {
     });
   }
   for (const f of cat.features || []) {
-    embed.addFields({ name: f.name, value: clip(f.text, 1024) });
+    const text = typeof f.text === 'function' ? f.text(guildId) : f.text;
+    embed.addFields({ name: f.name, value: clip(text, 1024) });
   }
   embed.setFooter({ text: 'Details for one command: /help command:<name>' });
   return embed;
@@ -262,7 +263,9 @@ module.exports = {
     const startCat = cats.find(c => c.id === categoryId);
     const response = await interaction.reply({
       embeds: [
-        startCat ? categoryEmbed(startCat, commands) : overviewEmbed(cats),
+        startCat
+          ? categoryEmbed(startCat, commands, interaction.guildId)
+          : overviewEmbed(cats),
       ],
       components: categoryMenu(cats, startCat ? startCat.id : 'overview'),
       flags: 64,
@@ -276,7 +279,11 @@ module.exports = {
       const cat = cats.find(c => c.id === picked);
       await i
         .update({
-          embeds: [cat ? categoryEmbed(cat, commands) : overviewEmbed(cats)],
+          embeds: [
+            cat
+              ? categoryEmbed(cat, commands, interaction.guildId)
+              : overviewEmbed(cats),
+          ],
           components: categoryMenu(cats, cat ? cat.id : 'overview'),
         })
         .catch(() => {});

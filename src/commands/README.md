@@ -121,6 +121,12 @@ Chatting with `@NestBot` isn't a command; it's handled in
 The explanations are in `config/help.js`; subcommands and options are read
 from the command files, so they're always current.
 
+## 🛠️ Admin
+
+| File | Command | What it does |
+|---|---|---|
+| `settings.js` | `/settings streak` 🔒 | Switch how Puzzle and NestWord streaks are rewarded: **new** (+10% per day, max +50%, milestones) or **old** (reward × streak days, no limit). Without `mode` it shows the current one and a comparison table |
+
 ## 🎃 Halloween
 
 | File | Command | What it does |

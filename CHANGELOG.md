@@ -1,5 +1,10 @@
 # NestBot Changelog
 
+## V 1.5 (October 2026)
+
+**New**
+- 🛠️ `/settings streak` (admins): switch Puzzle and NestWord streak rewards between the new capped bonus and the old multiplier (reward × streak days), with a comparison table. `/help` and the puzzle announcement follow the active mode
+
 ## V 1.4 (October 2026)
 
 **New**
