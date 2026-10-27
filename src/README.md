@@ -26,6 +26,7 @@ src/
 | Job | File | How often | What it does |
 |---|---|---|---|
 | NestWord | `commands/nestword.js` | every 10 min | Picks today's word if there isn't one yet |
+| Puzzle announcement | `services/puzzle.js` | every 10 min | Posts today's puzzle in the puzzle channel (once a day, also when set later) |
 | Scoreboard | `services/scoreboard.js` | every 10 min | After midnight: posts yesterday's NestWord and Puzzle results (once a day) |
 | Birthdays | `commands/birthday.js` | every 10 min | Announces today's birthdays and pays coins (once a day) |
 | Picture tracker | `services/pictracker.js` | every 30 min | When a week is over: posts the leaderboard and pays rewards |

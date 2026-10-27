@@ -1,16 +1,18 @@
-const { SlashCommandBuilder } = require('discord.js');
+// /puzzle: the Puzzle of the Day. Only the Discord side lives here.
+// Logic, rewards and the daily announcement: src/services/puzzle.js.
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ChannelType,
+} = require('discord.js');
 const achievements = require('../services/achievements');
-const db = require('../utils/db');
-const { isAdmin } = require('../utils/permissions');
-const nestcoins = require('../services/nestcoins');
 const history = require('../services/history');
-const { streakReward, streakMessage } = require('../utils/streak');
-const { nowInTZ, formatDate: ymd, localDate } = require('../utils/time');
-
-const getToday = () => localDate(0);
-const getYesterday = () => localDate(-1);
+const puzzles = require('../services/puzzle');
+const { isAdmin, denyNonAdmin } = require('../utils/permissions');
+const { localDate } = require('../utils/time');
 
 const HISTORY_PAGE_SIZE = 10;
+const { DIFFICULTIES, MEDALS } = puzzles;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,41 +20,8 @@ module.exports = {
     .setDescription('Daily Puzzle of the Day!')
     .addSubcommand(sub =>
       sub
-        .setName('set')
-        .setDescription('Set a puzzle (admins only)')
-        .addStringOption(opt =>
-          opt.setName('link').setDescription('Puzzle link').setRequired(true),
-        )
-        .addStringOption(opt =>
-          opt.setName('code').setDescription('Solve code').setRequired(true),
-        )
-        .addStringOption(opt =>
-          opt
-            .setName('difficulty')
-            .setDescription('Difficulty')
-            .addChoices(
-              { name: 'Easy', value: 'easy' },
-              { name: 'Medium', value: 'medium' },
-              { name: 'Hard', value: 'hard' },
-              { name: 'special', value: 'special' },
-            )
-            .setRequired(true),
-        )
-        .addStringOption(opt =>
-          opt
-            .setName('date')
-            .setDescription('Date (YYYY-MM-DD, default: today)'),
-        )
-        .addBooleanOption(opt =>
-          opt
-            .setName('append')
-            .setDescription('Automatically set for next free day'),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub
         .setName('info')
-        .setDescription('Show puzzle info')
+        .setDescription("Today's puzzle and your progress")
         .addUserOption(opt =>
           opt.setName('user').setDescription('User to check'),
         ),
@@ -77,100 +46,178 @@ module.exports = {
         .addIntegerOption(opt =>
           opt.setName('page').setDescription('Page number').setMinValue(1),
         ),
+    )
+    .addSubcommand(sub =>
+      sub.setName('leaderboard').setDescription('Best puzzle solvers'),
+    )
+    // ----- Admin -----
+    .addSubcommand(sub =>
+      sub
+        .setName('set')
+        .setDescription('Set a puzzle (admins only)')
+        .addStringOption(opt =>
+          opt
+            .setName('link')
+            .setDescription('Puzzle link (https://…)')
+            .setRequired(true),
+        )
+        .addStringOption(opt =>
+          opt.setName('code').setDescription('Solve code').setRequired(true),
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('difficulty')
+            .setDescription('Difficulty')
+            .setRequired(true)
+            .addChoices(
+              ...Object.entries(DIFFICULTIES).map(([value, d]) => ({
+                name: `${d.emoji} ${d.label} (${d.reward} coins)`,
+                value,
+              })),
+            ),
+        )
+        .addStringOption(opt =>
+          opt
+            .setName('date')
+            .setDescription('Date YYYY-MM-DD (default: today)'),
+        )
+        .addBooleanOption(opt =>
+          opt
+            .setName('append')
+            .setDescription('Put it on the next free day instead'),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('queue')
+        .setDescription(
+          'Today’s and upcoming puzzles with codes (admins only)',
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('remove')
+        .setDescription('Remove a scheduled puzzle (admins only)')
+        .addStringOption(opt =>
+          opt
+            .setName('date')
+            .setDescription('Date YYYY-MM-DD')
+            .setRequired(true),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('channel')
+        .setDescription('Where the daily puzzle is announced (admins only)')
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Puzzle channel')
+            .setRequired(true)
+            .addChannelTypes(
+              ChannelType.GuildText,
+              ChannelType.GuildAnnouncement,
+            ),
+        )
+        .addRoleOption(opt =>
+          opt
+            .setName('ping')
+            .setDescription('Role to ping with each new puzzle (optional)'),
+        ),
     ),
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
-    const rewards = { easy: 10, medium: 20, hard: 30, special: 50 };
-
-    // ==== /puzzle set ====
-    if (sub === 'set') {
-      const admin = isAdmin(interaction);
-      if (!admin)
-        return interaction.reply({ content: '❌ No permission.', flags: 64 });
-
-      const link = interaction.options.getString('link');
-      const code = interaction.options.getString('code');
-      const difficulty = interaction.options.getString('difficulty');
-      const date = interaction.options.getString('date') || getToday();
-      const reward = rewards[difficulty] || 10;
-      const append = interaction.options.getBoolean('append');
-      let finalDate = date;
-
-      db.perform(data => {
-        if (!data.puzzles) data.puzzles = {};
-
-        if (append) {
-          let d = nowInTZ();
-          for (let i = 0; i < 365; i++) {
-            d.setDate(d.getDate() + 1);
-            const nextDate = ymd(d);
-            if (!data.puzzles[nextDate]) {
-              finalDate = nextDate;
-              break;
-            }
-          }
-        }
-
-        data.puzzles[finalDate] = {
-          link,
-          code,
-          difficulty,
-          reward,
-          solvedBy: [],
-        };
-      });
-
-      return interaction.reply({
-        content: `✅ Puzzle for **${finalDate}** set!\nDifficulty: **${difficulty}** (${reward} coins)\n🔗 ${link}`,
-        flags: 64,
-      });
-    }
+    const today = localDate(0);
 
     // ==== /puzzle info ====
     if (sub === 'info') {
-      const today = getToday();
       const user = interaction.options.getUser('user') || interaction.user;
-      const userId = user.id;
+      const puzzle = puzzles.getPuzzle(today);
+      if (!puzzle) {
+        return interaction.reply({
+          content: '❌ No puzzle today. Check back later!',
+          flags: 64,
+        });
+      }
 
-      let puzzle,
-        solved = false,
-        streak = { current: 0, best: 0 };
+      const streak = puzzles.getStreak(user.id);
+      const position = puzzle.solvedBy.indexOf(user.id) + 1;
+      const status = position
+        ? `✅ Solved ${MEDALS[position - 1] || ''} (#${position})`
+        : `❌ Not solved yet · ${puzzles.wrongTriesLeft(puzzle, user.id)} tries left`;
 
-      db.perform(data => {
-        puzzle = data.puzzles?.[today];
-        if (!data.puzzleStreaks) data.puzzleStreaks = {};
-        streak = data.puzzleStreaks[userId] || { current: 0, best: 0 };
-        if (puzzle && puzzle.solvedBy.includes(userId)) solved = true;
+      const embed = puzzles.puzzleEmbed(today, puzzle).addFields({
+        name: `👤 ${user.username}`,
+        value: `${status}\n🔥 Streak: **${streak.current}** (best ${streak.best})`,
+      });
+      return interaction.reply({
+        embeds: [embed],
+        components: puzzles.linkButton(puzzle),
+        allowedMentions: { parse: [] },
+      });
+    }
+
+    // ==== /puzzle solve ====
+    if (sub === 'solve') {
+      const userId = interaction.user.id;
+      const result = puzzles.solve(
+        guildId,
+        userId,
+        interaction.options.getString('code'),
+      );
+
+      const errors = {
+        none: '❌ No puzzle today.',
+        solved: `✅ You already solved today's puzzle (#${result.position}).`,
+        locked: `🔒 That's ${puzzles.MAX_WRONG_PER_DAY} wrong codes. No more tries today. See you tomorrow!`,
+        wrong: `❌ Wrong code. **${result.triesLeft}** ${result.triesLeft === 1 ? 'try' : 'tries'} left today.`,
+      };
+      if (result.error)
+        return interaction.reply({ content: errors[result.error], flags: 64 });
+
+      const medal = MEDALS[result.position - 1];
+      await interaction.reply({
+        content:
+          `🎉 Correct! You earned **${result.reward}** coins!` +
+          (medal
+            ? `\n${medal} You were **#${result.position}** today (+${result.bonus} bonus)!`
+            : '') +
+          (result.streakMsg ? `\n${result.streakMsg}` : ''),
+        flags: 64,
       });
 
-      if (!puzzle)
-        return interaction.reply({ content: '❌ No puzzle today.', flags: 64 });
-
-      const msg =
-        `🧩 **Puzzle of the Day (${today})**\n` +
-        `Difficulty: **${puzzle.difficulty}** (${puzzle.reward} coins)\n` +
-        `🔗 ${puzzle.link}\n\n` +
-        `👤 **${user.username}**:\n` +
-        (solved ? '✅ Solved\n' : '❌ Not solved\n') +
-        `🔥 Streak: ${streak.current} (Best: ${streak.best})`;
-
-      return interaction.reply({ content: msg });
+      // Public notice without the code: puzzle channel, or here if none is set
+      const name = interaction.member?.displayName || interaction.user.username;
+      const posted = await puzzles.postSolveNotice(
+        interaction.client,
+        guildId,
+        name,
+        result.position,
+      );
+      if (!posted) {
+        await interaction
+          .followUp({
+            content: `🧩 **${name}** solved today's puzzle! ${medal || '✅'} (#${result.position})`,
+            allowedMentions: { parse: [] },
+          })
+          .catch(() => {});
+      }
+      return achievements.announce(interaction, [userId]);
     }
 
     // ==== /puzzle history ====
     if (sub === 'history') {
       const user = interaction.options.getUser('user');
-      const today = getToday();
 
       // Past and today's puzzles only; queued future puzzles stay secret
       const entries = Object.entries(history.allPuzzles())
         .filter(([date]) => date <= today)
         .sort(([a], [b]) => b.localeCompare(a));
-
-      if (entries.length === 0)
+      if (entries.length === 0) {
         return interaction.reply({ content: '📭 No puzzles yet.', flags: 64 });
+      }
 
       const pages = Math.ceil(entries.length / HISTORY_PAGE_SIZE);
       const page = Math.min(interaction.options.getInteger('page') || 1, pages);
@@ -187,8 +234,8 @@ module.exports = {
             : '❌ '
           : '';
         return (
-          `${mark}**${date}** · ${p.difficulty} · ${solvers} solver${solvers === 1 ? '' : 's'}` +
-          ` · [link](<${p.link}>)`
+          `${mark}**${date}** · ${puzzles.difficultyOf(p).emoji} ${puzzles.difficultyOf(p).label}` +
+          ` · ${solvers} solver${solvers === 1 ? '' : 's'} · [link](<${p.link}>)`
         );
       });
 
@@ -199,72 +246,146 @@ module.exports = {
         ).length;
         header += `\n👤 **${user.username}** solved **${solved}** of ${entries.length}`;
       }
-
       return interaction.reply({
         content: `${header}\n\n${lines.join('\n')}`,
         allowedMentions: { parse: [] },
       });
     }
 
-    // ==== /puzzle solve ====
-    if (sub === 'solve') {
-      const code = interaction.options.getString('code');
-      const userId = interaction.user.id;
-      const today = getToday();
-      const yesterday = getYesterday();
+    // ==== /puzzle leaderboard ====
+    if (sub === 'leaderboard') {
+      const lb = puzzles.getLeaderboard(5);
+      // unit = [singular, plural]
+      const list = (rows, [one, many]) =>
+        rows.length
+          ? rows
+              .map(
+                ([uid, n], i) =>
+                  `${MEDALS[i] || `**${i + 1}.**`} <@${uid}> — **${n}** ${n === 1 ? one : many}`,
+              )
+              .join('\n')
+          : '–';
+      const embed = new EmbedBuilder()
+        .setTitle('🧩 Puzzle Leaderboard')
+        .setColor(0x9b59b6)
+        .addFields(
+          {
+            name: '🧠 Most solved',
+            value: list(lb.solved, ['puzzle', 'puzzles']),
+          },
+          {
+            name: '⚡ Most first places',
+            value: list(lb.firsts, ['× first', '× first']),
+          },
+          {
+            name: '🔥 Longest streaks',
+            value: list(lb.streaks, ['day', 'days']),
+          },
+        );
+      return interaction.reply({
+        embeds: [embed],
+        allowedMentions: { parse: [] },
+      });
+    }
 
-      let puzzle,
-        reward = 0,
-        solved = false,
-        streakMsg = '';
+    // ===== Admin only from here =====
+    if (!isAdmin(interaction)) return denyNonAdmin(interaction);
 
-      db.perform(data => {
-        if (!data.puzzles || !data.puzzles[today]) return;
-        puzzle = data.puzzles[today];
-
-        if (puzzle.solvedBy.includes(userId)) {
-          solved = true;
-          return;
-        }
-        if (puzzle.code.toLowerCase() !== code.toLowerCase()) return;
-
-        if (!data.puzzleStreaks) data.puzzleStreaks = {};
-        const streak = data.puzzleStreaks[userId] || {
-          current: 0,
-          best: 0,
-          lastDate: null,
-        };
-
-        if (streak.lastDate === yesterday) {
-          streak.current++;
-        } else {
-          streak.current = 1;
-        }
-
-        if (streak.current > streak.best) streak.best = streak.current;
-        streak.lastDate = today;
-        data.puzzleStreaks[userId] = streak;
-
-        const r = streakReward(puzzle.reward, streak.current);
-        reward = r.total;
-        streakMsg = streakMessage(streak.current, r);
-
-        puzzle.solvedBy.push(userId);
-        nestcoins.addCoins(guildId, userId, reward);
+    // ==== /puzzle set ====
+    if (sub === 'set') {
+      const difficulty = interaction.options.getString('difficulty');
+      const result = puzzles.setPuzzle({
+        link: interaction.options.getString('link'),
+        code: interaction.options.getString('code'),
+        difficulty,
+        date: interaction.options.getString('date'),
+        append: interaction.options.getBoolean('append'),
       });
 
-      if (!puzzle)
-        return interaction.reply({ content: '❌ No puzzle today.', flags: 64 });
-      if (solved)
-        return interaction.reply({ content: '✅ Already solved.', flags: 64 });
-      if (puzzle.code.toLowerCase() !== code.toLowerCase())
-        return interaction.reply({ content: '❌ Wrong code.', flags: 64 });
+      const errors = {
+        link: '❌ The link must start with `http://` or `https://`.',
+        'date-format':
+          '❌ Date must look like `2026-10-31` (YYYY-MM-DD) and exist.',
+        'date-past': '❌ That date is in the past.',
+      };
+      if (result.error)
+        return interaction.reply({ content: errors[result.error], flags: 64 });
 
-      await interaction.reply({
-        content: `🎉 Correct! You earned **${reward}** coins!\n${streakMsg}`,
+      const d = DIFFICULTIES[difficulty];
+      const note = result.replaced
+        ? `\n✏️ Replaced the existing puzzle for that day (kept its ${result.keptSolvers} solver${result.keptSolvers === 1 ? '' : 's'}).`
+        : '';
+      const when =
+        result.date === today
+          ? puzzles.getSettings(guildId).channelId
+            ? '\n📣 It will be announced in the puzzle channel within 10 minutes.'
+            : '\n💡 Set a puzzle channel with `/puzzle channel` to announce it automatically.'
+          : '';
+      return interaction.reply({
+        content: `✅ Puzzle for **${result.date}** set! ${d.emoji} ${d.label} (${d.reward} coins)${note}${when}`,
         flags: 64,
       });
-      return achievements.announce(interaction, [userId]);
+    }
+
+    // ==== /puzzle queue ====
+    if (sub === 'queue') {
+      const queue = puzzles.getQueue();
+      if (!queue.length) {
+        return interaction.reply({
+          content: '📭 No puzzles scheduled. Add one with `/puzzle set`.',
+          flags: 64,
+        });
+      }
+      const lines = queue.slice(0, 25).map(([date, p]) => {
+        const diff = puzzles.difficultyOf(p);
+        const solved = p.solvedBy?.length
+          ? ` · ${p.solvedBy.length} solved`
+          : '';
+        return `**${date}**${date === today ? ' (today)' : ''} · ${diff.emoji} ${diff.label} · code \`${p.code}\`${solved} · [link](<${p.link}>)`;
+      });
+      return interaction.reply({
+        content:
+          `🗓️ **Puzzle queue** (${queue.length})\n${lines.join('\n')}` +
+          (queue.length > 25 ? `\n…and ${queue.length - 25} more` : ''),
+        flags: 64,
+      });
+    }
+
+    // ==== /puzzle remove ====
+    if (sub === 'remove') {
+      const date = interaction.options.getString('date');
+      if (date < today) {
+        return interaction.reply({
+          content:
+            '❌ Past puzzles can’t be removed (they’re part of the history).',
+          flags: 64,
+        });
+      }
+      const removed = puzzles.removePuzzle(date);
+      return interaction.reply({
+        content: removed
+          ? `🗑️ Removed the puzzle for **${date}** (code \`${removed.code}\`).`
+          : `❓ There's no puzzle on **${date}**. See \`/puzzle queue\`.`,
+        flags: 64,
+      });
+    }
+
+    // ==== /puzzle channel ====
+    if (sub === 'channel') {
+      const channel = interaction.options.getChannel('channel');
+      const role = interaction.options.getRole('ping');
+      puzzles.setChannel(guildId, channel.id, role?.id);
+      return interaction.reply({
+        content:
+          `✅ New puzzles will be announced in <#${channel.id}>` +
+          (role ? ` with a ping for <@&${role.id}>` : '') +
+          '. Solve notices are posted there too.' +
+          (puzzles.getPuzzle(today)
+            ? "\n📣 Today's puzzle will be posted there within 10 minutes."
+            : ''),
+        flags: 64,
+        allowedMentions: { parse: [] },
+      });
     }
   },
 };

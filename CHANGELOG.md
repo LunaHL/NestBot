@@ -1,5 +1,19 @@
 # NestBot Changelog
 
+## V 1.4 (October 2026)
+
+**New**
+- 🧩 Daily puzzle announcement in a puzzle channel (`/puzzle channel`, optional role ping): a card with difficulty, reward, first-solver bonus, an "Open puzzle" button and yesterday's top solvers
+- 🥇 First-solver bonus (+15 / +10 / +5) and a public "X solved today's puzzle" notice (without the code)
+- 🏆 `/puzzle leaderboard`: most solved, most first places, longest streaks
+- 🗓️ `/puzzle queue` and `/puzzle remove` for admins
+
+**Fixed / changed**
+- Setting a puzzle again for the same day keeps its solvers instead of wiping them
+- Dates and links are checked when setting a puzzle; past dates are refused
+- Max 10 wrong codes per person per day
+- `/puzzle info` shows the real current streak; `append` also fills today if it's free
+
 ## V 1.3 (October 2026)
 
 **New**

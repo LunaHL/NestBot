@@ -26,6 +26,7 @@ used. Members who already qualify get it the next time they do something.
 | `drinks.js` | Café & bar logic: serving, charging, daily limits (caffeine, alcohol, total), streaks, drink stats, the search while typing |
 | `drinkArt.js` | Finds the right picture in `assets/drink-art/` for a drink and latte art |
 | `gag.js` | Gagging: who is gagged and until when, garbling text, and handling messages of gagged members (delete, repost garbled, double the gag on spam) |
+| `puzzle.js` | Puzzle of the Day: setting (with date/link checks), solving (tries limit, first-solver bonus), queue, leaderboard, the puzzle card and the daily announcement in the puzzle channel. Rewards and limits are at the top of the file |
 | `halloween.js` | Trick-or-treat outcomes, daily tries, the October 31 announcement |
 
 ## Background jobs

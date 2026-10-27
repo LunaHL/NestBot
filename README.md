@@ -95,7 +95,7 @@ See [`tests/README.md`](tests/README.md).
 | Prices for roast / compliment / poem / mood | `src/commands/ai.js` (`PRICES`) |
 | Achievements (add, change rewards) | `src/services/achievements.js` |
 | Streak bonus for Puzzle and NestWord | `src/utils/streak.js` |
-| Puzzle rewards per difficulty | `src/commands/puzzle.js` (`rewards`) |
+| Puzzle rewards, first-solver bonus, tries per day | `src/services/puzzle.js` (top of the file) |
 | Daily coins | `src/commands/daily.js` (`DAILY_AMOUNT`) |
 | Birthday coins | `src/commands/birthday.js` (`BIRTHDAY_COINS`) |
 | Picture tracker rewards | `src/services/pictracker.js` |

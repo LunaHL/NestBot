@@ -5,12 +5,14 @@ const { startCleanup } = require('../services/cleanup');
 const { startHalloween } = require('../services/halloween');
 const { startScoreboard } = require('../services/scoreboard');
 const { startPicTracker } = require('../services/pictracker');
+const { startPuzzleAnnouncer } = require('../services/puzzle');
 
 module.exports = function onReady(client) {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
   nestword.initDailyPicker(); // picks today's word
   startScoreboard(client); // posts yesterday's results after midnight
+  startPuzzleAnnouncer(client); // posts today's puzzle in the puzzle channel
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)

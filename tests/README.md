@@ -13,7 +13,7 @@ import. These are mistakes that otherwise only show up as "Error executing
 this command" in Discord.
 
 ```
-✅ All 68 subcommands, events and background jobs ran without errors.
+✅ All 72 subcommands, events and background jobs ran without errors.
 ```
 
 It uses its own temporary data folder (`NESTBOT_DATA_DIR`) and never talks to

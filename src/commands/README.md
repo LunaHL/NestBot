@@ -34,10 +34,13 @@ replies and embeds. The real work (coins, stats, saving) is in
 | | `/nestword info` | Today's length, attempts and reward |
 | | `/nestword set` 🔒 | Set the word for a date |
 | | `/nestword pool-bulkadd` 🔒 / `pool-remove` 🔒 / `pool-list` 🔒 / `pool-clear` 🔒 | Manage the word pools (stored in `data/wordlist.json`) |
-| `puzzle.js` | `/puzzle solve` | Enter today's solve code |
-| | `/puzzle info` | Today's puzzle, your streak |
+| `puzzle.js` | `/puzzle solve` | Enter today's code (10 tries per day). The first three get a bonus: 🥇 +15, 🥈 +10, 🥉 +5 |
+| | `/puzzle info` | Today's puzzle card with "Open puzzle" button, your position and streak |
 | | `/puzzle history` | Past puzzles, optionally which ones a user solved |
-| | `/puzzle set` 🔒 | Set a puzzle for a date (or `append` = next free day) |
+| | `/puzzle leaderboard` | Most solved, most first places, longest streaks |
+| | `/puzzle set` 🔒 | Set a puzzle for a date (or `append` = next free day). Setting the same day again replaces it but keeps its solvers |
+| | `/puzzle queue` 🔒 / `remove` 🔒 | Today's and upcoming puzzles with their codes; remove one |
+| | `/puzzle channel` 🔒 | Puzzle channel (+ optional role ping): new puzzles are announced there, solves are posted there |
 
 Both games give a streak bonus (`utils/streak.js`), and yesterday's results are
 posted after midnight (`services/scoreboard.js`).

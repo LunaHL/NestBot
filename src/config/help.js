@@ -40,8 +40,8 @@ const CATEGORIES = [
         text: 'Solving on consecutive days gives **+10% per day** (up to +50%), plus big one-time bonuses on day 7, 14, 30 and 100.',
       },
       {
-        name: '📊 Daily results',
-        text: "After midnight NestBot posts who solved yesterday's NestWord and Puzzle.",
+        name: '📣 Announcements',
+        text: "Every new puzzle is posted in the puzzle channel with a button to open it. After midnight NestBot also posts who solved yesterday's NestWord and Puzzle.",
       },
     ],
   },
@@ -176,9 +176,9 @@ const COMMANDS = {
   },
   puzzle: {
     explain:
-      'A new puzzle every day. Solve it via the link and enter the code you find. Harder puzzles pay more.',
-    admin: ['set'],
-    tips: 'Use `/puzzle history` to replay old puzzles.',
+      'A new puzzle every day, announced in the puzzle channel. Open it, find the code and enter it with `/puzzle solve`. Harder puzzles pay more, and the first three solvers get a bonus (🥇 +15, 🥈 +10, 🥉 +5). You have 10 tries per day.',
+    admin: ['set', 'queue', 'remove', 'channel'],
+    tips: 'Use `/puzzle history` to replay old puzzles and `/puzzle leaderboard` to see the best solvers. Admins: setting a puzzle again for the same day replaces it but keeps its solvers.',
   },
 
   // 🍹 Café & Bar
