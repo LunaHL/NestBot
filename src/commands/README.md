@@ -150,6 +150,12 @@ from the command files, so they're always current.
 | | `/watch history` / `top` | Past movie nights; 🏆 Nest Top 10 by rating |
 | | `/watch plan` without a title, or `/watch vote` | 🗳️ Vote on what to watch: the room opens right away, options come from the watchlists of everyone signed up, the winner is set automatically (ties: the wheel). Duration: 1 h … 7 days or until the start |
 | | `/watch suggest` | In the room: add a title to the running vote |
+
+**Series and anime:** pick season/episode, or `absolute:` for long anime
+("episode 1050"), or nothing to **continue where the server stopped last
+time**. After each episode: **⏭️ Next** (also into the next season) or
+**🛑 Stop here**. Everyone gets exactly the episodes they were there for marked
+on their watchlist. Movie series show "part 2 of 3" and the next part at the end.
 | `watchlist.js` | `/watchlist add` / `remove` / `edit` | Your list: 📌 want, ▶️ watching (season/episode), ✅ watched; must-watch ❗, notes, 🌐/🔒 per entry |
 | | `/watchlist show` | Yours (with private ones) or someone else's public list, with filters and "📋 copy to my watchlist" |
 | | `/watchlist seen` / `rate` | Mark as watched / rate ⭐1–5 (outside movie nights) |

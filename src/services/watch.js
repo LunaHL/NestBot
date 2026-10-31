@@ -146,20 +146,114 @@ function canPlan(member, guildId) {
  * Turn the chosen title into night details. `value` is "movie:123" / "tv:456"
  * from the search, or plain text if TMDB isn't set up or nothing was picked.
  */
-async function resolveTitle(value, { season, episode, episodes, length } = {}) {
+// ---------- Series helpers ----------
+
+/** Seasons of a series as [{ number, episodes }], season 1 first (no specials). */
+const seasonsOf = info =>
+  (info?.seasons || [])
+    .filter(x => x.number > 0)
+    .sort((a, b) => a.number - b.number);
+
+/** The episode after S/E, using the season list: { season, episode } or null. */
+function episodeAfter(info, season, episode) {
+  const seasons = seasonsOf(info);
+  if (!seasons.length) return { season, episode: episode + 1 }; // unknown: just count up
+  const cur = seasons.find(x => x.number === season);
+  if (cur && episode < cur.episodes) return { season, episode: episode + 1 };
+  const next = seasons.find(x => x.number > season);
+  return next ? { season: next.number, episode: 1 } : null;
+}
+
+/** "Episode 1050" → { season, episode } (counting through all seasons), or null. */
+function fromAbsolute(info, absolute) {
+  let left = absolute;
+  for (const x of seasonsOf(info)) {
+    if (left <= x.episodes) return { season: x.number, episode: left };
+    left -= x.episodes;
+  }
+  return null;
+}
+
+/** Where a series stopped last time ("server" or a group id): { season, episode } */
+function getProgress(guildId, scope, tvId) {
+  return (
+    db.read(d => d.watch?.[guildId]?.progress?.[`${scope}:${tvId}`]) || null
+  );
+}
+
+function setProgress(guildId, scope, tvId, season, episode) {
+  db.perform(d => {
+    d.watch ||= {};
+    d.watch[guildId] ||= { nights: {} };
+    d.watch[guildId].progress ||= {};
+    d.watch[guildId].progress[`${scope}:${tvId}`] = {
+      season,
+      episode,
+      at: Date.now(),
+    };
+  });
+}
+
+/**
+ * Turn the chosen title into night details. `value` is "movie:123" / "tv:456"
+ * from the search, or plain text if TMDB isn't set up or nothing was picked.
+ * Series: season/episode, or `absolute` ("episode 1050"), or, with neither,
+ * it continues where `scope` (the server or a group) stopped last time.
+ */
+async function resolveTitle(
+  value,
+  {
+    season,
+    episode,
+    episodes,
+    length,
+    absolute,
+    guildId,
+    scope = 'server',
+  } = {},
+) {
   const m = /^(movie|tv):(\d+)$/.exec(String(value || ''));
   const info = m ? await tmdb.details(m[1], Number(m[2])) : null;
-  const kind = info?.type === 'tv' || season || episode ? 'tv' : 'movie';
+  const kind =
+    info?.type === 'tv' || season || episode || absolute ? 'tv' : 'movie';
 
   let ep = null;
+  let continued = false;
   if (kind === 'tv') {
+    if (absolute && info) {
+      const pos = fromAbsolute(info, absolute);
+      if (pos) ({ season, episode } = pos);
+    }
+    if (!season && !episode && info && guildId) {
+      const last = getProgress(guildId, scope, info.id);
+      const next = last && episodeAfter(info, last.season, last.episode);
+      if (next) {
+        ({ season, episode } = next);
+        continued = true;
+      }
+    }
     season = season || 1;
     episode = episode || 1;
     if (info) ep = await tmdb.episode(info.id, season, episode);
   }
+
+  // Movie series: "part 2 of 3" and what comes next
+  let collection = null;
+  if (kind === 'movie' && info?.collection) {
+    const c = await tmdb.collection(info.collection.id);
+    const index = c ? c.parts.findIndex(p => p.id === info.id) : -1;
+    if (index >= 0) {
+      collection = {
+        name: c.name,
+        part: index + 1,
+        total: c.parts.length,
+        next: c.parts[index + 1] || null,
+      };
+    }
+  }
+
   const lengthMin =
     length || ep?.runtime || info?.runtime || (kind === 'tv' ? 45 : 120);
-
   return {
     title:
       info?.title ||
@@ -173,6 +267,8 @@ async function resolveTitle(value, { season, episode, episodes, length } = {}) {
     episodeTitle: ep?.title || null,
     episodes: kind === 'tv' ? Math.max(1, episodes || 1) : 1,
     lengthMin,
+    collection,
+    continued,
   };
 }
 
@@ -249,6 +345,13 @@ function cardEmbed(n) {
     value: `<@${n.createdBy}>`,
     inline: true,
   });
+  if (n.collection) {
+    fields.push({
+      name: '📚 Movie series',
+      value: `Part ${n.collection.part} of ${n.collection.total} · ${n.collection.name}`,
+      inline: true,
+    });
+  }
   if (n.vote?.open) {
     const top = tally(n).slice(0, 3);
     fields.push({
@@ -892,10 +995,15 @@ async function markReady(client, guildId, id, userId) {
     return { error: 'not-checkin' };
   if (!before.members.includes(userId)) return { error: 'not-member' };
 
-  const firstTime = !before.session.checkedIn.includes(userId);
+  const firstTime = !(
+    before.session.allCheckedIn || before.session.checkedIn
+  ).includes(userId);
   const n = updateNight(guildId, id, x => {
     if (!x.session.ready.includes(userId)) x.session.ready.push(userId);
     if (!x.session.checkedIn.includes(userId)) x.session.checkedIn.push(userId);
+    x.session.allCheckedIn ||= [];
+    if (!x.session.allCheckedIn.includes(userId))
+      x.session.allCheckedIn.push(userId);
   });
   const coins = settingsOf(guildId).attendanceCoins;
   if (firstTime && coins > 0) nestcoins.addCoins(guildId, userId, coins);
@@ -994,7 +1102,11 @@ function clockEmbed(n) {
       : s.phase === 'finished'
         ? `🎬 Finished · ${fullTitle(n)}`
         : `▶️ ${fullTitle(n)}`;
-  let desc = `⏱️ **${fmtPos(pos)}** / ${fmtPos(total)}\n${bar} ${pct}%`;
+  const epInfo =
+    n.kind === 'tv' && (n.episodes > 1 || (n.session.episodesDone || 1) > 1)
+      ? ` · episode ${n.session.episodesDone || 1}${n.episodes > 1 ? `/${n.episodes}` : ''}`
+      : '';
+  let desc = `⏱️ **${fmtPos(pos)}** / ${fmtPos(total)}${epInfo}\n${bar} ${pct}%`;
   if (s.phase === 'paused')
     desc += `\n\n⏸️ Paused by <@${s.pausedBy}>. Press **▶️ Resume** when everyone's back.`;
   else if (s.phase === 'finished')
@@ -1453,11 +1565,173 @@ async function closeVote(guild, n) {
   return n;
 }
 
+// ---------- Series: next episode ----------
+
+/** The next episode with its title and length, or null after the last one. */
+async function nextEpisode(n) {
+  const next = episodeAfter(n.info, n.season, n.episode);
+  if (!next) return null;
+  const ep = n.info
+    ? await tmdb.episode(n.info.id, next.season, next.episode)
+    : null;
+  if (n.info && !ep && seasonsOf(n.info).length) return null;
+  return {
+    ...next,
+    title: ep?.title || null,
+    runtime: ep?.runtime || n.lengthMin,
+  };
+}
+
+/** "✅ S1E5 is over" with ⏭️ Next / 🛑 Stop here. */
+async function episodeOverMessage(n) {
+  const next = await nextEpisode(n);
+  const done = n.session.episodesDone || 1;
+  const planned = n.episodes || 1;
+  const marker = `${n.season}x${n.episode}`;
+  const buttons = [];
+  if (next) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`watch:next:${n.id}:${marker}`)
+        .setLabel(
+          `${done >= planned ? 'One more' : 'Next'}: S${next.season}E${next.episode}${next.title ? ` “${next.title}”` : ''} (${next.runtime} min)`.slice(
+            0,
+            80,
+          ),
+        )
+        .setEmoji('⏭️')
+        .setStyle(
+          done >= planned ? ButtonStyle.Secondary : ButtonStyle.Success,
+        ),
+    );
+  }
+  buttons.push(
+    new ButtonBuilder()
+      .setCustomId(`watch:stop:${n.id}:${marker}`)
+      .setLabel('Stop here')
+      .setEmoji('🛑')
+      .setStyle(ButtonStyle.Secondary),
+  );
+  const seasonEnd =
+    next && next.season !== n.season
+      ? `\n🎉 That was the end of season ${n.season}!`
+      : '';
+  return {
+    content:
+      `✅ **${fullTitle(n)}** is over! (episode ${done}${planned > 1 ? ` of ${planned} planned` : ''})` +
+      (next ? seasonEnd : '\n🎉 That was the last episode!'),
+    components: [new ActionRowBuilder().addComponents(buttons)],
+  };
+}
+
+/**
+ * ⏭️ Next episode: same room, new check-in. `marker` ("1x5") makes sure a
+ * double click doesn't skip two episodes. Returns { error } or { night }.
+ */
+async function goNext(client, guildId, id, userId, marker) {
+  const n0 = getNight(guildId, id);
+  if (
+    !n0 ||
+    n0.session.phase !== 'finished' ||
+    `${n0.season}x${n0.episode}` !== marker
+  )
+    return { error: 'gone' };
+  if (!n0.members.includes(userId)) return { error: 'not-member' };
+  const next = await nextEpisode(n0);
+  if (!next) return { error: 'last' };
+
+  let claimed = false;
+  const n = updateNight(guildId, id, x => {
+    if (x.session.phase !== 'finished' || `${x.season}x${x.episode}` !== marker)
+      return;
+    claimed = true;
+    x.season = next.season;
+    x.episode = next.episode;
+    x.episodeTitle = next.title;
+    x.lengthMin = next.runtime;
+    Object.assign(x.session, {
+      phase: 'waiting',
+      ready: [],
+      checkedIn: [],
+      missed: [],
+      resume: false,
+      startedAt: null,
+      pausedAt: null,
+      pausedBy: null,
+      pausedTotal: 0,
+      clockMessageId: null,
+      checkinMessageId: null,
+      nextCheckpoint: null,
+      episodesDone: (x.session.episodesDone || 1) + 1,
+    });
+  });
+  if (!claimed) return { error: 'gone' };
+  await startCheckin(client, n);
+  await refreshAll(client, getNight(guildId, id));
+  return { night: getNight(guildId, id) };
+}
+
+/** 🛑 Stop here: ask everyone to mark what they watched. */
+async function stopSeries(client, guildId, id, userId, marker) {
+  const n = getNight(guildId, id);
+  if (
+    !n ||
+    n.session.phase !== 'finished' ||
+    `${n.season}x${n.episode}` !== marker
+  )
+    return { error: 'gone' };
+  if (!n.members.includes(userId)) return { error: 'not-member' };
+  const room = await fetchChannel(client, n.roomId);
+  await room
+    ?.send({
+      content: `🛑 <@${userId}> stopped after **${fullTitle(n)}**. Mark the episodes you watched on your watchlist?\n<@${n.createdBy}>, close the room with \`/watch end\` when you're done.`,
+      components: watchedPrompt(n),
+      allowedMentions: { users: [n.createdBy] },
+    })
+    .catch(() => {});
+  return { night: n };
+}
+
 // ---------- "Did you watch it?" ----------
 
-/** People who were there: checked in and didn't press "I missed part". */
-const watchers = n =>
+/** People who watched the current movie/episode: checked in, didn't miss part. */
+const currentWatchers = n =>
   n.session.checkedIn.filter(u => !(n.session.missed || []).includes(u));
+
+/** Everyone who watched anything this night (all episodes). */
+const watchers = n => {
+  const all = new Set((n.session.history || []).flatMap(h => h.watchers));
+  if (
+    !(n.session.history || []).some(
+      h => h.season === n.season && h.episode === n.episode,
+    )
+  ) {
+    for (const u of currentWatchers(n)) all.add(u);
+  }
+  return [...all];
+};
+
+/** Episodes this person watched tonight: [{ season, episode }] */
+function episodesOf(n, userId) {
+  const list = (n.session.history || [])
+    .filter(h => h.watchers.includes(userId))
+    .map(h => ({ season: h.season, episode: h.episode }));
+  const currentDone = (n.session.history || []).some(
+    h => h.season === n.season && h.episode === n.episode,
+  );
+  if (!currentDone && currentWatchers(n).includes(userId))
+    list.push({ season: n.season, episode: n.episode });
+  return list;
+}
+
+/** "Frieren · S1E5–S1E7" for this person (series), or the title. */
+function labelFor(n, userId) {
+  if (n.kind !== 'tv') return fullTitle(n);
+  const eps = episodesOf(n, userId);
+  if (!eps.length) return n.title;
+  const f = e => `S${e.season}E${e.episode}`;
+  return `${n.title} · ${f(eps[0])}${eps.length > 1 ? `–${f(eps[eps.length - 1])}` : ''}`;
+}
 
 /** The "✅ Yes, mark as watched / ❌ No" buttons. */
 function watchedPrompt(n) {
@@ -1492,17 +1766,12 @@ function confirmWatched(guildId, n, userId, yes) {
     watchlist.resolvePending(guildId, userId, key, false);
     return { key };
   }
+  const eps = episodesOf(n, userId);
   watchlist.markWatched(guildId, userId, nightFields(n), {
     watchedWith: watchers(n),
-    progress:
-      n.kind === 'tv'
-        ? {
-            season: n.season,
-            episode: n.episode + (n.session.episodesDone || 1) - 1,
-          }
-        : null,
+    progress: n.kind === 'tv' && eps.length ? eps[eps.length - 1] : null,
   });
-  return { key };
+  return { key, label: labelFor(n, userId) };
 }
 
 /** "Did you watch it?" waiting for everyone who was there and hasn't answered. */
@@ -1510,19 +1779,14 @@ function addPendingFor(n) {
   const answered = n.session.answered || [];
   for (const userId of watchers(n)) {
     if (answered.includes(userId)) continue;
+    const eps = episodesOf(n, userId);
     watchlist.addPending(n.guildId, userId, {
       key: nightKey(n),
       fields: nightFields(n),
-      label: fullTitle(n),
+      label: labelFor(n, userId),
       nightId: n.id,
       watchedWith: watchers(n),
-      progress:
-        n.kind === 'tv'
-          ? {
-              season: n.season,
-              episode: n.episode + (n.session.episodesDone || 1) - 1,
-            }
-          : null,
+      progress: n.kind === 'tv' && eps.length ? eps[eps.length - 1] : null,
     });
   }
 }
@@ -1560,6 +1824,12 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
         },
         { name: '📣 Planned by', value: `<@${n.createdBy}>`, inline: true },
       );
+    if (n.collection?.next) {
+      embed.addFields({
+        name: '➡️ Next in the series',
+        value: `**${n.collection.next.title}** (${n.collection.next.year}) · part ${n.collection.part + 1} of ${n.collection.total}`,
+      });
+    }
     if (missed.length) {
       embed.addFields({
         name: '⚠️ Missed part',
@@ -1582,7 +1852,27 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
     await channel
       .send({
         embeds: [embed],
-        components: ask.length ? watchedPrompt(n) : [],
+        components: [
+          ...(ask.length ? watchedPrompt(n) : []),
+          ...(n.collection?.next
+            ? [
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder()
+                    .setCustomId(
+                      `watch:wladd:${n.id}:movie_${n.collection.next.id}`,
+                    )
+                    .setLabel(
+                      `Add “${n.collection.next.title}” to my watchlist`.slice(
+                        0,
+                        80,
+                      ),
+                    )
+                    .setEmoji('➕')
+                    .setStyle(ButtonStyle.Secondary),
+                ),
+              ]
+            : []),
+        ],
         allowedMentions: { parse: [] },
       })
       .catch(() => {});
@@ -1681,16 +1971,37 @@ async function clockTick(client) {
         const done = updateNight(guildId, n.id, x => {
           x.session.phase = 'finished';
           x.session.pausedAt = Date.now();
+          if (x.kind === 'tv') {
+            x.session.history ||= [];
+            x.session.history.push({
+              season: x.season,
+              episode: x.episode,
+              title: x.episodeTitle,
+              watchers: currentWatchers(x),
+            });
+          }
         });
         await updateClock(client, done, true);
         const room = await fetchChannel(client, n.roomId);
-        await room
-          ?.send({
-            content: `🎬 **${fullTitle(n)}** is over! Mark it as watched on your watchlist?\n<@${n.createdBy}>, close the room with \`/watch end\` when you're done chatting.`,
-            components: watchedPrompt(n),
-            allowedMentions: { users: [n.createdBy] },
-          })
-          .catch(() => {});
+        if (done.kind === 'tv') {
+          if (done.info)
+            setProgress(
+              guildId,
+              done.groupId || 'server',
+              done.info.id,
+              done.season,
+              done.episode,
+            );
+          await room?.send(await episodeOverMessage(done)).catch(() => {});
+        } else {
+          await room
+            ?.send({
+              content: `🎬 **${fullTitle(n)}** is over! Mark it as watched on your watchlist?\n<@${n.createdBy}>, close the room with \`/watch end\` when you're done chatting.`,
+              components: watchedPrompt(n),
+              allowedMentions: { users: [n.createdBy] },
+            })
+            .catch(() => {});
+        }
         continue;
       }
 
@@ -1758,6 +2069,14 @@ module.exports = {
   endNight,
   confirmWatched,
   refreshAll,
+  goNext,
+  stopSeries,
+  nextEpisode,
+  episodeAfter,
+  fromAbsolute,
+  getProgress,
+  setProgress,
+  labelFor,
   VOTE_DURATIONS,
   VOTE_TITLE,
   startVote,

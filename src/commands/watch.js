@@ -89,6 +89,14 @@ const seriesOptions = sub =>
     )
     .addIntegerOption(o =>
       o
+        .setName('absolute')
+        .setDescription(
+          'Long anime: episode number counted through all seasons, e.g. 1050',
+        )
+        .setMinValue(1),
+    )
+    .addIntegerOption(o =>
+      o
         .setName('length')
         .setDescription(
           'Length in minutes (only if the info is missing or wrong)',
@@ -112,6 +120,7 @@ function seriesValues(options) {
     episode: options.getInteger('episode'),
     episodes: options.getInteger('episodes'),
     length: options.getInteger('length'),
+    absolute: options.getInteger('absolute'),
   };
 }
 
@@ -179,6 +188,47 @@ async function handleComponent(interaction) {
       ephemeral(
         '💡 Type `/watch suggest title:` here in the room and pick a title from the list.',
       ),
+    );
+  }
+
+  if (action === 'next' || action === 'stop') {
+    const marker = rest[0];
+    await interaction.deferReply({ flags: 64 });
+    const r =
+      action === 'next'
+        ? await watch.goNext(interaction.client, guild.id, id, userId, marker)
+        : await watch.stopSeries(
+            interaction.client,
+            guild.id,
+            id,
+            userId,
+            marker,
+          );
+    const errors = {
+      gone: 'Someone already did that.',
+      'not-member': '❌ You are not part of this movie night.',
+      last: '🎉 That was the last episode!',
+    };
+    if (r.error) return interaction.editReply(errors[r.error]);
+    await interaction.message?.edit({ components: [] }).catch(() => {});
+    return interaction.editReply(
+      action === 'next'
+        ? `⏭️ On to **${watch.fullTitle(r.night)}**! Check in above.`
+        : '🛑 Stopped.',
+    );
+  }
+
+  if (action === 'wladd') {
+    await interaction.deferReply({ flags: 64 });
+    const key = wl.decodeKey(rest[0]);
+    const m = /^(movie|tv):(\d+)$/.exec(key);
+    const info = m ? await tmdb.details(m[1], Number(m[2])) : null;
+    if (!info) return interaction.editReply('❌ Couldn’t find that title.');
+    const r = wl.addItem(guild.id, userId, wl.titleFields(info));
+    return interaction.editReply(
+      r.existed
+        ? `📌 **${info.title}** is already on your watchlist.`
+        : `📌 Added **${info.title}** to your watchlist.`,
     );
   }
 
@@ -765,7 +815,10 @@ module.exports = {
       const voteFor =
         sub === 'plan' ? o.getString('vote') || (title ? null : 'start') : null;
       const details = title
-        ? await watch.resolveTitle(title, seriesValues(o))
+        ? await watch.resolveTitle(title, {
+            ...seriesValues(o),
+            guildId: interaction.guildId,
+          })
         : {
             title: watch.VOTE_TITLE,
             kind: 'movie',
@@ -795,7 +848,8 @@ module.exports = {
         );
       }
       return interaction.editReply(
-        `✅ Planned ${watch.emojiOf(n)} **${watch.fullTitle(n)}** for ${discordTime(n.startAt, 'F')}.\n` +
+        (details.continued ? `▶️ Continuing where you left off.\n` : '') +
+          `✅ Planned ${watch.emojiOf(n)} **${watch.fullTitle(n)}** for ${discordTime(n.startAt, 'F')}.\n` +
           `The card is in <#${s.channelId}>; the room opens ${s.opensMin} minutes before the start.` +
           (n.info || !tmdb.isEnabled()
             ? ''

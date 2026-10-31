@@ -177,7 +177,7 @@ async function handleComponent(interaction) {
         ephemeral("👍 Okay, it won't be marked as watched."),
       );
     return interaction.reply({
-      content: `✅ **${watch.fullTitle(n)}** is marked as watched on your watchlist. How was it?`,
+      content: `✅ **${result.label || watch.fullTitle(n)}** is marked as watched on your watchlist. How was it?`,
       components: ratingButtons(result.key),
       flags: 64,
     });

@@ -122,6 +122,20 @@ async function details(type, id) {
   };
 }
 
+/** A movie series ("collection"), parts sorted by release: [{ id, title, year }] */
+async function collection(id) {
+  const d = await get(`/collection/${id}`, { language: 'en-US' });
+  if (!d?.parts) return null;
+  return {
+    id: d.id,
+    name: d.name,
+    parts: [...d.parts]
+      .filter(p => p.release_date)
+      .sort((a, b) => a.release_date.localeCompare(b.release_date))
+      .map(p => ({ id: p.id, title: p.title, year: yearOf(p.release_date) })),
+  };
+}
+
 /** One episode: { season, episode, title, runtime } or null. */
 async function episode(tvId, season, ep) {
   const d = await get(`/tv/${tvId}/season/${season}/episode/${ep}`, {
@@ -188,6 +202,7 @@ module.exports = {
   search,
   details,
   episode,
+  collection,
   providers,
   regionFromLocale,
   kindEmoji,
