@@ -84,6 +84,28 @@ const CATEGORIES = [
     ],
   },
   {
+    id: 'movies',
+    emoji: '🍿',
+    name: 'Movie nights',
+    intro:
+      'Watch movies, series and anime together, each on your own device: NestBot keeps everyone in sync. No voice channel needed.',
+    commands: ['watch'],
+    features: [
+      {
+        name: '🗓️ Plan & sign up',
+        text: 'Plan with `/watch plan` (or `/watch now`). The calendar in #movies shows what’s coming up: one click to sign up, another to leave. Times are shown in your own time zone.',
+      },
+      {
+        name: '🚪 Your room',
+        text: 'One hour before the start, a private room opens. Signed-up people get a ping; anyone can still join with **🚪 Enter room**, even mid-movie.',
+      },
+      {
+        name: '▶️ Watching in sync',
+        text: 'Pause your movie at 0:00 and press **✅ Ready**, then 3… 2… 1… ▶️. The live clock shows where everyone should be, `/watch sync` tells you if you’re ahead or behind, and anyone can press **⏸️ Pause**.',
+      },
+    ],
+  },
+  {
     id: 'competition',
     emoji: '⚔️',
     name: 'Tournaments & duels',
@@ -281,10 +303,17 @@ const COMMANDS = {
       'Knock on spooky doors: candy and coins, or a trick (a ghost steals coins, a witch takes your voice…). Only on Halloween.',
   },
 
+  // 🍿 Movie nights
+  watch: {
+    explain:
+      'Movie nights for movies, series and anime: plan one (or start right away), sign up in the #movies calendar, get a private room, check in, and watch in sync with the live clock. Titles come with poster, length and where to stream them.',
+    tips: 'Pick the title from the list while typing to get all the info. Only the planner and admins can edit, cancel or end a movie night. Rooms close automatically after a day.',
+  },
+
   // 🛠️ Admin
   settings: {
     explain:
-      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). `free` makes everything you can buy free (drinks, shop, AI extras, targeted wheel spins); coins can still be earned. Without an option, both show the current state.',
+      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). `free` makes everything you can buy free (drinks, shop, AI extras, targeted wheel spins); coins can still be earned. `watch` sets up movie nights (#movies channel, room category, mod role, timings). Without options, each shows the current state.',
     admin: ['*'],
   },
 

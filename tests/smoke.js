@@ -32,15 +32,21 @@ fs.writeFileSync(
 );
 
 // ---------- Fake Discord objects ----------
+const fakeSent = () => ({ id: 'm', edit: async () => {}, pin: async () => {} });
 const channel = {
   id: 'c1',
   name: 'general',
   type: 0,
   isTextBased: () => true,
   isThread: () => false,
-  send: async () => ({ id: 'm' }),
+  send: async () => fakeSent(),
   sendTyping: async () => {},
-  messages: { fetch: async () => new Map() },
+  // fetch('id') → one message, fetch({ limit }) → a collection, like Discord
+  messages: {
+    fetch: async arg => (typeof arg === 'string' ? fakeSent() : new Map()),
+  },
+  permissionOverwrites: { edit: async () => {}, delete: async () => {} },
+  delete: async () => {},
   toString: () => '<#c1>',
 };
 const fakeUser = id => ({
@@ -60,12 +66,30 @@ const fakeMessage = () => ({
 const guild = {
   id: 'g',
   name: 'Nest',
+  roles: { everyone: { id: 'g' } },
+  scheduledEvents: {
+    create: async () => ({
+      id: 'ev',
+      edit: async () => {},
+      delete: async () => {},
+    }),
+    fetch: async () => null,
+  },
   members: {
     me: { permissionsIn: () => ({ has: () => true }) },
     fetch: async () => null,
     cache: new Map(),
   },
-  channels: { cache: new Map([['c1', channel]]) },
+  channels: {
+    cache: new Map([['c1', channel]]),
+    // Rooms for movie nights
+    create: async () => ({
+      ...channel,
+      id: 'room',
+      permissionOverwrites: { edit: async () => {}, delete: async () => {} },
+      delete: async () => {},
+    }),
+  },
 };
 const client = {
   ws: { ping: 1 },
@@ -73,6 +97,7 @@ const client = {
   channels: { fetch: async () => channel, cache: new Map([['c1', channel]]) },
   guilds: { cache: new Map([['g', guild]]) },
 };
+guild.client = client;
 
 // A plausible value for each option type
 function valueFor(option) {

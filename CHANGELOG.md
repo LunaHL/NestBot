@@ -1,5 +1,12 @@
 # NestBot Changelog
 
+## V 1.8 (November 2026)
+
+**New**
+- 🍿 Movie nights, step 1 (`/watch`): plan or start movies, series and anime (info from TMDB), calendar in #movies with sign-up buttons, Discord events, reminders, private rooms that open 1 h before (anyone can still join), check-in with countdown, a shared live clock, pause for everyone, `/watch sync`, checkpoints, summary when it ends, rooms close themselves after 24 h
+- 🛠️ `/settings watch` for admins
+- Buttons can now survive bot restarts (routed by their id)
+
 ## V 1.7 (October 2026)
 
 **New**

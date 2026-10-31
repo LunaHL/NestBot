@@ -5,6 +5,16 @@ const db = require('../utils/db');
 const DEFAULTS = {
   streakMode: 'capped', // see utils/streak.js
   freeMode: false, // true = everything you can buy is free (/settings free)
+  // Movie nights (/settings watch)
+  watchChannelId: null, // #movies: calendar, cards, announcements
+  watchCategoryId: null, // category for the temporary watch rooms
+  watchModRoleId: null, // role that may end/cancel any watch (besides admins)
+  watchPlanRoleId: null, // only this role may plan (null = everyone)
+  watchRoomOpensMin: 60, // room opens this many minutes before the start
+  watchAutoDeleteH: 24, // forgotten rooms are closed after this many hours
+  watchCheckpointMin: 30, // "where are you?" every N minutes (0 = off)
+  watchAttendanceCoins: 0, // coins for checking in (0 = off)
+  watchReminders: true, // reminder in #movies one day before
 };
 
 function getSetting(guildId, key) {

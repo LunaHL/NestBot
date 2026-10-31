@@ -29,6 +29,8 @@ used. Members who already qualify get it the next time they do something.
 | `puzzle.js` | Puzzle of the Day: setting (with date/link checks), solving (tries limit, first-solver bonus), queue, leaderboard, the puzzle card and the daily announcement in the puzzle channel. Rewards and limits are at the top of the file |
 | `settings.js` | Server settings changed with `/settings` (streak mode, free mode), stored per server |
 | `wordle.js` | Wordle app rewards: recognizes the app's daily results message in the Wordle channel, reads who got which score (from @mentions or names), pays coins once per day, keeps Wordle stats. Rewards table at the top of the file |
+| `watch.js` | Movie nights: planning, the calendar in #movies, Discord events, private rooms, check-in, countdown, the live clock, pauses, checkpoints, reminders and auto-close |
+| `tmdb.js` | Talks to TMDB: search (movies, series, anime), details, episodes, where to stream per country. Needs `TMDB_TOKEN`; without it titles are plain text |
 | `halloween.js` | Trick-or-treat outcomes, daily tries, the October 31 announcement |
 
 ## Background jobs

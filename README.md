@@ -22,6 +22,7 @@ chat with by pinging `@NestBot`.
 | 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, `/memory` |
 | 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag` |
 | 🎂 **Social** | `/birthday` announcements with coins, `/pictracker` weekly picture leaderboard |
+| 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device |
 | 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
 | ❓ **Help** | `/help` explains everything in Discord, with categories and a command search |
 
@@ -39,7 +40,8 @@ Needs **Node.js 20 or newer** (`node -v`).
    ```
 2. **Settings:** copy `.env.example` to `.env` and fill it in. Every setting is
    explained in that file. Required: `BOT_TOKEN`, `CLIENT_ID`, `GUILD_ID`,
-   `SCOREBOARD_CHANNEL_ID`, and `GEMINI_API_KEY` for the AI.
+   `SCOREBOARD_CHANNEL_ID`, and `GEMINI_API_KEY` for the AI. Optional:
+   `TMDB_TOKEN` for movie posters and info.
 3. **Start:**
    ```bash
    npm start
@@ -48,7 +50,12 @@ Needs **Node.js 20 or newer** (`node -v`).
    automatically in `src/data/`.
 
 In the Discord Developer Portal, the bot needs the **Message Content** intent
-turned on (for the AI chat, gags and the picture tracker).
+turned on (for the AI chat, gags and the picture tracker). On the server, its
+role needs **Manage Channels**, **Manage Roles** and **Manage Events** (movie
+night rooms and events).
+
+**Movie nights:** set them up once in Discord with
+`/settings watch channel:#movies category:<a category for the rooms>`.
 
 ## Updating the bot
 
@@ -90,6 +97,7 @@ See [`tests/README.md`](tests/README.md).
 |---|---|
 | Drinks, prices, serving lines, daily limits | `src/config/drinksMenu.js` |
 | Texts of `/help` | `src/config/help.js` |
+| Movie night timings (room opens, auto-close, checkpoints, check-in coins), mod role | `/settings watch` in Discord |
 | Drink pictures | `src/assets/drink-art/` ([README](src/assets/drink-art/README.md)) |
 | AI personality, moods | `src/services/ai.js` (`buildSystemPrompt`, `MOODS`) |
 | Prices for roast / compliment / poem / mood | `src/commands/ai.js` (`PRICES`) |

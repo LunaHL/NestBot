@@ -7,6 +7,7 @@ const { startScoreboard } = require('../services/scoreboard');
 const { startPicTracker } = require('../services/pictracker');
 const { startPuzzleAnnouncer } = require('../services/puzzle');
 const { startWordle } = require('../services/wordle');
+const { startWatch } = require('../services/watch');
 
 module.exports = function onReady(client) {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -15,6 +16,7 @@ module.exports = function onReady(client) {
   startScoreboard(client); // posts yesterday's results after midnight
   startPuzzleAnnouncer(client); // posts today's puzzle in the puzzle channel
   startWordle(client); // pays Wordle app results the bot missed while offline
+  startWatch(client); // movie nights: reminders, rooms, live clocks
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)

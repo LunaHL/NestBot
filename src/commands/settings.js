@@ -4,6 +4,7 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
+  ChannelType,
 } = require('discord.js');
 const { isAdmin, denyNonAdmin } = require('../utils/permissions');
 const {
@@ -67,6 +68,83 @@ module.exports = {
               'true = free, false = normal prices. Leave empty to see the current state',
             ),
         ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('watch')
+        .setDescription(
+          'Movie nights. Leave everything empty to see the current settings',
+        )
+        .addChannelOption(o =>
+          o
+            .setName('channel')
+            .setDescription('#movies: calendar, movie cards, announcements')
+            .addChannelTypes(ChannelType.GuildText),
+        )
+        .addChannelOption(o =>
+          o
+            .setName('category')
+            .setDescription('Category for the temporary watch rooms')
+            .addChannelTypes(ChannelType.GuildCategory),
+        )
+        .addRoleOption(o =>
+          o
+            .setName('mod-role')
+            .setDescription(
+              'Role that may edit, cancel and end any movie night',
+            ),
+        )
+        .addRoleOption(o =>
+          o
+            .setName('plan-role')
+            .setDescription('Only this role may plan (see everyone-can-plan)'),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('everyone-can-plan')
+            .setDescription(
+              'True = everyone may plan again (removes plan-role)',
+            ),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('room-opens')
+            .setDescription(
+              'Minutes before the start the room opens (default 60)',
+            )
+            .setMinValue(0)
+            .setMaxValue(1440),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('auto-delete')
+            .setDescription(
+              'Close forgotten rooms after this many hours (default 24)',
+            )
+            .setMinValue(1)
+            .setMaxValue(168),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('checkpoints')
+            .setDescription(
+              '"Where are you?" every N minutes, 0 = off (default 30)',
+            )
+            .setMinValue(0)
+            .setMaxValue(180),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('attendance-coins')
+            .setDescription('Coins for checking in, 0 = off (default 0)')
+            .setMinValue(0)
+            .setMaxValue(1000),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('reminders')
+            .setDescription('Reminder in #movies one day before (default on)'),
+        ),
     ),
 
   async execute(interaction) {
@@ -118,6 +196,110 @@ module.exports = {
         )
         .setFooter({ text: 'Switch with /settings free enabled:' });
       return interaction.reply({ embeds: [embed], flags: 64 });
+    }
+
+    if (sub === 'watch') {
+      const o = interaction.options;
+      const changes = {
+        watchChannelId: o.getChannel('channel')?.id,
+        watchCategoryId: o.getChannel('category')?.id,
+        watchModRoleId: o.getRole('mod-role')?.id,
+        watchPlanRoleId: o.getBoolean('everyone-can-plan')
+          ? null
+          : o.getRole('plan-role')?.id,
+        watchRoomOpensMin: o.getInteger('room-opens'),
+        watchAutoDeleteH: o.getInteger('auto-delete'),
+        watchCheckpointMin: o.getInteger('checkpoints'),
+        watchAttendanceCoins: o.getInteger('attendance-coins'),
+        watchReminders: o.getBoolean('reminders'),
+      };
+      let changed = 0;
+      for (const [key, value] of Object.entries(changes)) {
+        const reset =
+          key === 'watchPlanRoleId' && o.getBoolean('everyone-can-plan');
+        if (value === undefined || (value === null && !reset)) continue;
+        setSetting(guildId, key, value);
+        changed++;
+      }
+      // A new #movies channel gets the calendar right away
+      if (changes.watchChannelId) {
+        await require('../services/watch').refreshCalendar(
+          interaction.client,
+          guildId,
+        );
+      }
+
+      const g = key => getSetting(guildId, key);
+      const show = (id, kind) =>
+        id ? (kind === 'role' ? `<@&${id}>` : `<#${id}>`) : '–';
+      const embed = new EmbedBuilder()
+        .setTitle(
+          changed ? '✅ Movie night settings saved' : '🍿 Movie night settings',
+        )
+        .setColor(0xe50914)
+        .addFields(
+          {
+            name: '#movies channel',
+            value: show(g('watchChannelId')),
+            inline: true,
+          },
+          {
+            name: 'Room category',
+            value: show(g('watchCategoryId')),
+            inline: true,
+          },
+          {
+            name: 'Mod role',
+            value: show(g('watchModRoleId'), 'role'),
+            inline: true,
+          },
+          {
+            name: 'Who can plan',
+            value: g('watchPlanRoleId')
+              ? show(g('watchPlanRoleId'), 'role')
+              : 'Everyone',
+            inline: true,
+          },
+          {
+            name: 'Room opens',
+            value: `${g('watchRoomOpensMin')} min before`,
+            inline: true,
+          },
+          {
+            name: 'Auto-close',
+            value: `after ${g('watchAutoDeleteH')} h`,
+            inline: true,
+          },
+          {
+            name: 'Checkpoints',
+            value: g('watchCheckpointMin')
+              ? `every ${g('watchCheckpointMin')} min`
+              : 'off',
+            inline: true,
+          },
+          {
+            name: 'Check-in coins',
+            value: g('watchAttendanceCoins')
+              ? `${g('watchAttendanceCoins')}`
+              : 'off',
+            inline: true,
+          },
+          {
+            name: 'Reminders',
+            value: g('watchReminders') ? 'on (1 day before)' : 'off',
+            inline: true,
+          },
+        )
+        .setFooter({
+          text: g('watchChannelId')
+            ? 'Change any value with /settings watch <option>'
+            : 'Start by setting the #movies channel: /settings watch channel:',
+        });
+      return interaction.reply({
+        embeds: [embed],
+        flags: 64,
+        allowedMentions: { parse: [] },
+      });
     }
   },
 };

@@ -14,6 +14,27 @@ module.exports = async function onInteraction(interaction) {
     }
     return;
   }
+  // Buttons and menus whose customId starts with a command name ("watch:…")
+  // go to that command's handleComponent(). Works after restarts too.
+  // (Other buttons, e.g. duels, are handled by short-lived collectors.)
+  if (interaction.isButton?.() || interaction.isStringSelectMenu?.()) {
+    const prefix = String(interaction.customId).split(':')[0];
+    const command = interaction.client.commands.get(prefix);
+    if (!command?.handleComponent) return;
+    try {
+      await command.handleComponent(interaction);
+    } catch (e) {
+      console.error(`❌ Button ${interaction.customId} failed:`, e);
+      const msg = {
+        content: '❌ That didn’t work. Please try again.',
+        flags: 64,
+      };
+      if (interaction.replied || interaction.deferred)
+        await interaction.followUp(msg).catch(() => {});
+      else await interaction.reply(msg).catch(() => {});
+    }
+    return;
+  }
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.client.commands.get(interaction.commandName);

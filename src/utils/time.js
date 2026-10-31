@@ -33,7 +33,39 @@ function daysUntilHalloween() {
   return Math.round((target - now) / 86400000);
 }
 
+/** How far the server time zone is ahead of UTC at a moment, in ms. */
+function tzOffsetMs(utcMs) {
+  const at = new Date(utcMs);
+  const local = new Date(at.toLocaleString('en-US', { timeZone: TZ }));
+  const utc = new Date(at.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return local - utc;
+}
+
+/**
+ * A date + time in the server time zone ("2026-11-06", "20:00") as a
+ * timestamp. Handles summer/winter time.
+ */
+function zonedToUtc(date, time) {
+  const [y, m, d] = date.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+  const wall = Date.UTC(y, m - 1, d, hh, mm);
+  let guess = wall;
+  for (let i = 0; i < 3; i++) guess = wall - tzOffsetMs(guess);
+  return guess;
+}
+
+/**
+ * Discord timestamp: every viewer sees it in their own time zone.
+ * style: 'F' = full date and time, 'f' = short, 't' = time, 'R' = "in 2 hours"
+ */
+function discordTime(ms, style = 'f') {
+  return `<t:${Math.floor(ms / 1000)}:${style}>`;
+}
+
 module.exports = {
+  tzOffsetMs,
+  zonedToUtc,
+  discordTime,
   TZ,
   nowInTZ,
   formatDate,

@@ -135,7 +135,25 @@ from the command files, so they're always current.
 | File | Command | What it does |
 |---|---|---|
 | `settings.js` | `/settings streak` 🔒 | Switch how Puzzle and NestWord streaks are rewarded: **new** (+10% per day, max +50%, milestones) or **old** (reward × streak days, no limit). Without `mode` it shows the current one and a comparison table |
+| | `/settings watch` 🔒 | Movie nights: #movies channel, room category, mod role, who may plan, when rooms open, auto-close, checkpoints, check-in coins, reminders |
 | | `/settings free` 🔒 | **Free mode** on/off: drinks, shop items, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
+
+## 🍿 Movie nights
+
+| File | Command | What it does |
+|---|---|---|
+| `watch.js` | `/watch plan` | Plan a movie night: title (search while typing: movies, series, anime), day, time; for series also season, episode and how many episodes. Posts a card in #movies and a Discord event |
+| | `/watch now` | Start right away: the room opens immediately |
+| | `/watch calendar` | Upcoming nights with sign-up buttons (also pinned in #movies) |
+| | `/watch sync` | In a room: "you're 40 s behind" |
+| | `/watch edit` / `cancel` / `end` | Planner, admins and the mod role only |
+
+How a night works: sign up in the calendar → 1 hour before, a private room
+opens (anyone can still **🚪 Enter room**) → at the start everyone pauses at
+0:00 and presses **✅ Ready** → 3… 2… 1… ▶️ → shared live clock with
+**⏸️ Pause** (anyone) and **🕐 Where should I be?** → `/watch end` posts a
+summary in #movies and deletes the room (or it closes itself after 24 h).
+Admins set it up with `/settings watch`.
 
 ## 🎃 Halloween
 
