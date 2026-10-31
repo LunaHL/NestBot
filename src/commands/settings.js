@@ -144,6 +144,13 @@ module.exports = {
           o
             .setName('reminders')
             .setDescription('Reminder in #movies one day before (default on)'),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('vote-max')
+            .setDescription('Longest vote in hours (default 168 = 7 days)')
+            .setMinValue(1)
+            .setMaxValue(720),
         ),
     ),
 
@@ -212,6 +219,7 @@ module.exports = {
         watchCheckpointMin: o.getInteger('checkpoints'),
         watchAttendanceCoins: o.getInteger('attendance-coins'),
         watchReminders: o.getBoolean('reminders'),
+        watchVoteMaxH: o.getInteger('vote-max'),
       };
       let changed = 0;
       for (const [key, value] of Object.entries(changes)) {
@@ -287,6 +295,11 @@ module.exports = {
           {
             name: 'Reminders',
             value: g('watchReminders') ? 'on (1 day before)' : 'off',
+            inline: true,
+          },
+          {
+            name: 'Longest vote',
+            value: `${g('watchVoteMaxH')} h`,
             inline: true,
           },
         )

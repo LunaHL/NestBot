@@ -28,6 +28,7 @@ const TICK_MS = 10 * 1000;
 const CALENDAR_BUTTONS = 10; // more nights go into a dropdown
 const COLOR = 0xe50914;
 const ACTIVE = ['planned', 'open', 'live'];
+const VOTE_TITLE = 'Movie night (vote)';
 
 // ---------- Small helpers ----------
 
@@ -74,6 +75,7 @@ const settingsOf = guildId => ({
   checkpointMin: getSetting(guildId, 'watchCheckpointMin'),
   attendanceCoins: getSetting(guildId, 'watchAttendanceCoins'),
   reminders: getSetting(guildId, 'watchReminders'),
+  voteMaxH: getSetting(guildId, 'watchVoteMaxH'),
 });
 
 // ---------- Data ----------
@@ -181,7 +183,8 @@ function fullTitle(n) {
   return `${n.title} · ${ep}${n.episodeTitle ? ` “${n.episodeTitle}”` : ''}`;
 }
 
-const emojiOf = n => tmdb.kindEmoji(n.kind, n.info?.anime);
+const emojiOf = n =>
+  n.vote?.open ? '🗳️' : tmdb.kindEmoji(n.kind, n.info?.anime);
 
 /** The watchlist fields / key of the night's title. */
 const nightFields = n => watchlist.titleFields(n.info, n.title);
@@ -246,6 +249,17 @@ function cardEmbed(n) {
     value: `<@${n.createdBy}>`,
     inline: true,
   });
+  if (n.vote?.open) {
+    const top = tally(n).slice(0, 3);
+    fields.push({
+      name: '🗳️ Vote',
+      value:
+        `Ends ${n.vote.mode === 'start' ? 'when the movie night starts' : discordTime(n.vote.endsAt, 'R')}. Vote in the room!` +
+        (top.length
+          ? `\n${top.map(o => `${o.emoji} ${o.title} · ${o.count}`).join('\n')}`
+          : ''),
+    });
+  }
   const wants = watchlist.wantCount(n.guildId, nightKey(n));
   if (wants > 0) {
     fields.push({
@@ -652,8 +666,9 @@ async function toggleSignup(guild, id, userId) {
     if (joined) await grantRoom(guild, n, userId);
     else await revokeRoom(guild, n, userId);
   }
-  await refreshAll(guild.client, n);
-  return { joined, night: n };
+  if (n.vote?.open && joined) await addAutoOptions(guild.client, n);
+  await refreshAll(guild.client, getNight(guild.id, id));
+  return { joined, night: getNight(guild.id, id) };
 }
 
 /** Enter an open room (also works for people who didn't sign up). */
@@ -682,6 +697,7 @@ async function enterRoom(guild, id, userId) {
         allowedMentions: { parse: [] },
       })
       .catch(() => {});
+    if (n.vote?.open) await addAutoOptions(guild.client, n);
     await refreshAll(guild.client, n);
   }
   return { night: n, already };
@@ -754,7 +770,9 @@ async function openRoom(guild, n, { spontaneous = false } = {}) {
     await channel
       .send({
         content:
-          `🍿 **The room for ${emojiOf(n)} ${fullTitle(n)} is open!** Starts ${when}.\n` +
+          (n.vote?.open
+            ? `🗳️ **Movie night ${discordTime(n.startAt, 'F')}: vote what we watch!** The room is open, the vote ends ${n.vote.mode === 'start' ? 'when it starts' : discordTime(n.vote.endsAt, 'R')}.\n`
+            : `🍿 **The room for ${emojiOf(n)} ${fullTitle(n)} is open!** Starts ${when}.\n`) +
           (n.signups.length ? n.signups.map(u => `<@${u}>`).join(' ') : ''),
         components: [
           new ActionRowBuilder().addComponents(
@@ -1171,6 +1189,270 @@ function averageRating(n) {
     : null;
 }
 
+// ---------- Votes: what do we watch? ----------
+
+/** Vote durations for /watch plan vote: and /watch vote (hours; null = until the start). */
+const VOTE_DURATIONS = {
+  '1h': 1,
+  '6h': 6,
+  '12h': 12,
+  '1d': 24,
+  '3d': 72,
+  '7d': 168,
+  start: null,
+};
+const MAX_OPTIONS = 25; // Discord's limit for a select menu
+
+/** A vote option from a watchlist item or TMDB details. */
+function voteOption(src, { by = null, auto = false, wants = 0 } = {}) {
+  const fields = src.key
+    ? src
+    : watchlist.titleFields(src.info || null, src.title);
+  const key = src.key || watchlist.keyOf(fields);
+  return {
+    key,
+    ref: fields.tmdbId ? `${fields.type}:${fields.tmdbId}` : fields.title,
+    title: fields.title,
+    year: fields.year || '',
+    emoji: tmdb.kindEmoji(fields.type, fields.anime),
+    by,
+    auto,
+    wants,
+  };
+}
+
+/** Options sorted by votes: [{ …option, count, voters }] */
+function tally(n) {
+  const votes = n.vote?.votes || {};
+  return (n.vote?.options || [])
+    .map(o => {
+      const voters = Object.entries(votes)
+        .filter(([, keys]) => keys.includes(o.key))
+        .map(([u]) => u);
+      return { ...o, count: voters.length, voters };
+    })
+    .sort((a, b) => b.count - a.count || b.wants - a.wants);
+}
+
+function voteEmbed(n) {
+  const rows = tally(n);
+  const ends =
+    n.vote.mode === 'start'
+      ? `when the movie night starts (${discordTime(n.startAt, 'R')})`
+      : discordTime(n.vote.endsAt, 'R');
+  const lines = rows.map(
+    o =>
+      `${o.emoji} **${o.title}**${o.year ? ` (${o.year})` : ''} · **${o.count}** vote${o.count === 1 ? '' : 's'}` +
+      (o.wants
+        ? ` · 🎯 on ${o.wants} watchlist${o.wants === 1 ? '' : 's'}`
+        : '') +
+      (o.by ? ` · 💡 <@${o.by}>` : ''),
+  );
+  return new EmbedBuilder()
+    .setColor(0x9b59b6)
+    .setTitle(n.vote.open ? '🗳️ What do we watch?' : '🗳️ The vote is over')
+    .setDescription(
+      (lines.join('\n') ||
+        'No options yet. Suggest something with `/watch suggest`!') +
+        (n.vote.open
+          ? `\n\n⏳ Ends ${ends}. Pick **everything** you'd like to watch.`
+          : ''),
+    )
+    .setFooter({
+      text: '🎯 = on the watchlists of people here · 💡 = suggested by',
+    });
+}
+
+function voteComponents(n) {
+  if (!n.vote.open) return [];
+  const rows = [];
+  if (n.vote.options.length) {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`watch:vote:${n.id}`)
+          .setPlaceholder('🗳️ Pick everything you’d like to watch…')
+          .setMinValues(0)
+          .setMaxValues(n.vote.options.length)
+          .addOptions(
+            n.vote.options.map(o => ({
+              label: `${o.title}${o.year ? ` (${o.year})` : ''}`.slice(0, 100),
+              value: o.key,
+              emoji: o.emoji,
+            })),
+          ),
+      ),
+    );
+  }
+  rows.push(
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`watch:suggest:${n.id}`)
+        .setLabel('Suggest something')
+        .setEmoji('💡')
+        .setStyle(ButtonStyle.Secondary),
+    ),
+  );
+  return rows;
+}
+
+async function refreshVote(client, n) {
+  const room = await fetchChannel(client, n.roomId);
+  if (!room || !n.vote?.messageId) return;
+  const msg = await room.messages.fetch(n.vote.messageId).catch(() => null);
+  await msg
+    ?.edit({
+      embeds: [voteEmbed(n)],
+      components: voteComponents(n),
+      allowedMentions: { parse: [] },
+    })
+    .catch(() => {});
+}
+
+/** Add titles from the signed-up people's watchlists (keeps everything else). */
+async function addAutoOptions(client, n) {
+  const matches = watchlist.match(n.guildId, n.signups).slice(0, 10);
+  const updated = updateNight(n.guildId, n.id, x => {
+    if (!x.vote?.open) return;
+    for (const m of matches) {
+      const existing = x.vote.options.find(o => o.key === m.key);
+      if (existing) existing.wants = m.count;
+      else if (x.vote.options.length < MAX_OPTIONS)
+        x.vote.options.push(voteOption(m, { auto: true, wants: m.count }));
+    }
+  });
+  if (updated?.vote) await refreshVote(client, updated);
+  return updated;
+}
+
+/**
+ * Start a vote for a night. duration: a key of VOTE_DURATIONS.
+ * The room opens right away so people can vote in it.
+ */
+async function startVote(guild, id, duration = 'start') {
+  const s = settingsOf(guild.id);
+  let n = getNight(guild.id, id);
+  const hours = VOTE_DURATIONS[duration] ?? null;
+  const endsAt =
+    hours === null
+      ? n.startAt
+      : Math.min(Date.now() + Math.min(hours, s.voteMaxH) * 3600000, n.startAt);
+  const options =
+    n.info || n.title !== VOTE_TITLE
+      ? [voteOption({ info: n.info, title: n.title }, { by: n.createdBy })]
+      : [];
+
+  n = updateNight(guild.id, id, x => {
+    x.vote = {
+      open: true,
+      mode: hours === null ? 'start' : 'fixed',
+      endsAt,
+      options,
+      votes: {},
+      messageId: null,
+    };
+  });
+  n = await addAutoOptions(guild.client, n);
+  if (n.status === 'planned') n = await openRoom(guild, n);
+
+  const room = await fetchChannel(guild.client, n.roomId);
+  const msg = await room
+    ?.send({
+      embeds: [voteEmbed(n)],
+      components: voteComponents(n),
+      allowedMentions: { parse: [] },
+    })
+    .catch(() => null);
+  if (msg) {
+    await msg.pin?.().catch(() => {});
+    n = updateNight(guild.id, id, x => (x.vote.messageId = msg.id));
+  }
+  await refreshAll(guild.client, n);
+  return n;
+}
+
+/** Someone picked options in the menu (replaces their earlier picks). */
+function castVote(guildId, id, userId, keys) {
+  return updateNight(guildId, id, x => {
+    if (!x.vote?.open || !x.members.includes(userId)) return;
+    const valid = keys.filter(k => x.vote.options.some(o => o.key === k));
+    if (valid.length) x.vote.votes[userId] = valid;
+    else delete x.vote.votes[userId];
+  });
+}
+
+/** /watch suggest: add a title to the vote. Returns { error } or { option }. */
+async function suggest(guild, id, userId, ref) {
+  const n0 = getNight(guild.id, id);
+  if (!n0?.vote?.open) return { error: 'closed' };
+  if (!n0.members.includes(userId)) return { error: 'not-member' };
+  const m = /^(movie|tv):(\d+)$/.exec(String(ref));
+  const info = m ? await tmdb.details(m[1], Number(m[2])) : null;
+  const option = voteOption(
+    { info, title: info?.title || String(ref).slice(0, 100) },
+    { by: userId },
+  );
+  let result = { option };
+  const n = updateNight(guild.id, id, x => {
+    if (x.vote.options.some(o => o.key === option.key))
+      return (result = { error: 'exists', option });
+    if (x.vote.options.length >= MAX_OPTIONS)
+      return (result = { error: 'full' });
+    x.vote.options.push(option);
+  });
+  if (!result.error) {
+    await refreshVote(guild.client, n);
+    await refreshAll(guild.client, n);
+  }
+  return result;
+}
+
+/** End the vote: the winner becomes the night's title. Ties: the wheel decides. */
+async function closeVote(guild, n) {
+  const rows = tally(n);
+  const best = rows.length ? rows[0].count : 0;
+  const tied = rows.filter(o => o.count === best);
+  const winner = tied.length
+    ? tied[Math.floor(Math.random() * tied.length)]
+    : null;
+
+  let details = null;
+  if (winner) details = await resolveTitle(winner.ref, {});
+  n = updateNight(guild.id, n.id, x => {
+    x.vote.open = false;
+    x.vote.winner = winner?.key || null;
+    if (details) Object.assign(x, details);
+  });
+
+  const room = await fetchChannel(guild.client, n.roomId);
+  if (winner) await room?.setName?.(`🍿・${slug(n.title)}`).catch(() => {});
+  await refreshVote(guild.client, n);
+  const text = !winner
+    ? '🗳️ The vote is over, but there were no options. <@' +
+      n.createdBy +
+      '>, set a title with `/watch edit`.'
+    : `🏆 **${winner.title}** won with **${winner.count}** vote${winner.count === 1 ? '' : 's'}!` +
+      (tied.length > 1
+        ? ` (🎡 ${tied.length}-way tie, the wheel decided)`
+        : '') +
+      (Date.now() >= n.startAt
+        ? ''
+        : ` See you ${discordTime(n.startAt, 'R')}!`);
+  await room
+    ?.send({
+      content: text,
+      allowedMentions: { users: winner ? [] : [n.createdBy] },
+    })
+    .catch(() => {});
+  await editEvent(guild, n);
+  await refreshAll(guild.client, n);
+
+  // Vote ended at the start time: go straight to the check-in
+  if (winner && n.status === 'open' && Date.now() >= n.startAt)
+    await startCheckin(guild.client, n);
+  return n;
+}
+
 // ---------- "Did you watch it?" ----------
 
 /** People who were there: checked in and didn't press "I missed part". */
@@ -1349,6 +1631,11 @@ async function schedulerTick(client) {
           })
           .catch(() => {});
       }
+      // Close a vote that's over (before anything else happens)
+      if (n.vote?.open && now >= n.vote.endsAt) {
+        await closeVote(guild, n);
+        continue;
+      }
       // Open the room
       if (n.status === 'planned' && now >= n.startAt - s.opensMin * 60000) {
         await openRoom(guild, n);
@@ -1358,7 +1645,8 @@ async function schedulerTick(client) {
       if (
         n.status === 'open' &&
         now >= n.startAt &&
-        n.session.phase === 'waiting'
+        n.session.phase === 'waiting' &&
+        !n.vote?.open
       ) {
         await startCheckin(client, n);
         continue;
@@ -1469,6 +1757,15 @@ module.exports = {
   syncInfo,
   endNight,
   confirmWatched,
+  refreshAll,
+  VOTE_DURATIONS,
+  VOTE_TITLE,
+  startVote,
+  castVote,
+  suggest,
+  closeVote,
+  voteEmbed,
+  tally,
   markMissed,
   pastNights,
   averageRating,

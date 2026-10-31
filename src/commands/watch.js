@@ -9,6 +9,15 @@ const wl = require('../services/watchlist');
 const { zonedToUtc, discordTime, TZ } = require('../utils/time');
 
 const DATE_SUGGESTIONS = 21; // days offered in the date autocomplete
+const VOTE_CHOICES = [
+  { name: '🗳️ Until the movie night starts', value: 'start' },
+  { name: '1 hour', value: '1h' },
+  { name: '6 hours', value: '6h' },
+  { name: '12 hours', value: '12h' },
+  { name: '1 day', value: '1d' },
+  { name: '3 days', value: '3d' },
+  { name: '7 days', value: '7d' },
+];
 
 // ---------- Helpers ----------
 
@@ -142,6 +151,35 @@ async function handleComponent(interaction) {
       return interaction.reply(ephemeral(`❌ ${why}`));
     }
     return interaction.deferUpdate().catch(() => {});
+  }
+
+  if (action === 'vote') {
+    const n = watch.castVote(guild.id, id, userId, interaction.values || []);
+    if (!n?.vote?.open)
+      return interaction.reply(ephemeral('❌ This vote is over.'));
+    if (!n.members.includes(userId))
+      return interaction.reply(ephemeral('❌ Enter the room first.'));
+    await interaction.update({ embeds: [watch.voteEmbed(n)] }).catch(() => {});
+    watch.refreshAll(interaction.client, n).catch(() => {}); // vote count on the card
+    const mine = n.vote.votes[userId] || [];
+    const titles = n.vote.options
+      .filter(op => mine.includes(op.key))
+      .map(op => op.title);
+    return interaction.followUp(
+      ephemeral(
+        titles.length
+          ? `🗳️ Your votes: **${titles.join('**, **')}**`
+          : '🗳️ Your votes were removed.',
+      ),
+    );
+  }
+
+  if (action === 'suggest') {
+    return interaction.reply(
+      ephemeral(
+        '💡 Type `/watch suggest title:` here in the room and pick a title from the list.',
+      ),
+    );
   }
 
   if (action === 'missed') {
@@ -291,8 +329,9 @@ module.exports = {
       seriesOptions(
         sub
           .setName('plan')
-          .setDescription('Plan a movie night')
-          .addStringOption(o => titleOption(o))
+          .setDescription(
+            'Plan a movie night (leave out the title to let everyone vote)',
+          )
           .addStringOption(o =>
             o
               .setName('date')
@@ -305,6 +344,15 @@ module.exports = {
               .setName('time')
               .setDescription('Start time, e.g. 20:00 (server time)')
               .setRequired(true),
+          )
+          .addStringOption(o => titleOption(o, false))
+          .addStringOption(o =>
+            o
+              .setName('vote')
+              .setDescription(
+                'Let people vote on what to watch, and for how long',
+              )
+              .addChoices(...VOTE_CHOICES),
           ),
       ),
     )
@@ -336,6 +384,28 @@ module.exports = {
         .setName('cancel')
         .setDescription('Cancel a movie night (planner or admins)')
         .addStringOption(o => nightOption(o)),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('vote')
+        .setDescription(
+          'Start a vote on what to watch for a planned night (planner or admins)',
+        )
+        .addStringOption(o => nightOption(o))
+        .addStringOption(o =>
+          o
+            .setName('duration')
+            .setDescription('How long the vote runs')
+            .addChoices(...VOTE_CHOICES),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('suggest')
+        .setDescription(
+          'Suggest a title for a running vote (use it in the room)',
+        )
+        .addStringOption(o => titleOption(o)),
     )
     .addSubcommand(sub =>
       sub
@@ -590,6 +660,71 @@ module.exports = {
       );
     }
 
+    // ---------- vote ----------
+    if (sub === 'vote') {
+      const n = watch.getNight(
+        interaction.guildId,
+        Number(o.getString('night')),
+      );
+      if (
+        !n ||
+        !['planned', 'open'].includes(n.status) ||
+        n.session.phase !== 'waiting'
+      ) {
+        return interaction.reply(
+          ephemeral(
+            '❌ Only movie nights that haven’t started can get a vote.',
+          ),
+        );
+      }
+      if (n.vote?.open)
+        return interaction.reply(
+          ephemeral(`🗳️ There's already a vote running in <#${n.roomId}>.`),
+        );
+      if (!watch.canManage(member, n))
+        return interaction.reply(
+          ephemeral('❌ Only the planner or an admin can start a vote.'),
+        );
+      await interaction.deferReply({ flags: 64 });
+      const updated = await watch.startVote(
+        guild,
+        n.id,
+        o.getString('duration') || 'start',
+      );
+      return interaction.editReply(
+        `🗳️ Vote started in <#${updated.roomId}>. The current title is one of the options.`,
+      );
+    }
+
+    // ---------- suggest ----------
+    if (sub === 'suggest') {
+      const n = watch.nightByRoom(interaction.guildId, interaction.channelId);
+      if (!n?.vote?.open)
+        return interaction.reply(
+          ephemeral(
+            '❌ Use this in a movie night room while a vote is running.',
+          ),
+        );
+      await interaction.deferReply({ flags: 64 });
+      const r = await watch.suggest(
+        guild,
+        n.id,
+        interaction.user.id,
+        o.getString('title'),
+      );
+      const msg = {
+        closed: '❌ The vote is over.',
+        'not-member': '❌ Enter the room first.',
+        exists: `👍 **${r.option?.title}** is already an option. Vote for it in the menu!`,
+        full: '❌ The vote is full (25 options).',
+      };
+      return interaction.editReply(
+        r.error
+          ? msg[r.error]
+          : `💡 Added **${r.option.title}** to the vote. Don't forget to vote for it!`,
+      );
+    }
+
     // Planning needs the #movies channel
     if (!s.channelId) {
       return interaction.reply(
@@ -626,13 +761,32 @@ module.exports = {
       }
 
       await interaction.deferReply({ flags: 64 });
-      const details = await watch.resolveTitle(
-        o.getString('title'),
-        seriesValues(o),
-      );
-      const n = await watch.createNight(guild, member, details, startAt, {
+      const title = o.getString('title');
+      const voteFor =
+        sub === 'plan' ? o.getString('vote') || (title ? null : 'start') : null;
+      const details = title
+        ? await watch.resolveTitle(title, seriesValues(o))
+        : {
+            title: watch.VOTE_TITLE,
+            kind: 'movie',
+            info: null,
+            season: null,
+            episode: null,
+            episodeTitle: null,
+            episodes: 1,
+            lengthMin: 120,
+          };
+      let n = await watch.createNight(guild, member, details, startAt, {
         now: sub === 'now',
       });
+      if (voteFor) {
+        n = await watch.startVote(guild, n.id, voteFor);
+        return interaction.editReply(
+          `🗳️ Movie night planned for ${discordTime(n.startAt, 'F')}, **vote is open** in <#${n.roomId}> ` +
+            `(ends ${n.vote.mode === 'start' ? 'when it starts' : discordTime(n.vote.endsAt, 'R')}).\n` +
+            `Everyone who signs up can vote; their watchlists add options automatically. Suggest more with \`/watch suggest\`.`,
+        );
+      }
       if (sub === 'now') {
         return interaction.editReply(
           n.roomId

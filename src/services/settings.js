@@ -15,6 +15,7 @@ const DEFAULTS = {
   watchCheckpointMin: 30, // "where are you?" every N minutes (0 = off)
   watchAttendanceCoins: 0, // coins for checking in (0 = off)
   watchReminders: true, // reminder in #movies one day before
+  watchVoteMaxH: 168, // longest vote someone can start, in hours (vote until the start is always allowed)
 };
 
 function getSetting(guildId, key) {

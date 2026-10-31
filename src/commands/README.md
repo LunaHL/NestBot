@@ -148,6 +148,8 @@ from the command files, so they're always current.
 | | `/watch sync` | In a room: "you're 40 s behind" |
 | | `/watch edit` / `cancel` / `end` | Planner, admins and the mod role only |
 | | `/watch history` / `top` | Past movie nights; 🏆 Nest Top 10 by rating |
+| | `/watch plan` without a title, or `/watch vote` | 🗳️ Vote on what to watch: the room opens right away, options come from the watchlists of everyone signed up, the winner is set automatically (ties: the wheel). Duration: 1 h … 7 days or until the start |
+| | `/watch suggest` | In the room: add a title to the running vote |
 | `watchlist.js` | `/watchlist add` / `remove` / `edit` | Your list: 📌 want, ▶️ watching (season/episode), ✅ watched; must-watch ❗, notes, 🌐/🔒 per entry |
 | | `/watchlist show` | Yours (with private ones) or someone else's public list, with filters and "📋 copy to my watchlist" |
 | | `/watchlist seen` / `rate` | Mark as watched / rate ⭐1–5 (outside movie nights) |

@@ -100,6 +100,10 @@ const CATEGORIES = [
         text: 'One hour before the start, a private room opens. Signed-up people get a ping; anyone can still join with **🚪 Enter room**, even mid-movie.',
       },
       {
+        name: '🗳️ Votes',
+        text: 'Not sure what to watch? Plan without a title (or `/watch vote`): the room opens right away and everyone who signed up votes in it. Their watchlists add options automatically, `/watch suggest` adds more. The winner is set automatically; ties are decided by the wheel.',
+      },
+      {
         name: '📝 Watchlists',
         text: 'Everyone has a watchlist (`/watchlist add`): public by default, single entries can be private. After a movie night you get a **✅ mark as watched?** and can rate it ⭐1–5. `/watchlist match` shows what you all want to watch.',
       },
