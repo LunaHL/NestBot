@@ -2,9 +2,10 @@
 // buttons). Logic, rooms and the live clock: src/services/watch.js.
 // Buttons work across bot restarts: they're routed here by their customId
 // ("watch:…") from events/interactionCreate.js.
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const watch = require('../services/watch');
 const tmdb = require('../services/tmdb');
+const wl = require('../services/watchlist');
 const { zonedToUtc, discordTime, TZ } = require('../utils/time');
 
 const DATE_SUGGESTIONS = 21; // days offered in the date autocomplete
@@ -109,7 +110,11 @@ function seriesValues(options) {
 
 async function handleComponent(interaction) {
   const [, action, idText, ...rest] = interaction.customId.split(':');
-  const guild = interaction.guild;
+  // In DMs (watchlist notifications) the server id is part of the button id
+  const guild =
+    interaction.guild || interaction.client.guilds.cache.get(rest[0]);
+  if (!guild)
+    return interaction.reply(ephemeral('This server is not available.'));
   const userId = interaction.user.id;
   const id = Number(action === 'signupmenu' ? interaction.values?.[0] : idText);
 
@@ -137,6 +142,20 @@ async function handleComponent(interaction) {
       return interaction.reply(ephemeral(`❌ ${why}`));
     }
     return interaction.deferUpdate().catch(() => {});
+  }
+
+  if (action === 'missed') {
+    const n = watch.getNight(guild.id, id);
+    if (!n?.members.includes(userId))
+      return interaction.reply(
+        ephemeral('❌ You are not part of this movie night.'),
+      );
+    watch.markMissed(guild.id, id, userId);
+    return interaction.reply(
+      ephemeral(
+        "⚠️ Noted: you missed part of it, so it won't be marked as watched for you.",
+      ),
+    );
   }
 
   if (action === 'pos') {
@@ -185,25 +204,46 @@ async function handleComponent(interaction) {
     const n = watch.getNight(guild.id, id);
     if (!n?.info)
       return interaction.editReply('📺 No streaming info for this one.');
-    const region = tmdb.regionFromLocale(interaction.locale);
+    // Your own country and services (from /watchlist settings)
+    const mine = wl.getList(guild.id, userId).settings;
+    const region = mine.region || tmdb.regionFromLocale(interaction.locale);
     const p = await tmdb.providers(n.info.type, n.info.id, region);
     if (
       !p ||
       (!p.stream.length && !p.free.length && !p.rent.length && !p.buy.length)
     ) {
       return interaction.editReply(
-        `📺 No streaming info for **${region}** yet.`,
+        `📺 No streaming info for **${region}** yet. (Change your country with \`/watchlist settings region:\`.)`,
       );
     }
+    const norm = x => x.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const have = name =>
+      (mine.services || []).some(s => norm(s) === norm(name));
+    const fmt = list =>
+      list.map(x => (have(x) ? `**${x}** (you have it ✅)` : x)).join(', ');
     const lines = [];
-    if (p.stream.length) lines.push(`✅ **Stream:** ${p.stream.join(', ')}`);
-    if (p.free.length) lines.push(`🆓 **Free:** ${p.free.join(', ')}`);
+    if (p.stream.length) lines.push(`📺 **Stream:** ${fmt(p.stream)}`);
+    if (p.free.length) lines.push(`🆓 **Free:** ${fmt(p.free)}`);
     if (p.rent.length) lines.push(`💶 **Rent:** ${p.rent.join(', ')}`);
     if (p.buy.length) lines.push(`🛒 **Buy:** ${p.buy.join(', ')}`);
     return interaction.editReply(
       `📺 **${n.title}** in **${region}**:\n${lines.join('\n')}` +
         (p.link ? `\n[More info](<${p.link}>)` : '') +
+        (mine.services?.length
+          ? ''
+          : '\n💡 Tell me your services with `/watchlist settings services:`') +
         `\n-# ${tmdb.ATTRIBUTION} · Streaming data by JustWatch`,
+    );
+  }
+
+  if (action === 'wl') {
+    const n = watch.getNight(guild.id, id);
+    if (!n) return interaction.editReply('This movie night is gone.');
+    const r = wl.addItem(guild.id, userId, watch.nightFields(n));
+    return interaction.editReply(
+      r.existed
+        ? `📌 **${n.title}** is already on your watchlist.`
+        : `📌 Added **${n.title}** to your watchlist.`,
     );
   }
 
@@ -304,6 +344,19 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('history')
+        .setDescription('Past movie nights')
+        .addIntegerOption(o =>
+          o.setName('page').setDescription('Page').setMinValue(1),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('top')
+        .setDescription('🏆 Nest Top 10: best rated movies and series'),
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('sync')
         .setDescription(
           'Am I in sync? Enter where you are, e.g. 41:50 or 1:12:05',
@@ -395,6 +448,55 @@ module.exports = {
     const member = interaction.member;
     const s = watch.settingsOf(interaction.guildId);
     const o = interaction.options;
+
+    // ---------- history ----------
+    if (sub === 'history') {
+      const past = watch.pastNights(interaction.guildId);
+      if (!past.length)
+        return interaction.reply(
+          ephemeral('📭 No movie nights yet. Plan one with `/watch plan`!'),
+        );
+      const pages = Math.ceil(past.length / 10);
+      const page = Math.min(o.getInteger('page') || 1, pages);
+      const lines = past.slice((page - 1) * 10, page * 10).map(n => {
+        const avg = watch.averageRating(n);
+        return (
+          `**${discordTime(n.startAt, 'd')}** · ${watch.emojiOf(n)} ${watch.fullTitle(n)} · 👥 ${watch.watchers(n).length}` +
+          (avg ? ` · ⭐ ${avg.toFixed(1)}` : '')
+        );
+      });
+      const embed = new EmbedBuilder()
+        .setColor(0xe50914)
+        .setTitle(`🎞️ Movie night history (${past.length})`)
+        .setDescription(lines.join('\n'))
+        .setFooter({
+          text: `Page ${page}/${pages} · ⭐ = average rating of the people who watched`,
+        });
+      return interaction.reply({
+        embeds: [embed],
+        allowedMentions: { parse: [] },
+      });
+    }
+
+    // ---------- top ----------
+    if (sub === 'top') {
+      const top = wl.topRated(interaction.guildId, { min: 2, limit: 10 });
+      const medals = ['🥇', '🥈', '🥉'];
+      const embed = new EmbedBuilder()
+        .setColor(0xf1c40f)
+        .setTitle('🏆 Nest Top 10')
+        .setDescription(
+          top.length
+            ? top
+                .map(
+                  (t, i) =>
+                    `${medals[i] || `**${i + 1}.**`} ${tmdb.kindEmoji(t.type, t.anime)} **${t.title}**${t.year ? ` (${t.year})` : ''} · ⭐ ${t.avg.toFixed(1)} (${t.n} ratings)`,
+                )
+                .join('\n')
+            : 'Not enough ratings yet. A title needs at least 2 ratings. Rate with the ⭐ buttons after a movie night or `/watchlist rate`.',
+        );
+      return interaction.reply({ embeds: [embed] });
+    }
 
     // ---------- calendar ----------
     if (sub === 'calendar') {

@@ -147,6 +147,13 @@ from the command files, so they're always current.
 | | `/watch calendar` | Upcoming nights with sign-up buttons (also pinned in #movies) |
 | | `/watch sync` | In a room: "you're 40 s behind" |
 | | `/watch edit` / `cancel` / `end` | Planner, admins and the mod role only |
+| | `/watch history` / `top` | Past movie nights; 🏆 Nest Top 10 by rating |
+| `watchlist.js` | `/watchlist add` / `remove` / `edit` | Your list: 📌 want, ▶️ watching (season/episode), ✅ watched; must-watch ❗, notes, 🌐/🔒 per entry |
+| | `/watchlist show` | Yours (with private ones) or someone else's public list, with filters and "📋 copy to my watchlist" |
+| | `/watchlist seen` / `rate` | Mark as watched / rate ⭐1–5 (outside movie nights) |
+| | `/watchlist pending` | Movie nights waiting for your "✅ yes, I watched it" (7 days) |
+| | `/watchlist settings` | Public/private list, your country, your streaming services, DM when your titles get planned |
+| | `/watchlist match` / `random` | 🎯 what you all want to watch; 🎲 pick something |
 
 How a night works: sign up in the calendar → 1 hour before, a private room
 opens (anyone can still **🚪 Enter room**) → at the start everyone pauses at

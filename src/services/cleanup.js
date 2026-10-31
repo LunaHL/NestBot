@@ -70,6 +70,13 @@ function runCleanup() {
     }
   });
 
+  // Unanswered "did you watch it?" questions expire after a week
+  try {
+    require('./watchlist').prunePending();
+  } catch (e) {
+    console.error('[Cleanup] Watchlist cleanup failed:', e);
+  }
+
   // NestWord's "recently used words" list in wordlist.json. Every past word
   // is already kept in the nestword archive, so old entries are just removed.
   let words = 0;

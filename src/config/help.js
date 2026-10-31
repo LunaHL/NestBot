@@ -89,7 +89,7 @@ const CATEGORIES = [
     name: 'Movie nights',
     intro:
       'Watch movies, series and anime together, each on your own device: NestBot keeps everyone in sync. No voice channel needed.',
-    commands: ['watch'],
+    commands: ['watch', 'watchlist'],
     features: [
       {
         name: '🗓️ Plan & sign up',
@@ -98,6 +98,10 @@ const CATEGORIES = [
       {
         name: '🚪 Your room',
         text: 'One hour before the start, a private room opens. Signed-up people get a ping; anyone can still join with **🚪 Enter room**, even mid-movie.',
+      },
+      {
+        name: '📝 Watchlists',
+        text: 'Everyone has a watchlist (`/watchlist add`): public by default, single entries can be private. After a movie night you get a **✅ mark as watched?** and can rate it ⭐1–5. `/watchlist match` shows what you all want to watch.',
       },
       {
         name: '▶️ Watching in sync',
@@ -308,6 +312,12 @@ const COMMANDS = {
     explain:
       'Movie nights for movies, series and anime: plan one (or start right away), sign up in the #movies calendar, get a private room, check in, and watch in sync with the live clock. Titles come with poster, length and where to stream them.',
     tips: 'Pick the title from the list while typing to get all the info. Only the planner and admins can edit, cancel or end a movie night. Rooms close automatically after a day.',
+  },
+
+  watchlist: {
+    explain:
+      'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. Public by default; make the whole list or single entries 🔒 private. Set your country and streaming services so "where can I watch it?" fits you.',
+    tips: 'Movie nights ask you "mark as watched?" at the end; forgot? `/watchlist pending`. Turn on `/watchlist settings notify:` to get a DM when something from your list is planned.',
   },
 
   // 🛠️ Admin

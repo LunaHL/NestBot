@@ -22,7 +22,7 @@ chat with by pinging `@NestBot`.
 | 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, `/memory` |
 | 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag` |
 | 🎂 **Social** | `/birthday` announcements with coins, `/pictracker` weekly picture leaderboard |
-| 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device |
+| 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device. `/watchlist`: personal watchlists with ratings and matches |
 | 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
 | ❓ **Help** | `/help` explains everything in Discord, with categories and a command search |
 

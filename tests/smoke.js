@@ -216,20 +216,41 @@ console.log = () => {}; // keep the output short
     }
   }
 
-  // Autocomplete (suggestions while typing), for commands that have it
+  // Autocomplete (suggestions while typing): every option that has it, in
+  // every subcommand, like Discord sends it
   for (const cmd of commands.filter(c => c.autocomplete)) {
-    count++;
-    try {
-      await cmd.autocomplete({
-        client,
-        commandName: cmd.data.name,
-        options: { getFocused: () => 'co' },
-        respond: async () => {},
-      });
-    } catch (e) {
-      problems.push(
-        `/${cmd.data.name} autocomplete: ${e.constructor.name}: ${e.message}`,
-      );
+    const json = cmd.data.toJSON();
+    const subs = (json.options || []).filter(o => o.type === 1);
+    const targets = subs.length
+      ? subs.flatMap(sub =>
+          (sub.options || [])
+            .filter(o => o.autocomplete)
+            .map(o => [sub.name, o.name]),
+        )
+      : (json.options || [])
+          .filter(o => o.autocomplete)
+          .map(o => [null, o.name]);
+    for (const [sub, option] of targets) {
+      count++;
+      try {
+        await cmd.autocomplete({
+          client,
+          guild,
+          guildId: 'g',
+          commandName: json.name,
+          user: fakeUser('u1'),
+          locale: 'de',
+          options: {
+            getSubcommand: () => sub,
+            getFocused: full => (full ? { name: option, value: 'co' } : 'co'),
+          },
+          respond: async () => {},
+        });
+      } catch (e) {
+        problems.push(
+          `/${json.name} ${sub || ''} autocomplete ${option}: ${e.constructor.name}: ${e.message}`,
+        );
+      }
     }
   }
 

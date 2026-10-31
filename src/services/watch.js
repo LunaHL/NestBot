@@ -17,6 +17,7 @@ const {
 } = require('discord.js');
 const db = require('../utils/db');
 const tmdb = require('./tmdb');
+const watchlist = require('./watchlist');
 const nestcoins = require('./nestcoins');
 const { getSetting } = require('./settings');
 const { discordTime } = require('../utils/time');
@@ -182,6 +183,10 @@ function fullTitle(n) {
 
 const emojiOf = n => tmdb.kindEmoji(n.kind, n.info?.anime);
 
+/** The watchlist fields / key of the night's title. */
+const nightFields = n => watchlist.titleFields(n.info, n.title);
+const nightKey = n => watchlist.keyOf(nightFields(n));
+
 // ---------- Embeds and buttons ----------
 
 function cardEmbed(n) {
@@ -241,6 +246,14 @@ function cardEmbed(n) {
     value: `<@${n.createdBy}>`,
     inline: true,
   });
+  const wants = watchlist.wantCount(n.guildId, nightKey(n));
+  if (wants > 0) {
+    fields.push({
+      name: '👀 On watchlists',
+      value: `${wants} ${wants === 1 ? 'person wants' : 'people want'} to watch this`,
+      inline: true,
+    });
+  }
   fields.push({
     name: `🙋 Signed up (${n.signups.length})`,
     value: n.signups.length
@@ -283,6 +296,13 @@ function cardButtons(n) {
         .setStyle(ButtonStyle.Secondary),
     );
   }
+  row.addComponents(
+    new ButtonBuilder()
+      .setCustomId(`watch:wl:${n.id}`)
+      .setLabel('Watchlist')
+      .setEmoji('➕')
+      .setStyle(ButtonStyle.Secondary),
+  );
   return [row];
 }
 
@@ -517,9 +537,35 @@ async function createNight(
   if (now) {
     night = await openRoom(guild, night, { spontaneous: true });
     await startCheckin(guild.client, night);
+  } else {
+    await notifyWatchlists(guild, night);
   }
   await refreshCalendar(guild.client, guildId);
   return getNight(guildId, night.id);
+}
+
+/** DM people who have this title on their watchlist and turned notify on. */
+async function notifyWatchlists(guild, n) {
+  const targets = watchlist
+    .notifyTargets(guild.id, nightKey(n))
+    .filter(u => u !== n.createdBy);
+  for (const userId of targets) {
+    const user = await guild.client.users?.fetch(userId).catch(() => null);
+    await user
+      ?.send({
+        content: `🍿 **${fullTitle(n)}** from your watchlist is planned for ${discordTime(n.startAt, 'F')} (${discordTime(n.startAt, 'R')})!`,
+        components: [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`watch:signup:${n.id}:${guild.id}`)
+              .setLabel('Sign up')
+              .setEmoji('🙋')
+              .setStyle(ButtonStyle.Success),
+          ),
+        ],
+      })
+      .catch(() => {}); // DMs closed
+  }
 }
 
 async function editNight(guild, id, changes) {
@@ -623,10 +669,13 @@ async function enterRoom(guild, id, userId) {
   await grantRoom(guild, n, userId);
   if (!already) {
     const room = await fetchChannel(guild.client, n.roomId);
+    const phase = n.session.phase;
     const where =
-      n.status === 'live'
+      phase === 'playing' || phase === 'paused'
         ? ` The movie is running: we're at **${fmtPos(position(n))}**. Use \`/watch sync\` to catch up.`
-        : '';
+        : phase === 'checkin'
+          ? ' We’re checking in right now: pause at 0:00 and press **✅ Ready** above.'
+          : '';
     await room
       ?.send({
         content: `👋 <@${userId}> joined!${where}`,
@@ -967,6 +1016,11 @@ function clockButtons(n) {
         .setLabel('Where should I be?')
         .setEmoji('🕐')
         .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`watch:missed:${n.id}`)
+        .setLabel('I missed part')
+        .setEmoji('⚠️')
+        .setStyle(ButtonStyle.Secondary),
     ),
   ];
 }
@@ -1091,6 +1145,106 @@ function voteCheckpoint(guildId, id, index, userId, choice) {
   });
 }
 
+/** "⚠️ I missed part": this person won't be asked to mark it as watched. */
+function markMissed(guildId, id, userId) {
+  return updateNight(guildId, id, x => {
+    x.session.missed ||= [];
+    if (!x.session.missed.includes(userId)) x.session.missed.push(userId);
+  });
+}
+
+/** Ended nights, newest first. */
+function pastNights(guildId) {
+  return allNights(guildId)
+    .filter(n => n.status === 'ended')
+    .sort((a, b) => b.startAt - a.startAt);
+}
+
+/** Average watchlist rating of the people who watched this night. */
+function averageRating(n) {
+  const key = nightKey(n);
+  const ratings = watchers(n)
+    .map(u => watchlist.getItem(n.guildId, u, key)?.rating)
+    .filter(Boolean);
+  return ratings.length
+    ? ratings.reduce((a, b) => a + b, 0) / ratings.length
+    : null;
+}
+
+// ---------- "Did you watch it?" ----------
+
+/** People who were there: checked in and didn't press "I missed part". */
+const watchers = n =>
+  n.session.checkedIn.filter(u => !(n.session.missed || []).includes(u));
+
+/** The "✅ Yes, mark as watched / ❌ No" buttons. */
+function watchedPrompt(n) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`watchlist:night:${n.id}:yes`)
+        .setLabel('Yes, mark as watched')
+        .setEmoji('✅')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`watchlist:night:${n.id}:no`)
+        .setLabel('No')
+        .setEmoji('❌')
+        .setStyle(ButtonStyle.Secondary),
+    ),
+  ];
+}
+
+/**
+ * Someone answered the prompt. Returns 'not-there', or { key } when marked.
+ * Works during the night (in the room) and afterwards (summary, pending).
+ */
+function confirmWatched(guildId, n, userId, yes) {
+  if (!watchers(n).includes(userId)) return 'not-there';
+  const key = nightKey(n);
+  updateNight(guildId, n.id, x => {
+    x.session.answered ||= [];
+    if (!x.session.answered.includes(userId)) x.session.answered.push(userId);
+  });
+  if (!yes) {
+    watchlist.resolvePending(guildId, userId, key, false);
+    return { key };
+  }
+  watchlist.markWatched(guildId, userId, nightFields(n), {
+    watchedWith: watchers(n),
+    progress:
+      n.kind === 'tv'
+        ? {
+            season: n.season,
+            episode: n.episode + (n.session.episodesDone || 1) - 1,
+          }
+        : null,
+  });
+  return { key };
+}
+
+/** "Did you watch it?" waiting for everyone who was there and hasn't answered. */
+function addPendingFor(n) {
+  const answered = n.session.answered || [];
+  for (const userId of watchers(n)) {
+    if (answered.includes(userId)) continue;
+    watchlist.addPending(n.guildId, userId, {
+      key: nightKey(n),
+      fields: nightFields(n),
+      label: fullTitle(n),
+      nightId: n.id,
+      watchedWith: watchers(n),
+      progress:
+        n.kind === 'tv'
+          ? {
+              season: n.season,
+              episode: n.episode + (n.session.episodesDone || 1) - 1,
+            }
+          : null,
+    });
+  }
+}
+
 // ---------- Ending ----------
 
 /** End a night: summary in #movies, delete the room and the event. */
@@ -1105,7 +1259,8 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
 
   const channel = await moviesChannel(guild.client, guild.id);
   if (channel) {
-    const watched = n.session.checkedIn;
+    const watched = watchers(n);
+    const missed = n.session.missed || [];
     const embed = new EmbedBuilder()
       .setColor(0x2ecc71)
       .setTitle(`🎬 Finished: ${emojiOf(n)} ${fullTitle(n)}`)
@@ -1123,14 +1278,34 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
         },
         { name: '📣 Planned by', value: `<@${n.createdBy}>`, inline: true },
       );
+    if (missed.length) {
+      embed.addFields({
+        name: '⚠️ Missed part',
+        value: missed.map(u => `<@${u}>`).join(' '),
+      });
+    }
     if (auto)
       embed.setFooter({
         text: 'Closed automatically because nobody ended it.',
       });
+    const ask = watchers(n).filter(
+      u => !(n.session.answered || []).includes(u),
+    );
+    if (ask.length) {
+      embed.addFields({
+        name: '📝 Watchlist',
+        value: `${ask.map(u => `<@${u}>`).join(' ')}: mark it as watched? (Or later with \`/watchlist pending\`.)`,
+      });
+    }
     await channel
-      .send({ embeds: [embed], allowedMentions: { parse: [] } })
+      .send({
+        embeds: [embed],
+        components: ask.length ? watchedPrompt(n) : [],
+        allowedMentions: { parse: [] },
+      })
       .catch(() => {});
   }
+  addPendingFor(n);
 
   if (n.roomId) {
     const room = await fetchChannel(guild.client, n.roomId);
@@ -1223,7 +1398,8 @@ async function clockTick(client) {
         const room = await fetchChannel(client, n.roomId);
         await room
           ?.send({
-            content: `🎬 **${fullTitle(n)}** is over! <@${n.createdBy}>, close the room with \`/watch end\` when you're done chatting.`,
+            content: `🎬 **${fullTitle(n)}** is over! Mark it as watched on your watchlist?\n<@${n.createdBy}>, close the room with \`/watch end\` when you're done chatting.`,
+            components: watchedPrompt(n),
             allowedMentions: { users: [n.createdBy] },
           })
           .catch(() => {});
@@ -1292,6 +1468,13 @@ module.exports = {
   position,
   syncInfo,
   endNight,
+  confirmWatched,
+  markMissed,
+  pastNights,
+  averageRating,
+  watchers,
+  nightKey,
+  nightFields,
   schedulerTick,
   clockTick,
   startWatch,
