@@ -2,7 +2,7 @@
 
 ## V 1.10 (November 2026)
 
-Fewer commands, same features: 26 → 22 commands.
+Fewer commands, same features: 27 → 23 commands, 158 → 145 subcommands.
 
 **Changed**
 - 📊 `/profile` has tabs (menu, or `tab:`): Overview, 🎮 Games (Puzzle, NestWord, Wordle app with result chart), 🍹 Drinks, ⚔️ Duels & fun (duels, tournaments, gags, nicknames, Halloween), 🎬 Movies, 🏅 Achievements. Replaces `/achievements`, `/wordle stats`, `/drinks stats`, `/duel stats`
