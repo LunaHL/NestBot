@@ -540,7 +540,7 @@ async function announce(target, userIds) {
     if (text.length > 1900)
       text =
         lines.slice(0, 12).join('\n') +
-        `\n…and ${lines.length - 12} more! See \`/achievements\`.`;
+        `\n…and ${lines.length - 12} more! See \`/profile tab:Achievements\`.`;
     await send({ content: text, allowedMentions: { users: mentioned } });
   } catch (e) {
     console.error('[Achievements] announce failed:', e);

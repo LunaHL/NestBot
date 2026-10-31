@@ -5,7 +5,7 @@ const db = require('../utils/db');
 const DEFAULTS = {
   streakMode: 'capped', // see utils/streak.js
   freeMode: false, // true = everything you can buy is free (/settings free)
-  nicknamePranks: true, // paid temporary nicknames (/nickname, /settings nicknames)
+  nicknamePranks: true, // paid temporary nicknames (/shop, /settings nicknames)
   // Movie nights (/settings watch)
   watchChannelId: null, // #movies: calendar, cards, announcements
   watchCategoryId: null, // category for the temporary watch rooms

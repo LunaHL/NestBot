@@ -6,7 +6,7 @@
 //   4/6: @Luna
 //   X/6: @Kim
 //
-// NestBot reads that message in the channel set with `/wordle channel`,
+// NestBot reads that message in the channel set with `/settings channels wordle:`,
 // pays coins per result and keeps Wordle stats. Each day is paid only once.
 // It also looks back over recent messages regularly, so summaries posted
 // while the bot was offline are paid later.
@@ -247,7 +247,9 @@ function rewardsEmbed(date, paid, unknown = []) {
     .setTitle(`💰 Wordle rewards for ${date}`)
     .setDescription(lines.join('\n'))
     .setColor(0x6aaa64)
-    .setFooter({ text: 'See /wordle stats · rewards table in /help' });
+    .setFooter({
+      text: 'Your stats: /profile tab:Games · rewards table in /help',
+    });
   if (unknown.length) {
     embed.addFields({
       name: '❓ Couldn’t match',
@@ -286,7 +288,7 @@ function startWordle(client) {
 
 // ---------- Stats ----------
 
-/** Stats summary for /wordle stats, /profile and achievements. */
+/** Stats summary for /profile and achievements. */
 function getSummary(guildId, userId) {
   const u = getUserStats(guildId, userId);
   if (!u) return null;
@@ -335,7 +337,7 @@ function getLeaderboard(guildId, limit = 5) {
   };
 }
 
-/** The rewards table as text (used in /help and /wordle rewards). */
+/** The rewards table as text (used in /help). */
 function rewardsTable() {
   return (
     '```\n' +

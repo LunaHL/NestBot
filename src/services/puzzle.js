@@ -404,6 +404,7 @@ module.exports = {
   postSolveNotice,
   announceToday,
   setChannel,
+  getSettings,
   startPuzzleAnnouncer,
   prettyDate,
   difficultyOf,

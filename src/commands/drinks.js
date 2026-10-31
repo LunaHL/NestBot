@@ -13,7 +13,6 @@ const {
 const ui = require('../utils/ui');
 const achievements = require('../services/achievements');
 const nestcoins = require('../services/nestcoins');
-const db = require('../utils/db');
 const drinkArt = require('../services/drinkArt');
 const drinks = require('../services/drinks');
 const { isHalloween } = require('../utils/time');
@@ -421,17 +420,6 @@ module.exports = {
             .setName('include-me')
             .setDescription('Get one yourself too (default: yes)'),
         ),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('stats')
-        .setDescription('Drink stats')
-        .addUserOption(opt =>
-          opt.setName('user').setDescription('Whose stats (default: you)'),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub.setName('leaderboard').setDescription('Most drinks had'),
     ),
 
   // Suggestions while typing the drink name
@@ -544,96 +532,6 @@ module.exports = {
       return interaction.reply(
         roundPreview(interaction, key, scope, includeMe, people.ids),
       );
-    }
-
-    // ---------- stats ----------
-    if (sub === 'stats') {
-      const user = interaction.options.getUser('user') || interaction.user;
-      const name =
-        interaction.options.getMember('user')?.displayName ||
-        (user.id === userId ? myName : user.username);
-      const s = drinks.getDrinksSummary(guildId, user.id);
-
-      if (!s || !s.total) {
-        return interaction.reply({
-          content: `🍹 ${name} hasn't had a drink in the Nest yet.`,
-          flags: 64,
-        });
-      }
-
-      const perCategory = Object.entries(CATEGORIES)
-        .filter(([k]) => s.byCategory[k])
-        .map(([k, c]) => `${c.emoji} ${s.byCategory[k]}`)
-        .join(' · ');
-
-      const embed = new EmbedBuilder()
-        .setTitle(`🍹 Drink stats for ${name}`)
-        .setThumbnail(user.displayAvatarURL())
-        .addFields(
-          {
-            name: 'Today',
-            value:
-              `**${s.today}** / ${TOTAL_LIMIT} drinks\n` +
-              `⚡ ${s.todayCaffeine} / ${CAFFEINE_LIMIT} caffeine\n` +
-              `🍺 ${s.todayAlcohol} / ${ALCOHOL_LIMIT} alcohol`,
-            inline: true,
-          },
-          {
-            name: 'All time',
-            value: `**${s.total}** drinks\n${perCategory || '–'}`,
-            inline: true,
-          },
-          {
-            name: '🔥 Streak',
-            value: `**${s.streak}** days (best ${s.bestStreak})`,
-            inline: true,
-          },
-          {
-            name: '❤️ Favorite',
-            value: s.favorite
-              ? `${s.favorite.emoji} ${s.favorite.name} (${s.favorite.count}×)`
-              : '–',
-            inline: true,
-          },
-          {
-            name: '🎁 Gifted / received',
-            value: `${s.given} / ${s.received}`,
-            inline: true,
-          },
-          { name: '💸 Coins spent', value: `${s.spent}`, inline: true },
-        )
-        .setColor(COLOR_CAFE);
-      return interaction.reply({ embeds: [embed] });
-    }
-
-    // ---------- leaderboard ----------
-    if (sub === 'leaderboard') {
-      const all = Object.entries(db.read(d => d.coffee?.[guildId]) || {})
-        .filter(([, s]) => s.total > 0)
-        .sort((a, b) => b[1].total - a[1].total)
-        .slice(0, 10);
-
-      if (!all.length) {
-        return interaction.reply({
-          content: '🍹 Nobody has ordered a drink yet.',
-          flags: 64,
-        });
-      }
-
-      const medals = ['🥇', '🥈', '🥉'];
-      const lines = all.map(
-        ([uid, s], i) =>
-          `${medals[i] || `**${i + 1}.**`} <@${uid}> — **${s.total}** drink${s.total === 1 ? '' : 's'}` +
-          (s.given ? ` · 🎁 ${s.given} gifted` : ''),
-      );
-      const embed = new EmbedBuilder()
-        .setTitle('🍹 Most Drinks Had')
-        .setDescription(lines.join('\n'))
-        .setColor(COLOR_CAFE);
-      return interaction.reply({
-        embeds: [embed],
-        allowedMentions: { parse: [] },
-      });
     }
   },
 };

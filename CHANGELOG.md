@@ -1,5 +1,19 @@
 # NestBot Changelog
 
+## V 1.10 (November 2026)
+
+Fewer commands, same features: 26 → 22 commands.
+
+**Changed**
+- 📊 `/profile` has tabs (menu, or `tab:`): Overview, 🎮 Games (Puzzle, NestWord, Wordle app with result chart), 🍹 Drinks, ⚔️ Duels & fun (duels, tournaments, gags, nicknames, Halloween), 🎬 Movies, 🏅 Achievements. Replaces `/achievements`, `/wordle stats`, `/drinks stats`, `/duel stats`
+- 🏆 `/leaderboard` has every ranking with a switch menu: coins, puzzle, Wordle app, drinks (incl. most generous and most rounds), duels, pictures this week, achievements. Replaces `/puzzle leaderboard`, `/wordle leaderboard`, `/drinks leaderboard`, `/pictracker show`
+- 📌 `/settings channels` (puzzle + ping role, Wordle app, birthdays, pictures) and `/settings tools` (pay missed Wordle results, reset the picture week, end all paid nicknames). Replaces `/puzzle channel`, `/birthday channel`, `/wordle channel`, `/wordle scan`, `/pictracker setchannel`, `/pictracker reset`
+- 🏷️ Paid nicknames moved into `/shop`: 🏷️ Rename someone (pick person → time → type the name) or `/shop nickname`, 🔓 Get your name back. `/settings nicknames end-for:` for admins. Replaces `/nickname`
+- 🛍️ Shop categories: `category` when adding/editing (suggested while typing), the shop card is grouped, with a category menu
+- 🤺 `/duel @someone bet:` without a subcommand
+- Removed commands: `/achievements`, `/wordle` (Wordle rewards stay automatic), `/pictracker`, `/nickname`. Nothing is lost: all data stays
+- 🗺️ Roadmap: detailed Christmas, Easter and other season plans; blindfold with several people in the dark
+
 ## V 1.9 (November 2026)
 
 **New**

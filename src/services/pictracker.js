@@ -1,5 +1,5 @@
 // Weekly picture leaderboard: counts images posted in the tracked channel
-// (set with /pictracker setchannel) and pays rewards every Monday.
+// (set with /settings channels pictures:) and pays rewards every Monday.
 const db = require('../utils/db');
 const nestcoins = require('./nestcoins');
 const { runEvery } = require('../utils/schedule');

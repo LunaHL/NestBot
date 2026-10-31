@@ -331,55 +331,21 @@ async function startDuel(interaction) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('duel')
-    .setDescription('Challenge someone to Rock · Paper · Scissors')
-    .addSubcommand(sub =>
-      sub
-        .setName('challenge')
-        .setDescription('Challenge someone, both bet the same amount')
-        .addUserOption(opt =>
-          opt
-            .setName('opponent')
-            .setDescription('Who to duel')
-            .setRequired(true),
-        )
-        .addIntegerOption(opt =>
-          opt
-            .setName('bet')
-            .setDescription(`NestCoins each (0–${MAX_BET}, default 10)`)
-            .setMinValue(0)
-            .setMaxValue(MAX_BET),
-        ),
+    .setDescription(
+      'Challenge someone to Rock · Paper · Scissors (record: /profile)',
     )
-    .addSubcommand(sub =>
-      sub
-        .setName('stats')
-        .setDescription('Duel record')
-        .addUserOption(opt =>
-          opt.setName('user').setDescription('Whose record (default: you)'),
-        ),
+    .addUserOption(opt =>
+      opt.setName('opponent').setDescription('Who to duel').setRequired(true),
+    )
+    .addIntegerOption(opt =>
+      opt
+        .setName('bet')
+        .setDescription(`NestCoins each (0–${MAX_BET}, default 10)`)
+        .setMinValue(0)
+        .setMaxValue(MAX_BET),
     ),
 
   async execute(interaction) {
-    const sub = interaction.options.getSubcommand();
-    if (sub === 'challenge') return startDuel(interaction);
-
-    if (sub === 'stats') {
-      const user = interaction.options.getUser('user') || interaction.user;
-      const s = db.read(d => d.duelStats?.[interaction.guildId]?.[user.id]) || {
-        wins: 0,
-        losses: 0,
-        ties: 0,
-        coinsWon: 0,
-      };
-      const played = s.wins + s.losses;
-      const rate = played ? Math.round((s.wins / played) * 100) : 0;
-      return interaction.reply({
-        content:
-          `🤺 **Duel record of ${user.username}**\n` +
-          `**${s.wins}** wins · ${s.losses} losses · ${s.ties} draws (${rate}% win rate)\n` +
-          `💰 Coins won: **${s.coinsWon}**`,
-        allowedMentions: { parse: [] },
-      });
-    }
+    return startDuel(interaction);
   },
 };

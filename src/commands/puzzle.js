@@ -1,10 +1,6 @@
 // /puzzle: the Puzzle of the Day. Only the Discord side lives here.
 // Logic, rewards and the daily announcement: src/services/puzzle.js.
-const {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ChannelType,
-} = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const achievements = require('../services/achievements');
 const history = require('../services/history');
 const puzzles = require('../services/puzzle');
@@ -46,9 +42,6 @@ module.exports = {
         .addIntegerOption(opt =>
           opt.setName('page').setDescription('Page number').setMinValue(1),
         ),
-    )
-    .addSubcommand(sub =>
-      sub.setName('leaderboard').setDescription('Best puzzle solvers'),
     )
     // ----- Admin -----
     .addSubcommand(sub =>
@@ -103,26 +96,6 @@ module.exports = {
             .setName('date')
             .setDescription('Date YYYY-MM-DD')
             .setRequired(true),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('channel')
-        .setDescription('Where the daily puzzle is announced (admins only)')
-        .addChannelOption(opt =>
-          opt
-            .setName('channel')
-            .setDescription('Puzzle channel')
-            .setRequired(true)
-            .addChannelTypes(
-              ChannelType.GuildText,
-              ChannelType.GuildAnnouncement,
-            ),
-        )
-        .addRoleOption(opt =>
-          opt
-            .setName('ping')
-            .setDescription('Role to ping with each new puzzle (optional)'),
         ),
     ),
 
@@ -252,42 +225,6 @@ module.exports = {
       });
     }
 
-    // ==== /puzzle leaderboard ====
-    if (sub === 'leaderboard') {
-      const lb = puzzles.getLeaderboard(5);
-      // unit = [singular, plural]
-      const list = (rows, [one, many]) =>
-        rows.length
-          ? rows
-              .map(
-                ([uid, n], i) =>
-                  `${MEDALS[i] || `**${i + 1}.**`} <@${uid}> — **${n}** ${n === 1 ? one : many}`,
-              )
-              .join('\n')
-          : '–';
-      const embed = new EmbedBuilder()
-        .setTitle('🧩 Puzzle Leaderboard')
-        .setColor(0x9b59b6)
-        .addFields(
-          {
-            name: '🧠 Most solved',
-            value: list(lb.solved, ['puzzle', 'puzzles']),
-          },
-          {
-            name: '⚡ Most first places',
-            value: list(lb.firsts, ['× first', '× first']),
-          },
-          {
-            name: '🔥 Longest streaks',
-            value: list(lb.streaks, ['day', 'days']),
-          },
-        );
-      return interaction.reply({
-        embeds: [embed],
-        allowedMentions: { parse: [] },
-      });
-    }
-
     // ===== Admin only from here =====
     if (!isAdmin(interaction)) return denyNonAdmin(interaction);
 
@@ -319,7 +256,7 @@ module.exports = {
         result.date === today
           ? puzzles.getSettings(guildId).channelId
             ? '\n📣 It will be announced in the puzzle channel within 10 minutes.'
-            : '\n💡 Set a puzzle channel with `/puzzle channel` to announce it automatically.'
+            : '\n💡 Set a puzzle channel with `/settings channels puzzle:` to announce it automatically.'
           : '';
       return interaction.reply({
         content: `✅ Puzzle for **${result.date}** set! ${d.emoji} ${d.label} (${d.reward} coins)${note}${when}`,
@@ -367,24 +304,6 @@ module.exports = {
           ? `🗑️ Removed the puzzle for **${date}** (code \`${removed.code}\`).`
           : `❓ There's no puzzle on **${date}**. See \`/puzzle queue\`.`,
         flags: 64,
-      });
-    }
-
-    // ==== /puzzle channel ====
-    if (sub === 'channel') {
-      const channel = interaction.options.getChannel('channel');
-      const role = interaction.options.getRole('ping');
-      puzzles.setChannel(guildId, channel.id, role?.id);
-      return interaction.reply({
-        content:
-          `✅ New puzzles will be announced in <#${channel.id}>` +
-          (role ? ` with a ping for <@&${role.id}>` : '') +
-          '. Solve notices are posted there too.' +
-          (puzzles.getPuzzle(today)
-            ? "\n📣 Today's puzzle will be posted there within 10 minutes."
-            : ''),
-        flags: 64,
-        allowedMentions: { parse: [] },
       });
     }
   },

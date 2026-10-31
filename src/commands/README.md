@@ -19,11 +19,12 @@ replies and embeds. The real work (coins, stats, saving) is in
 | `balance.js` | `/balance view` | Show your or someone's NestCoins |
 | | `/balance transfer` | Give coins to someone |
 | | `/balance grant` 🔒 / `remove` 🔒 | Add or take coins |
-| `leaderboard.js` | `/leaderboard` | Richest members |
+| `leaderboard.js` | `/leaderboard` | Every ranking in one place: 💰 coins, 🧩 puzzle, 🟩 Wordle app, 🍹 drinks, 🤺 duels, 📸 pictures this week, 🏅 achievements. Pick with `board:` or switch with the menu under the card |
 | `gamble.js` | `/gamble` | Bet 5 coins on the Nest Roulette |
-| `shop.js` | `/shop browse` | The shop as a card with a buy menu: pick an item → (items with an effect: pick the target) → confirm |
+| `shop.js` | `/shop browse` | The shop as a card, grouped by category, with a category menu and a buy menu: pick an item → (items with an effect: pick the target) → confirm. NestBot's specials: 🏷️ Rename someone (pick person → time → type the name) and 🔓 Get your name back (same price it cost) |
 | | `/shop buy` | Buy directly (`item` with search while typing, `target` for items with an effect) |
-| | `/shop add` 🔒 / `edit` 🔒 / `remove` 🔒 | Manage items: name, price, emoji, description and an optional effect (🔇 gag / 🏷️ nickname, `minutes`, `nickname`). Old items with `[effect:gag;…]` in the text are converted automatically |
+| | `/shop nickname` | Rename someone for 10 min … 24 h (15 … 300 coins) directly. The old nickname comes back automatically |
+| | `/shop add` 🔒 / `edit` 🔒 / `remove` 🔒 | Manage items: name, price, emoji, `category` (reuse one while typing or type a new one), description and an optional effect (🔇 gag / 🏷️ nickname, `minutes`, `nickname`). Old items with `[effect:gag;…]` in the text are converted automatically |
 | `lootdrop.js` | `/drop status` 🔒 | Loot drop status. Drops themselves happen automatically 3–8 times a day |
 | | `/drop blacklist` 🔒 | Turn drops off/on for a channel |
 
@@ -38,15 +39,14 @@ replies and embeds. The real work (coins, stats, saving) is in
 | `puzzle.js` | `/puzzle solve` | Enter today's code (10 tries per day). The first three get a bonus: 🥇 +15, 🥈 +10, 🥉 +5 |
 | | `/puzzle info` | Today's puzzle card with "Open puzzle" button, your position and streak |
 | | `/puzzle history` | Past puzzles, optionally which ones a user solved |
-| | `/puzzle leaderboard` | Most solved, most first places, longest streaks |
 | | `/puzzle set` 🔒 | Set a puzzle for a date (or `append` = next free day). Setting the same day again replaces it but keeps its solvers |
 | | `/puzzle queue` 🔒 / `remove` 🔒 | Today's and upcoming puzzles with their codes; remove one |
-| | `/puzzle channel` 🔒 | Puzzle channel (+ optional role ping): new puzzles are announced there, solves are posted there |
 
-| `wordle.js` | `/wordle stats` / `leaderboard` | Stats and best players of the **Wordle app** (the Wordle activity in Discord) |
-| | `/wordle rewards` | How many coins each result pays |
-| | `/wordle channel` 🔒 | The channel where the Wordle app posts its daily results. NestBot reads them there and pays automatically |
-| | `/wordle scan` 🔒 | Pay results the bot missed while it was offline (it also does this every 30 minutes) |
+**Wordle app** (the Wordle activity in Discord): no command. NestBot reads the
+app's daily results in the Wordle channel (`/settings channels wordle:`) and
+pays automatically, also for days it missed while offline (every 30 minutes,
+or now with `/settings tools`). Stats: `/profile tab:Games`, rankings:
+`/leaderboard board:Wordle`, rewards table: `/help`.
 
 Wordle app rewards: 1/6 = 50, 2/6 = 35, 3/6 = 25, 4/6 = 15, 5/6 = 10, 6/6 = 5,
 X/6 = 2, plus +10 for the best score of the day (👑). Change them in
@@ -63,7 +63,6 @@ posted after midnight (`services/scoreboard.js`).
 | | `/drinks order` | Buy yourself a drink (with picture and maybe latte art). The drink is chosen by typing: "tea", "earl", "beer" … |
 | | `/drinks gift` | Buy someone a drink, with an optional note |
 | | `/drinks round` | 🍻 Buy a round: everyone in your voice channel (default), everyone online or everyone on the server. Preview with price first, then confirm. 5+ −10%, 10+ −20%, 20+ −30%, max 50 people; people at their limit are skipped and cost nothing. Online/everyone need the Server Members + Presence intents |
-| | `/drinks stats` / `leaderboard` | Drinks per category, today's limits, streak, favorite, most drinks |
 
 Sections: ☕ coffee, 🫖 tea (5 black teas), 🍫 hot chocolate, 🍹 cocktails,
 🍺 beer, 🍷 wine, 🎃 Halloween specials. Per day: max 6 with caffeine, 3 with
@@ -79,15 +78,13 @@ Pictures: `assets/drink-art/`.
 | | `/event create` 🔒 | New tournament: single elimination or Swiss, with prize pool |
 | | `/event pairings` 🔒 / `win` 🔒 | Make the next round, enter match winners. Prizes are paid when it ends |
 | | `/event add-user` 🔒 / `finish` 🔒 | Add someone manually, end an event and pay a winner by hand |
-| `duel.js` | `/duel challenge` | Rock-paper-scissors with a bet (0–500), winner takes both |
-| | `/duel stats` | Win/loss record |
+| `duel.js` | `/duel` | Rock-paper-scissors with a bet (0–500), winner takes both. Your record is in `/profile` |
 
 ## 🏅 Profile and achievements
 
 | File | Command | What it does |
 |---|---|---|
-| `profile.js` | `/profile` | All stats of a member, plus achievement badges. Buttons switch between 📊 Overview and 🎬 Movies (watched, movie nights, ratings, favorites; your own movie settings only shown to you) |
-| `achievements.js` | `/achievements` | All achievements, locked and unlocked |
+| `profile.js` | `/profile` | All stats of a member in tabs (menu, or `tab:` to open one directly): 📊 Overview · 🎮 Games (Puzzle, NestWord, Wordle app with result chart) · 🍹 Drinks (today's limits, streak, favorite, gifts, rounds) · ⚔️ Duels & fun (duels, tournaments, gags, paid nicknames, Halloween) · 🎬 Movies (your own movie settings only shown to you) · 🏅 Achievements (all, locked and unlocked) |
 
 The achievements themselves are defined in `services/achievements.js`.
 
@@ -111,17 +108,18 @@ Chatting with `@NestBot` isn't a command; it's handled in
 | | `/wheel list` | All entries |
 | | `/wheel add` 🔒 / `remove` 🔒 | Manage entries, with an optional effect (🔇 gag / 🏷️ nickname). The wheel is now per server; the old shared list moves into the first server that uses it |
 | `ungag.js` | `/ungag` 🔒 | Remove someone's gag |
-| `nickname.js` | `/nickname set` | Rename someone for 10 min … 24 h (15 … 300 coins). The old nickname comes back automatically |
-| | `/nickname status` / `buyout` / `reset` | Who's renamed until when; buy yourself out for the same price; whoever paid or an admin ends it early |
 
 ## 🎂 Social
 
 | File | Command | What it does |
 |---|---|---|
 | `birthday.js` | `/birthday list` / `add` / `remove` | Birthdays (you can manage your own; admins all) |
-| | `/birthday channel` 🔒 / `announce` 🔒 | Where to announce; announce now. Announcements happen automatically with 200 coins |
-| `pictracker.js` | `/pictracker show` | This week's picture leaderboard |
-| | `/pictracker setchannel` 🔒 / `reset` 🔒 | Which channel to count; reset the week |
+| | `/birthday announce` 🔒 | Announce now. Announcements happen automatically with 200 coins (channel: `/settings channels birthdays:`) |
+
+📸 **Picture leaderboard** (no command): pictures in the picture channel are
+counted, the weekly leaderboard is posted every Monday with coins. Live:
+`/leaderboard board:Pictures`; channel and reset: `/settings channels` /
+`/settings tools`.
 
 ## ❓ Help
 
@@ -141,7 +139,9 @@ from the command files, so they're always current.
 | `settings.js` | `/settings streak` 🔒 | Switch how Puzzle and NestWord streaks are rewarded: **new** (+10% per day, max +50%, milestones) or **old** (reward × streak days, no limit). Without `mode` it shows the current one and a comparison table |
 | | `/settings watch` 🔒 | Movie nights: #movies channel, room category, mod role, who may plan, when rooms open, auto-close, checkpoints, check-in coins, reminders |
 | | `/settings free` 🔒 | **Free mode** on/off: drinks and rounds, shop items, nicknames, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
-| | `/settings nicknames` 🔒 | `paid`: paid nicknames on/off (off resets all running ones). `self-change`: may everyone change their own nickname (edits the @everyone role; lists other roles that still allow it) |
+| | `/settings nicknames` 🔒 | `paid`: paid nicknames on/off (off resets all running ones). `self-change`: may everyone change their own nickname (edits the @everyone role; lists other roles that still allow it). `end-for`: end one person's paid nickname |
+| | `/settings channels` 🔒 | All posting channels in one place: puzzle (+ `puzzle-ping` role), Wordle app, birthdays, pictures. Empty = show them |
+| | `/settings tools` 🔒 | One-off actions: pay missed Wordle results, reset this week's picture count, end all paid nicknames |
 
 ## 🍿 Movie nights
 

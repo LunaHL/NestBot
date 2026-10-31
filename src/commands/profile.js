@@ -2,9 +2,16 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
+  StringSelectMenuBuilder,
 } = require('discord.js');
+const ui = require('../utils/ui');
+const drinks = require('../services/drinks');
+const {
+  CATEGORIES: DRINK_CATEGORIES,
+  TOTAL_LIMIT,
+  CAFFEINE_LIMIT,
+  ALCOHOL_LIMIT,
+} = require('../config/drinksMenu');
 const nickname = require('../services/nickname');
 const { discordTime } = require('../utils/time');
 const gag = require('../services/gag');
@@ -118,9 +125,8 @@ function overviewEmbed(guildId, targetUser, member) {
       {
         name: `🏅 Achievements (${badges.length}/${total})`,
         value: badges.length
-          ? badges.map(a => a.emoji).join(' ') +
-            '\nSee `/achievements` for details'
-          : 'None yet. See `/achievements`',
+          ? badges.map(a => a.emoji).join(' ') + '\nMore: 🏅 Achievements tab'
+          : 'None yet. See the 🏅 Achievements tab',
       },
     )
     .setTimestamp();
@@ -230,79 +236,304 @@ function moviesEmbed(guildId, targetUser, member, viewerId, locale) {
   return embed;
 }
 
-function tabButtons(userId, active) {
+// ---------- More tabs (they replace /wordle stats, /drinks stats, /duel stats, /achievements) ----------
+
+const nameOf = (user, member) => member?.displayName || user.username;
+
+/** 🎮 Games: Puzzle, NestWord and the Wordle app in detail. */
+function gamesEmbed(guildId, user, member) {
+  const s = getUserStats(guildId, user.id);
+  const w = s.wordle;
+  const embed = ui.card({
+    title: `🎮 Games: ${nameOf(user, member)}`,
+    color: 0x9b59b6,
+    thumbnail: user.displayAvatarURL(),
+    fields: [
+      {
+        name: '🧩 Puzzle',
+        value: `Solved **${s.puzzle.solved}** / ${s.puzzle.total}\n🔥 Streak **${s.puzzle.streak}** (best ${s.puzzle.best})`,
+        inline: true,
+      },
+      {
+        name: '🟩 NestWord',
+        value:
+          `Solved **${s.nestword.solved}** / ${s.nestword.played} (${s.nestword.winRate}%)\n` +
+          `⌀ **${s.nestword.avgTries}** tries\n🔥 Streak **${s.nestword.streak}** (best ${s.nestword.best})`,
+        inline: true,
+      },
+    ],
+    footer: 'Rankings: /leaderboard · rewards: /help',
+  });
+  if (w.played) {
+    const max = Math.max(...Object.values(w.dist), 1);
+    const bars = ['1', '2', '3', '4', '5', '6', 'X']
+      .map(
+        k =>
+          `\`${k}\` ${'🟩'.repeat(Math.round(((w.dist[k] || 0) / max) * 8)) || '▫️'} ${w.dist[k] || 0}`,
+      )
+      .join('\n');
+    embed.addFields(
+      {
+        name: '🟩 Wordle app',
+        value:
+          `Played **${w.played}** (${w.winRate}% solved) · ⌀ **${w.average}**\n` +
+          `👑 **${w.crowns}** crowns · 🔥 **${w.streak}** (best ${w.bestStreak}) · 💰 ${w.coins} earned`,
+      },
+      { name: 'Wordle results', value: bars },
+    );
+  } else {
+    embed.addFields({
+      name: '🟩 Wordle app',
+      value: 'Not played yet. Play the Wordle app in the Wordle channel!',
+    });
+  }
+  return embed;
+}
+
+/** 🍹 Drinks: what /drinks stats used to show. */
+function drinksEmbed(guildId, user, member) {
+  const s = drinks.getDrinksSummary(guildId, user.id);
+  if (!s || !s.total) {
+    return ui.card({
+      title: `🍹 Drinks: ${nameOf(user, member)}`,
+      color: 0x6f4e37,
+      text: 'No drinks yet. Order one with `/drinks order`!',
+    });
+  }
+  const perCategory = Object.entries(DRINK_CATEGORIES)
+    .filter(([k]) => s.byCategory[k])
+    .map(([k, c]) => `${c.emoji} ${s.byCategory[k]}`)
+    .join(' · ');
+  const rounds = db.read(d => d.coffee?.[guildId]?.[user.id]?.rounds) || 0;
+  return ui.card({
+    title: `🍹 Drinks: ${nameOf(user, member)}`,
+    color: 0x6f4e37,
+    thumbnail: user.displayAvatarURL(),
+    fields: [
+      {
+        name: 'Today',
+        value: `**${s.today}** / ${TOTAL_LIMIT} drinks\n⚡ ${s.todayCaffeine} / ${CAFFEINE_LIMIT} caffeine\n🍺 ${s.todayAlcohol} / ${ALCOHOL_LIMIT} alcohol`,
+        inline: true,
+      },
+      {
+        name: 'All time',
+        value: `**${s.total}** drinks\n${perCategory || '–'}`,
+        inline: true,
+      },
+      {
+        name: '🔥 Streak',
+        value: `**${s.streak}** days (best ${s.bestStreak})`,
+        inline: true,
+      },
+      {
+        name: '❤️ Favorite',
+        value: s.favorite
+          ? `${s.favorite.emoji} ${s.favorite.name} (${s.favorite.count}×)`
+          : '–',
+        inline: true,
+      },
+      {
+        name: '🎁 Gifted / received',
+        value: `${s.given} / ${s.received}${rounds ? `\n🍻 ${rounds} rounds bought` : ''}`,
+        inline: true,
+      },
+      { name: '💸 Coins spent', value: `${s.spent}`, inline: true },
+    ],
+  });
+}
+
+/** ⚔️ Duels & fun: duels, tournaments, gags, nicknames, Halloween. */
+function funEmbed(guildId, user, member) {
+  const s = getUserStats(guildId, user.id);
+  const d = s.duels;
+  const played = d.wins + d.losses;
+  const nickStats = nickname.getStats(guildId, user.id);
+  const nick = nickname.getActive(guildId, user.id);
+  const gagMs = gag.getRemainingMs(guildId, user.id);
+  return ui.card({
+    title: `⚔️ Duels & fun: ${nameOf(user, member)}`,
+    color: 0xe74c3c,
+    thumbnail: user.displayAvatarURL(),
+    fields: [
+      {
+        name: '🤺 Duels',
+        value: `**${d.wins}**W / ${d.losses}L / ${d.ties || 0} draws${played ? ` (${Math.round((d.wins / played) * 100)}%)` : ''}\n💰 Coins won: **${d.coinsWon || 0}**`,
+        inline: true,
+      },
+      {
+        name: '🏆 Tournaments',
+        value: `Joined **${s.events.joined}** · won **${s.events.won}**`,
+        inline: true,
+      },
+      {
+        name: '🔇 Gags',
+        value:
+          `Gagged others **${s.gags.given}**× · got gagged **${s.gags.received}**×` +
+          (gagMs > 0
+            ? `\nGagged now: ~${Math.ceil(gagMs / 60000)} min left`
+            : ''),
+        inline: true,
+      },
+      {
+        name: '🏷️ Nicknames',
+        value:
+          `Renamed others **${nickStats.given}**× · got renamed **${nickStats.received}**×` +
+          (nick
+            ? `\nNow: **${nick.name}** (by <@${nick.by}>) until ${discordTime(nick.until, 'R')}`
+            : ''),
+        inline: true,
+      },
+      {
+        name: '🎃 Halloween',
+        value: `🍬 ${s.halloween.treats} treats · 👻 ${s.halloween.tricks} tricks`,
+        inline: true,
+      },
+    ],
+  });
+}
+
+/** 🏅 Achievements: what /achievements used to show. */
+function achievementsEmbed(guildId, user, member) {
+  const fresh = achievements.checkAchievements(guildId, user.id);
+  const have = achievements.getUnlocked(guildId, user.id);
+  const embed = ui.card({
+    title: `🏅 Achievements: ${nameOf(user, member)}`,
+    color: 0xf1c40f,
+    thumbnail: user.displayAvatarURL(),
+  });
+  for (const [cat, title] of Object.entries(achievements.CATEGORIES)) {
+    const lines = achievements.ACHIEVEMENTS.filter(a => a.cat === cat).map(a =>
+      have[a.id]
+        ? `${a.emoji} **${a.name}** · ${a.desc}`
+        : a.secret
+          ? '❓ *Secret achievement*'
+          : `🔒 ${a.name} · ${a.desc} (+${a.reward})`,
+    );
+    if (lines.length)
+      embed.addFields({ name: title, value: lines.join('\n').slice(0, 1024) });
+  }
+  const count = achievements.ACHIEVEMENTS.filter(a => have[a.id]).length;
+  embed.setDescription(
+    `**${count} / ${achievements.ACHIEVEMENTS.length}** unlocked` +
+      (fresh.length
+        ? `\n✨ Just unlocked: ${fresh.map(a => `${a.emoji} ${a.name}`).join(', ')} (+${fresh.reduce((n, a) => n + a.reward, 0)} coins)`
+        : ''),
+  );
+  return embed;
+}
+
+// ---------- Tabs ----------
+
+const TABS = {
+  overview: {
+    label: 'Overview',
+    emoji: '📊',
+    build: (g, u, m) => overviewEmbed(g, u, m),
+  },
+  games: { label: 'Games', emoji: '🎮', build: gamesEmbed },
+  drinks: { label: 'Drinks', emoji: '🍹', build: drinksEmbed },
+  fun: { label: 'Duels & fun', emoji: '⚔️', build: funEmbed },
+  movies: {
+    label: 'Movies',
+    emoji: '🎬',
+    build: (g, u, m, viewer, locale) => moviesEmbed(g, u, m, viewer, locale),
+  },
+  achievements: {
+    label: 'Achievements',
+    emoji: '🏅',
+    build: achievementsEmbed,
+  },
+};
+
+function tabMenu(userId, active) {
   return [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`profile:tab:${userId}:overview`)
-        .setLabel('Overview')
-        .setEmoji('📊')
-        .setStyle(
-          active === 'overview' ? ButtonStyle.Primary : ButtonStyle.Secondary,
-        ),
-      new ButtonBuilder()
-        .setCustomId(`profile:tab:${userId}:movies`)
-        .setLabel('Movies')
-        .setEmoji('🎬')
-        .setStyle(
-          active === 'movies' ? ButtonStyle.Primary : ButtonStyle.Secondary,
+      new StringSelectMenuBuilder()
+        .setCustomId(`profile:tab:${userId}`)
+        .setPlaceholder('Switch tab…')
+        .addOptions(
+          Object.entries(TABS).map(([value, t]) => ({
+            label: t.label,
+            value,
+            emoji: t.emoji,
+            default: value === active,
+          })),
         ),
     ),
   ];
 }
 
-/** Tab buttons. The movies tab with personal settings is only shown privately. */
+/** Tab menu (and the old tab buttons). The own Movies tab (with settings) is shown privately. */
 async function handleComponent(interaction) {
-  const [, , userId, tab] = interaction.customId.split(':');
+  const [, , userId, buttonTab] = interaction.customId.split(':');
+  const tab = TABS[interaction.values?.[0]]
+    ? interaction.values[0]
+    : TABS[buttonTab]
+      ? buttonTab
+      : 'overview';
   const guildId = interaction.guildId;
   const user = await interaction.client.users.fetch(userId).catch(() => null);
-  if (!user)
-    return interaction.reply({ content: 'User not found.', flags: 64 });
+  if (!user) return interaction.reply(ui.fail('User not found.'));
   const member = await interaction.guild.members
     .fetch(userId)
     .catch(() => null);
-  if (tab === 'movies') {
-    // Own profile → private view with settings; someone else's → public stats
-    const own = interaction.user.id === userId;
-    const embed = moviesEmbed(
-      guildId,
-      user,
-      member,
-      interaction.user.id,
-      interaction.locale,
-    );
-    if (own) return interaction.reply({ embeds: [embed], flags: 64 });
-    return interaction.update({
-      embeds: [embed],
-      components: tabButtons(userId, 'movies'),
-      allowedMentions: { parse: [] },
-    });
+  const embed = TABS[tab].build(
+    guildId,
+    user,
+    member,
+    interaction.user.id,
+    interaction.locale,
+  );
+  if (tab === 'movies' && interaction.user.id === userId) {
+    return interaction.reply({ embeds: [embed], flags: 64 });
   }
   return interaction.update({
-    embeds: [overviewEmbed(guildId, user, member)],
-    components: tabButtons(userId, 'overview'),
+    embeds: [embed],
+    components: tabMenu(userId, tab),
     allowedMentions: { parse: [] },
   });
 }
 
 module.exports = {
   handleComponent,
+  TABS,
   data: new SlashCommandBuilder()
     .setName('profile')
-    .setDescription("Shows a user's profile and stats.")
+    .setDescription(
+      'Profile and all stats: games, drinks, duels, movies, achievements',
+    )
     .addUserOption(opt =>
+      opt.setName('user').setDescription('Whose profile (default: you)'),
+    )
+    .addStringOption(opt =>
       opt
-        .setName('user')
-        .setDescription('The user to view the profile of (defaults to you)'),
+        .setName('tab')
+        .setDescription('Open a tab directly (default: overview)')
+        .addChoices(
+          ...Object.entries(TABS).map(([value, t]) => ({
+            name: `${t.emoji} ${t.label}`,
+            value,
+          })),
+        ),
     ),
   async execute(interaction) {
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const member = interaction.options.getMember('user') || interaction.member;
-    const embed = overviewEmbed(interaction.guildId, targetUser, member);
+    const tab = interaction.options.getString('tab') || 'overview';
+    const own = targetUser.id === interaction.user.id;
+    const embed = TABS[tab].build(
+      interaction.guildId,
+      targetUser,
+      member,
+      interaction.user.id,
+      interaction.locale,
+    );
     await interaction.reply({
       embeds: [embed],
-      components: tabButtons(targetUser.id, 'overview'),
+      components: tabMenu(targetUser.id, tab),
       allowedMentions: { parse: [] },
+      // The own Movies tab shows private settings
+      ...(tab === 'movies' && own ? { flags: 64 } : {}),
     });
   },
 };

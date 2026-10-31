@@ -24,7 +24,7 @@ const CATEGORIES = [
     name: 'Economy',
     intro:
       'NestCoins are the currency of the Nest. You earn them with games, streaks, achievements and loot drops, and spend them in the café & bar, the shop, on duels and AI extras.',
-    commands: ['daily', 'balance', 'leaderboard', 'shop', 'gamble', 'drop'],
+    commands: ['daily', 'balance', 'shop', 'gamble', 'drop'],
     features: [
       {
         name: '🎉 Free mode',
@@ -46,7 +46,7 @@ const CATEGORIES = [
     name: 'Daily games',
     intro:
       'Daily challenges that reset at midnight: NestWord, the Puzzle of the Day and the Wordle app. Play every day to build a streak.',
-    commands: ['nestword', 'puzzle', 'wordle'],
+    commands: ['nestword', 'puzzle'],
     features: [
       {
         name: '🔥 Streaks',
@@ -56,7 +56,7 @@ const CATEGORIES = [
       {
         name: '🟩 Wordle app rewards',
         text:
-          'Play the **Wordle app** in the Wordle channel. When it posts the daily results, NestBot pays everyone automatically:\n' +
+          'Play the **Wordle app** in the Wordle channel. When it posts the daily results, NestBot pays everyone automatically (nothing to type). Your Wordle stats: `/profile tab:Games`.\n' +
           rewardsTable(),
       },
       {
@@ -130,12 +130,12 @@ const CATEGORIES = [
     emoji: '🏅',
     name: 'Profile & achievements',
     intro:
-      'Everything you do in the Nest is tracked: games, drinks, duels, tournaments, gags.',
-    commands: ['profile', 'achievements'],
+      'Everything you do in the Nest is tracked: games, drinks, duels, tournaments, gags. `/profile` shows it all in tabs, `/leaderboard` ranks everyone.',
+    commands: ['profile', 'leaderboard'],
     features: [
       {
         name: '🏅 Achievements',
-        text: 'Unlock automatically while you play and pay coins. Some are secret. NestBot announces every unlock in chat.',
+        text: 'Unlock automatically while you play and pay coins. Some are secret. NestBot announces every unlock in chat. All of them: `/profile tab:Achievements`.',
       },
     ],
   },
@@ -158,11 +158,11 @@ const CATEGORIES = [
     emoji: '🔇',
     name: 'Fun moderation',
     intro: 'Playful punishments: the wheel, gags and paid nicknames.',
-    commands: ['wheel', 'nickname', 'ungag'],
+    commands: ['wheel', 'ungag'],
     features: [
       {
         name: '🏷️ Paid nicknames',
-        text: 'Pay coins to rename someone for 10 minutes up to a whole day. More coins, more time. They can buy themselves out for the same price; afterwards NestBot gives the old name back. Admins can switch it off with `/settings nicknames`.',
+        text: 'In `/shop` (🏷️ Rename someone, or `/shop nickname`): rename someone for 10 minutes (15 coins) up to a whole day (300 coins). More coins, more time. The renamed person can buy themselves out with 🔓 **Get your name back** for the same price; afterwards NestBot gives the old name back. See who’s renamed in their profile (⚔️ Duels & fun). Admins: `/settings nicknames`.',
       },
       {
         name: '✨ Effects',
@@ -179,7 +179,13 @@ const CATEGORIES = [
     emoji: '🎂',
     name: 'Social',
     intro: 'Birthdays and the weekly picture leaderboard.',
-    commands: ['birthday', 'pictracker'],
+    commands: ['birthday'],
+    features: [
+      {
+        name: '📸 Picture leaderboard',
+        text: 'NestBot counts pictures posted in the picture channel. Every Monday the weekly leaderboard is posted and active posters get coins. Live: `/leaderboard board:Pictures`.',
+      },
+    ],
   },
   {
     id: 'halloween',
@@ -220,12 +226,15 @@ const COMMANDS = {
       "Check your coins or someone else's, and send coins to other members.",
     admin: ['grant', 'remove'],
   },
-  leaderboard: { explain: 'The richest members of the Nest.' },
+  leaderboard: {
+    explain:
+      'Every ranking in one place: 💰 NestCoins, 🧩 Puzzle, 🟩 Wordle app, 🍹 Drinks, 🤺 Duels, 📸 Pictures this week, 🏅 Achievements. Pick one with `board:` or switch with the menu under the card.',
+  },
   shop: {
     explain:
-      'Look around with `/shop browse` and buy from the menu. Items with an effect (🔇 gag, 🏷️ nickname) ask who it’s for, then you confirm.',
+      'Look around with `/shop browse`: items are grouped in categories, buy from the menu. Items with an effect (🔇 gag, 🏷️ nickname) ask who it’s for, then you confirm. NestBot’s own specials: 🏷️ **Rename someone** (also `/shop nickname`) and 🔓 **Get your name back**.',
     admin: ['add', 'edit', 'remove'],
-    tips: 'Admins: `/shop add` has `effect`, `minutes` and `nickname` options, and an `emoji` for the item.',
+    tips: 'Admins: `/shop add` has `category` (reuse one while typing, or type a new one), `emoji`, and `effect` / `minutes` / `nickname` options.',
   },
   gamble: {
     explain: 'Bet 5 coins on the Nest Roulette. Feeling lucky?',
@@ -243,24 +252,18 @@ const COMMANDS = {
     admin: ['set', 'pool-bulkadd', 'pool-remove', 'pool-list', 'pool-clear'],
     tips: 'Ask @NestBot for a hint if you’re stuck.',
   },
-  wordle: {
-    explain:
-      'Coins for playing the Wordle app (the Wordle activity in Discord). The app posts the results every day; NestBot reads them and pays everyone automatically, with a 👑 bonus for the best score. Nothing to type: just play.',
-    admin: ['channel', 'scan'],
-    tips: 'See the rewards with `/wordle rewards`. Admins: if the bot was offline, `/wordle scan` pays missed days.',
-  },
   puzzle: {
     explain:
       'A new puzzle every day, announced in the puzzle channel. Open it, find the code and enter it with `/puzzle solve`. Harder puzzles pay more, and the first three solvers get a bonus (🥇 +15, 🥈 +10, 🥉 +5). You have 10 tries per day.',
-    admin: ['set', 'queue', 'remove', 'channel'],
-    tips: 'Use `/puzzle history` to replay old puzzles and `/puzzle leaderboard` to see the best solvers. Admins: setting a puzzle again for the same day replaces it but keeps its solvers.',
+    admin: ['set', 'queue', 'remove'],
+    tips: 'Use `/puzzle history` to replay old puzzles and `/leaderboard board:Puzzle` to see the best solvers. Admins: the puzzle channel is set with `/settings channels`; setting a puzzle again for the same day replaces it but keeps its solvers.',
   },
 
   // 🍹 Café & Bar
   drinks: {
     explain:
-      'Order a drink for yourself or gift one to a friend (with a note on the cup). Start typing in the `drink` option to search, e.g. "tea", "earl" or "beer". Each drink costs a few coins and is served with a picture.',
-    tips: 'See everything with `/drinks menu`, or just one section with `/drinks menu category:`. Buy a whole group a drink with `/drinks round`: everyone in your voice channel, everyone online or the whole server. 5+ people −10%, 10+ −20%, 20+ −30%. People at their daily limit are skipped and cost nothing.',
+      'Order a drink for yourself, gift one to a friend (with a note on the cup), or buy a whole round. Start typing in the `drink` option to search, e.g. "tea", "earl" or "beer". Each drink costs a few coins and is served with a picture.',
+    tips: 'See everything with `/drinks menu`, or just one section with `/drinks menu category:`. `/drinks round`: everyone in your voice channel, everyone online or the whole server; 5+ people −10%, 10+ −20%, 20+ −30%; people at their daily limit are skipped and cost nothing. Your drink stats: `/profile tab:Drinks`, rankings: `/leaderboard board:Drinks`.',
   },
 
   // ⚔️ Competition
@@ -271,16 +274,15 @@ const COMMANDS = {
   },
   duel: {
     explain:
-      'Challenge someone to rock-paper-scissors. Both bet the same amount, the winner takes both. Moves stay hidden until both have picked. Three ties in a row is a draw and both get their coins back.',
+      'Challenge someone to rock-paper-scissors: `/duel @someone bet:`. Both bet the same amount, the winner takes both. Moves stay hidden until both have picked. Three ties in a row is a draw and both get their coins back.',
+    tips: 'Your record: `/profile tab:Duels & fun`.',
   },
 
   // 🏅 Progress
   profile: {
     explain:
-      'Your stats in one place: coins and rank, puzzles, NestWord, tournaments, duels, drinks, pictures, achievements. The 🎬 Movies tab shows movies, series and anime you watched, movie nights, ratings and favorites (and your movie settings, only to you).',
-  },
-  achievements: {
-    explain: 'All achievements, which ones you have, and what the others need.',
+      'Everything about you (or someone else) in tabs: 📊 Overview, 🎮 Games (Puzzle, NestWord, Wordle app), 🍹 Drinks, ⚔️ Duels & fun (duels, tournaments, gags, nicknames), 🎬 Movies, 🏅 Achievements. Switch with the menu, or open one directly with `tab:`.',
+    tips: 'Your own 🎬 Movies tab also shows your movie settings, only to you.',
   },
 
   // 🤖 AI
@@ -303,23 +305,13 @@ const COMMANDS = {
     explain: 'Remove a gag early.',
     admin: ['*'],
   },
-  nickname: {
-    explain:
-      'Rename someone for a while: `/nickname set`, pick the time (10 min = 15 coins … 24 h = 300 coins). See who’s renamed with `/nickname status`. Renamed? `/nickname buyout` gets your name back for the same price.',
-    tips: 'Whoever paid (or an admin) can end it early with `/nickname reset`. You can’t rename someone who’s already renamed.',
-  },
 
   // 🎂 Social
   birthday: {
     explain:
       'Save your birthday. On the day NestBot congratulates you and gives you coins.',
-    admin: ['channel', 'announce'],
-    tips: 'Admins can also add and remove birthdays for others.',
-  },
-  pictracker: {
-    explain:
-      'Counts pictures posted in the picture channel. Every Monday the weekly leaderboard is posted and active posters get coins.',
-    admin: ['reset', 'setchannel'],
+    admin: ['announce'],
+    tips: 'Admins can also add and remove birthdays for others. The birthday channel is set with `/settings channels`.',
   },
 
   // 🎃 Halloween
@@ -350,7 +342,7 @@ const COMMANDS = {
   // 🛠️ Admin
   settings: {
     explain:
-      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). `free` makes everything you can buy free (drinks, shop, nicknames, AI extras, targeted wheel spins); coins can still be earned. `watch` sets up movie nights (#movies channel, room category, mod role, timings). `nicknames` switches paid nicknames on/off and decides whether everyone may change their own nickname. Without options, each shows the current state.',
+      'Server settings. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
     admin: ['*'],
   },
 

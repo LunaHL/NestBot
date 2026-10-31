@@ -9,7 +9,7 @@ module.exports = async function onMessage(message) {
     if (!message.guild) return;
 
     // 0. The Wordle app's daily results (posted by an app, so before the
-    //    "ignore bots" check). Only in the channel set with /wordle channel.
+    //    "ignore bots" check). Only in the channel set with /settings channels.
     if (message.author.bot) {
       await wordle.processMessage(message);
       return;

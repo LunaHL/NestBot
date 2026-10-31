@@ -7,6 +7,7 @@ const {
   ChannelType,
 } = require('discord.js');
 const { isAdmin, denyNonAdmin } = require('../utils/permissions');
+const db = require('../utils/db');
 const {
   getStreakMode,
   getSetting,
@@ -71,6 +72,67 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('channels')
+        .setDescription(
+          'Where NestBot posts things. Leave everything empty to see the current channels',
+        )
+        .addChannelOption(o =>
+          o
+            .setName('puzzle')
+            .setDescription('Daily puzzle announcement and solve notices')
+            .addChannelTypes(ChannelType.GuildText),
+        )
+        .addRoleOption(o =>
+          o
+            .setName('puzzle-ping')
+            .setDescription('Role pinged for new puzzles'),
+        )
+        .addChannelOption(o =>
+          o
+            .setName('wordle')
+            .setDescription('Where the Wordle app posts its daily results')
+            .addChannelTypes(ChannelType.GuildText),
+        )
+        .addChannelOption(o =>
+          o
+            .setName('birthdays')
+            .setDescription('Birthday announcements')
+            .addChannelTypes(ChannelType.GuildText),
+        )
+        .addChannelOption(o =>
+          o
+            .setName('pictures')
+            .setDescription('Weekly picture leaderboard')
+            .addChannelTypes(ChannelType.GuildText),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('tools')
+        .setDescription('One-off admin actions')
+        .addStringOption(o =>
+          o
+            .setName('action')
+            .setDescription('What to do')
+            .setRequired(true)
+            .addChoices(
+              {
+                name: '🟩 Wordle: pay results NestBot missed',
+                value: 'wordle-scan',
+              },
+              {
+                name: '📸 Pictures: reset this week’s count',
+                value: 'pictures-reset',
+              },
+              {
+                name: '🏷️ Nicknames: end all paid nicknames now',
+                value: 'nicknames-reset',
+              },
+            ),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('nicknames')
         .setDescription(
           'Paid nicknames and who may change their own nickname. Empty = show',
@@ -79,7 +141,7 @@ module.exports = {
           o
             .setName('paid')
             .setDescription(
-              'Allow /nickname (paid temporary nicknames). Off = all are reset now',
+              'Allow paid temporary nicknames in /shop. Off = all are reset now',
             ),
         )
         .addBooleanOption(o =>
@@ -88,6 +150,11 @@ module.exports = {
             .setDescription(
               'May everyone change their own nickname? (edits the @everyone role)',
             ),
+        )
+        .addUserOption(o =>
+          o
+            .setName('end-for')
+            .setDescription('End this person’s paid nickname now'),
         ),
     )
     .addSubcommand(sub =>
@@ -243,11 +310,153 @@ module.exports = {
       return interaction.reply({ embeds: [embed], flags: 64 });
     }
 
+    if (sub === 'channels') {
+      const o = interaction.options;
+      const puzzles = require('../services/puzzle');
+      const wordle = require('../services/wordle');
+      const { getWeekRange } = require('../services/pictracker');
+      const set = {
+        puzzle: o.getChannel('puzzle'),
+        ping: o.getRole('puzzle-ping'),
+        wordle: o.getChannel('wordle'),
+        birthdays: o.getChannel('birthdays'),
+        pictures: o.getChannel('pictures'),
+      };
+      if (set.puzzle || set.ping) {
+        const cur = puzzles.getSettings(guildId);
+        const channelId = set.puzzle?.id || cur.channelId;
+        if (channelId)
+          puzzles.setChannel(guildId, channelId, set.ping?.id ?? cur.roleId);
+      }
+      if (set.wordle) wordle.setChannel(guildId, set.wordle.id);
+      if (set.birthdays || set.pictures) {
+        db.perform(d => {
+          if (set.birthdays) {
+            d.birthdayChannels ||= {};
+            d.birthdayChannels[guildId] = set.birthdays.id;
+          }
+          if (set.pictures) {
+            d.pictracker ||= {};
+            d.pictracker[guildId] ||= { users: {}, ...getWeekRange() };
+            d.pictracker[guildId].channelId = set.pictures.id;
+          }
+        });
+      }
+      const show = id => (id ? `<#${id}>` : '– not set');
+      const pz = puzzles.getSettings(guildId);
+      const embed = new EmbedBuilder()
+        .setTitle('📌 Channels')
+        .setColor(0x5865f2)
+        .addFields(
+          {
+            name: '🧩 Puzzle',
+            value:
+              show(pz.channelId) +
+              (pz.roleId ? ` · pings <@&${pz.roleId}>` : ''),
+            inline: true,
+          },
+          {
+            name: '🟩 Wordle app',
+            value: show(wordle.getGuildData(guildId).channelId),
+            inline: true,
+          },
+          {
+            name: '🎂 Birthdays',
+            value: show(db.read(d => d.birthdayChannels?.[guildId])),
+            inline: true,
+          },
+          {
+            name: '📸 Pictures',
+            value: show(db.read(d => d.pictracker?.[guildId]?.channelId)),
+            inline: true,
+          },
+          {
+            name: '🍿 Movies',
+            value: `${show(getSetting(guildId, 'watchChannelId'))} (set with \`/settings watch\`)`,
+            inline: true,
+          },
+        )
+        .setFooter({
+          text: 'Change with /settings channels puzzle: wordle: birthdays: pictures:',
+        });
+      if (set.ping && !set.puzzle && !pz.channelId)
+        embed.setDescription(
+          '⚠️ Set a puzzle channel first, then the ping role.',
+        );
+      if (set.wordle)
+        embed.setDescription(
+          'Recent Wordle results there are paid within 30 minutes (or now with `/settings tools action:Wordle`).',
+        );
+      return interaction.reply({
+        embeds: [embed],
+        flags: 64,
+        allowedMentions: { parse: [] },
+      });
+    }
+
+    if (sub === 'tools') {
+      const action = interaction.options.getString('action');
+      if (action === 'wordle-scan') {
+        const wordle = require('../services/wordle');
+        if (!wordle.getGuildData(guildId).channelId) {
+          return interaction.reply({
+            content:
+              '❌ Set the Wordle channel first with `/settings channels wordle:`.',
+            flags: 64,
+          });
+        }
+        await interaction.deferReply({ flags: 64 });
+        const count = () =>
+          Object.keys(wordle.getGuildData(guildId).days || {}).length;
+        const before = count();
+        await wordle.catchUp(interaction.client);
+        const after = count();
+        return interaction.editReply(
+          after > before
+            ? `✅ Paid ${after - before} missed day(s).`
+            : '✅ Nothing missing. Every recent result was already paid.',
+        );
+      }
+      if (action === 'pictures-reset') {
+        const { getWeekRange } = require('../services/pictracker');
+        db.perform(d => {
+          d.pictracker ||= {};
+          d.pictracker[guildId] = {
+            users: {},
+            ...getWeekRange(),
+            channelId: d.pictracker[guildId]?.channelId || null,
+          };
+        });
+        return interaction.reply({
+          content: '✅ This week’s picture count is reset.',
+          flags: 64,
+        });
+      }
+      if (action === 'nicknames-reset') {
+        const n = await require('../services/nickname').restoreAll(
+          interaction.guild,
+        );
+        return interaction.reply({
+          content: `✅ Ended ${n} paid nickname${n === 1 ? '' : 's'}.`,
+          flags: 64,
+        });
+      }
+    }
+
     if (sub === 'nicknames') {
       const guild = interaction.guild;
       const paid = interaction.options.getBoolean('paid');
       const selfChange = interaction.options.getBoolean('self-change');
       const notes = [];
+      const endFor = interaction.options.getUser('end-for');
+      if (endFor) {
+        const nickname = require('../services/nickname');
+        notes.push(
+          (await nickname.restore(guild, endFor.id))
+            ? `✅ <@${endFor.id}> has their old name back.`
+            : `<@${endFor.id}> had no paid nickname.`,
+        );
+      }
 
       if (paid !== null) {
         setSetting(guildId, 'nicknamePranks', paid);
@@ -292,7 +501,7 @@ module.exports = {
         .setColor(0xff79c6)
         .addFields(
           {
-            name: 'Paid nicknames (/nickname)',
+            name: 'Paid nicknames (/shop)',
             value: on ? '✅ On: people can rename others for coins' : '❌ Off',
             inline: true,
           },

@@ -111,17 +111,6 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
-        .setName('channel')
-        .setDescription('Set the channel for birthday announcements')
-        .addChannelOption(opt =>
-          opt
-            .setName('channel')
-            .setDescription('The channel to post birthday messages in')
-            .setRequired(true),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub
         .setName('announce')
         .setDescription(
           "Manually check and announce today's birthdays (Admins only)",
@@ -306,27 +295,6 @@ module.exports = {
       }
     }
 
-    if (sub === 'channel') {
-      const admin = isAdmin(interaction);
-      if (!admin) {
-        return interaction.reply({
-          content: "You don't have permission to use this subcommand.",
-          flags: 64,
-        });
-      }
-
-      const channel = interaction.options.getChannel('channel');
-
-      db.perform(data => {
-        if (!data.birthdayChannels) data.birthdayChannels = {};
-        data.birthdayChannels[guildId] = channel.id;
-      });
-
-      return interaction.reply({
-        content: `✅ Birthday channel set to ${channel}`,
-        flags: 64,
-      });
-    }
     if (sub === 'announce') {
       const admin = isAdmin(interaction);
 
@@ -345,7 +313,7 @@ module.exports = {
         if (!channelId) {
           return interaction.reply({
             content:
-              '❌ No birthday channel set! Use `/birthday channel` first.',
+              '❌ No birthday channel set! Set one with `/settings channels birthdays:` first.',
             flags: 64,
           });
         }
