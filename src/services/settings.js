@@ -15,6 +15,8 @@ const DEFAULTS = {
   watchCheckpointMin: 30, // "where are you?" every N minutes (0 = off)
   watchAttendanceCoins: 0, // coins for checking in (0 = off)
   watchReminders: true, // reminder in #movies one day before
+  watchGroupCategoryId: null, // category for the permanent group channels (/group)
+  watchMaxGroups: 0, // groups one person may own (0 = unlimited)
   watchVoteMaxH: 168, // longest vote someone can start, in hours (vote until the start is always allowed)
 };
 

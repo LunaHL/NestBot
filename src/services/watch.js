@@ -18,6 +18,7 @@ const {
 const db = require('../utils/db');
 const tmdb = require('./tmdb');
 const watchlist = require('./watchlist');
+const groups = require('./groups');
 const nestcoins = require('./nestcoins');
 const { getSetting } = require('./settings');
 const { discordTime } = require('../utils/time');
@@ -97,11 +98,23 @@ function upcoming(guildId) {
     .sort((a, b) => a.startAt - b.startAt);
 }
 
+/** The group a night belongs to (or null for public nights). */
+const groupOf = n =>
+  n?.groupId ? groups.getGroup(n.guildId, n.groupId) : null;
+
+/** Is this night shown publicly (#movies card, calendar, Discord event)? */
+const isPublicNight = n => !n.groupId || !!groupOf(n)?.showInCalendar;
+
+/** Nights for the public calendar: no private group nights. */
+const calendarNights = guildId => upcoming(guildId).filter(isPublicNight);
+
 function nightByRoom(guildId, channelId) {
+  // A group channel can have a planned and a running night: prefer the running one
+  const order = { live: 0, open: 1, planned: 2 };
   return (
-    allNights(guildId).find(
-      n => n.roomId === channelId && ACTIVE.includes(n.status),
-    ) || null
+    allNights(guildId)
+      .filter(n => n.roomId === channelId && ACTIVE.includes(n.status))
+      .sort((a, b) => order[a.status] - order[b.status])[0] || null
   );
 }
 
@@ -431,7 +444,7 @@ const statusBadge = n =>
       : '';
 
 function calendarEmbed(guildId) {
-  const list = upcoming(guildId);
+  const list = calendarNights(guildId);
   const embed = new EmbedBuilder()
     .setColor(COLOR)
     .setTitle('🗓️ Upcoming watches');
@@ -457,7 +470,7 @@ function calendarEmbed(guildId) {
 }
 
 function calendarComponents(guildId) {
-  const list = upcoming(guildId);
+  const list = calendarNights(guildId);
   const rows = [];
   const buttons = list.slice(0, CALENDAR_BUTTONS).map(n => {
     const day = new Date(n.startAt).toLocaleDateString('en-US', {
@@ -611,9 +624,10 @@ async function createNight(
   member,
   details,
   startAt,
-  { now = false } = {},
+  { now = false, groupId = null } = {},
 ) {
   const guildId = guild.id;
+  const group = groupId ? groups.getGroup(guildId, groupId) : null;
   let night;
   db.perform(d => {
     d.watch ||= {};
@@ -626,7 +640,8 @@ async function createNight(
       startAt,
       createdBy: member.id,
       createdAt: Date.now(),
-      signups: [member.id],
+      groupId: group ? group.id : null,
+      signups: group ? [...group.members] : [member.id],
       members: [],
       status: 'planned',
       roomId: null,
@@ -638,7 +653,9 @@ async function createNight(
   });
   night = copy(night);
 
-  const channel = await moviesChannel(guild.client, guildId);
+  const channel = isPublicNight(night)
+    ? await moviesChannel(guild.client, guildId)
+    : null;
   if (channel) {
     const msg = await channel
       .send({ embeds: [cardEmbed(night)], components: cardButtons(night) })
@@ -646,7 +663,14 @@ async function createNight(
     if (msg)
       night = updateNight(guildId, night.id, x => (x.cardMessageId = msg.id));
   }
-  if (!now) {
+  if (group && !now) {
+    // Private groups: the card goes into the group channel instead
+    const gch = await fetchChannel(guild.client, group.channelId);
+    await gch
+      ?.send({ embeds: [cardEmbed(night)], allowedMentions: { parse: [] } })
+      .catch(() => {});
+  }
+  if (!now && isPublicNight(night)) {
     const eventId = await createEvent(guild, night);
     if (eventId)
       night = updateNight(guildId, night.id, x => (x.eventId = eventId));
@@ -654,7 +678,7 @@ async function createNight(
   if (now) {
     night = await openRoom(guild, night, { spontaneous: true });
     await startCheckin(guild.client, night);
-  } else {
+  } else if (!group) {
     await notifyWatchlists(guild, night);
   }
   await refreshCalendar(guild.client, guildId);
@@ -703,17 +727,21 @@ async function editNight(guild, id, changes) {
   return n;
 }
 
-async function cancelNight(guild, id, by) {
+async function cancelNight(guild, id, by, { silent = false } = {}) {
   const n = updateNight(guild.id, id, x => {
     x.status = 'cancelled';
     x.endedAt = Date.now();
   });
   await deleteEvent(guild, n);
-  if (n.roomId) {
+  if (n.roomId && !n.groupId) {
     const room = await fetchChannel(guild.client, n.roomId);
     await room?.delete('Movie night cancelled').catch(() => {});
   }
-  const channel = await moviesChannel(guild.client, guild.id);
+  const channel = silent
+    ? null
+    : n.groupId
+      ? await fetchChannel(guild.client, groupOf(n)?.channelId)
+      : await moviesChannel(guild.client, guild.id);
   if (channel) {
     await channel
       .send({
@@ -754,6 +782,8 @@ async function revokeRoom(guild, n, userId) {
 async function toggleSignup(guild, id, userId) {
   const before = getNight(guild.id, id);
   if (!before || !ACTIVE.includes(before.status)) return { error: 'gone' };
+  if (before.groupId && !groupOf(before)?.members.includes(userId))
+    return { error: 'private' };
   const joined = !before.signups.includes(userId);
   const n = updateNight(guild.id, id, x => {
     if (joined) {
@@ -779,6 +809,8 @@ async function enterRoom(guild, id, userId) {
   const n0 = getNight(guild.id, id);
   if (!n0 || !n0.roomId || !['open', 'live'].includes(n0.status))
     return { error: 'closed' };
+  if (n0.groupId && !groupOf(n0)?.members.includes(userId))
+    return { error: 'private' };
   const already = n0.members.includes(userId);
   const n = updateNight(guild.id, id, x => {
     if (!x.members.includes(userId)) x.members.push(userId);
@@ -808,6 +840,29 @@ async function enterRoom(guild, id, userId) {
 
 /** Create the private room, let the signed-up people in and announce it. */
 async function openRoom(guild, n, { spontaneous = false } = {}) {
+  // Groups watch in their own permanent channel: no temporary room
+  const group = groupOf(n);
+  if (group) {
+    n = updateNight(guild.id, n.id, x => {
+      x.status = 'open';
+      x.roomId = group.channelId;
+      x.members = [...new Set([...group.members, ...x.signups])];
+    });
+    const gch = await fetchChannel(guild.client, group.channelId);
+    await gch
+      ?.send({
+        content:
+          (n.vote?.open
+            ? `🗳️ **Vote what you watch ${discordTime(n.startAt, 'R')}!**`
+            : `🍿 **${emojiOf(n)} ${fullTitle(n)}** ${spontaneous ? 'starts now' : `starts ${discordTime(n.startAt, 'R')}`}!`) +
+          `\n${n.members.map(u => `<@${u}>`).join(' ')}`,
+        allowedMentions: { users: n.members },
+      })
+      .catch(() => {});
+    await refreshAll(guild.client, n);
+    return n;
+  }
+
   const s = settingsOf(guild.id);
   const me = guild.client.user.id;
   let room;
@@ -1423,7 +1478,20 @@ async function refreshVote(client, n) {
 
 /** Add titles from the signed-up people's watchlists (keeps everything else). */
 async function addAutoOptions(client, n) {
-  const matches = watchlist.match(n.guildId, n.signups).slice(0, 10);
+  let matches = watchlist.match(n.guildId, n.signups).slice(0, 10);
+  const group = groupOf(n);
+  if (group) {
+    // The group's shared list first, most 👍 first
+    const shared = groups
+      .listItems(group)
+      .filter(i => i.status !== 'watched')
+      .slice(0, 15)
+      .map(i => ({ ...i, count: i.votes.length }));
+    matches = [
+      ...shared,
+      ...matches.filter(m => !shared.some(x => x.key === m.key)),
+    ].slice(0, 20);
+  }
   const updated = updateNight(n.guildId, n.id, x => {
     if (!x.vote?.open) return;
     for (const m of matches) {
@@ -1767,6 +1835,7 @@ function confirmWatched(guildId, n, userId, yes) {
     return { key };
   }
   const eps = episodesOf(n, userId);
+  if (n.groupId && n.kind !== 'tv') groups.markWatched(guildId, n.groupId, key);
   watchlist.markWatched(guildId, userId, nightFields(n), {
     watchedWith: watchers(n),
     progress: n.kind === 'tv' && eps.length ? eps[eps.length - 1] : null,
@@ -1803,7 +1872,10 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
   if (!n) return null;
   await deleteEvent(guild, n);
 
-  const channel = await moviesChannel(guild.client, guild.id);
+  // Summary: #movies for public nights, the group channel for group nights
+  const channel = n.groupId
+    ? await fetchChannel(guild.client, groupOf(n)?.channelId)
+    : await moviesChannel(guild.client, guild.id);
   if (channel) {
     const watched = watchers(n);
     const missed = n.session.missed || [];
@@ -1879,7 +1951,7 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
   }
   addPendingFor(n);
 
-  if (n.roomId) {
+  if (n.roomId && !n.groupId) {
     const room = await fetchChannel(guild.client, n.roomId);
     await room
       ?.delete(
@@ -1913,7 +1985,9 @@ async function schedulerTick(client) {
         n.startAt - now > 90 * 60000
       ) {
         updateNight(guildId, n.id, x => (x.remindedDay = true));
-        const channel = await moviesChannel(client, guildId);
+        const channel = n.groupId
+          ? await fetchChannel(client, groupOf(n)?.channelId)
+          : await moviesChannel(client, guildId);
         await channel
           ?.send({
             content: `⏰ **Tomorrow:** ${emojiOf(n)} **${fullTitle(n)}** ${discordTime(n.startAt, 'R')}. Not signed up yet? Use the calendar!\n${n.signups.map(u => `<@${u}>`).join(' ')}`,

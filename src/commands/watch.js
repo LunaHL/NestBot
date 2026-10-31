@@ -6,6 +6,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const watch = require('../services/watch');
 const tmdb = require('../services/tmdb');
 const wl = require('../services/watchlist');
+const groups = require('../services/groups');
 const { zonedToUtc, discordTime, TZ } = require('../utils/time');
 
 const DATE_SUGGESTIONS = 21; // days offered in the date autocomplete
@@ -264,6 +265,8 @@ async function handleComponent(interaction) {
 
   if (action === 'signup' || action === 'signupmenu') {
     const r = await watch.toggleSignup(guild, id, userId);
+    if (r.error === 'private')
+      return interaction.editReply('🔒 This is a private group movie night.');
     if (r.error)
       return interaction.editReply(
         '❌ This movie night is no longer available.',
@@ -282,6 +285,8 @@ async function handleComponent(interaction) {
 
   if (action === 'enter') {
     const r = await watch.enterRoom(guild, id, userId);
+    if (r.error === 'private')
+      return interaction.editReply('🔒 This is a private group movie night.');
     if (r.error) return interaction.editReply('❌ This room is closed.');
     return interaction.editReply(
       `🚪 ${r.already ? "You're already in" : "You're in"}: <#${r.night.roomId}>`,
@@ -775,8 +780,17 @@ module.exports = {
       );
     }
 
-    // Planning needs the #movies channel
-    if (!s.channelId) {
+    // Used inside a group channel? Then it's a private group movie night
+    const group = groups.groupByChannel(
+      interaction.guildId,
+      interaction.channelId,
+    );
+    if (group && !group.members.includes(interaction.user.id)) {
+      return interaction.reply(ephemeral('❌ You are not in this group.'));
+    }
+
+    // Public movie nights need the #movies channel
+    if (!group && !s.channelId) {
       return interaction.reply(
         ephemeral(
           '⚙️ Movie nights aren’t set up yet. An admin needs to set the #movies channel with `/settings watch channel:`.',
@@ -786,7 +800,7 @@ module.exports = {
 
     // ---------- plan / now ----------
     if (sub === 'plan' || sub === 'now') {
-      if (!watch.canPlan(member, interaction.guildId)) {
+      if (!group && !watch.canPlan(member, interaction.guildId)) {
         return interaction.reply(
           ephemeral('❌ You’re not allowed to plan movie nights here.'),
         );
@@ -818,6 +832,7 @@ module.exports = {
         ? await watch.resolveTitle(title, {
             ...seriesValues(o),
             guildId: interaction.guildId,
+            scope: group ? group.id : 'server',
           })
         : {
             title: watch.VOTE_TITLE,
@@ -831,6 +846,7 @@ module.exports = {
           };
       let n = await watch.createNight(guild, member, details, startAt, {
         now: sub === 'now',
+        groupId: group ? group.id : null,
       });
       if (voteFor) {
         n = await watch.startVote(guild, n.id, voteFor);
@@ -843,14 +859,16 @@ module.exports = {
       if (sub === 'now') {
         return interaction.editReply(
           n.roomId
-            ? `🍿 **${watch.fullTitle(n)}** starts now! Your room: <#${n.roomId}>. Others can join from <#${s.channelId}>.`
+            ? `🍿 **${watch.fullTitle(n)}** starts now! ${group ? 'Check in above.' : `Your room: <#${n.roomId}>. Others can join from <#${s.channelId}>.`}`
             : '❌ I couldn’t create the room. Check that I may manage channels.',
         );
       }
       return interaction.editReply(
         (details.continued ? `▶️ Continuing where you left off.\n` : '') +
           `✅ Planned ${watch.emojiOf(n)} **${watch.fullTitle(n)}** for ${discordTime(n.startAt, 'F')}.\n` +
-          `The card is in <#${s.channelId}>; the room opens ${s.opensMin} minutes before the start.` +
+          (group
+            ? `It runs right here in the group channel; you'll get a ping ${s.opensMin} minutes before.`
+            : `The card is in <#${s.channelId}>; the room opens ${s.opensMin} minutes before the start.`) +
           (n.info || !tmdb.isEnabled()
             ? ''
             : '\n💡 Tip: pick the title from the list to get poster, length and streaming info.'),

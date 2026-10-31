@@ -32,6 +32,7 @@ used. Members who already qualify get it the next time they do something.
 | `watch.js` | Movie nights: planning, the calendar in #movies, Discord events, private rooms, check-in, countdown, the live clock, pauses, checkpoints, reminders and auto-close |
 | `watchlist.js` | Everyone's watchlist and movie settings: items, privacy, "did you watch it?" confirmations, ratings, matches, Top 10, stats |
 | `tmdb.js` | Talks to TMDB: search (movies, series, anime), details, episodes, where to stream per country. Needs `TMDB_TOKEN`; without it titles are plain text |
+| `groups.js` | Watch groups: permanent private channels, members and owner, shared watchlist with 👍 votes |
 | `halloween.js` | Trick-or-treat outcomes, daily tries, the October 31 announcement |
 
 ## Background jobs

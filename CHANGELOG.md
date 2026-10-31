@@ -5,6 +5,7 @@
 **New**
 - 🍿 Movie nights, step 1 (`/watch`): plan or start movies, series and anime (info from TMDB), calendar in #movies with sign-up buttons, Discord events, reminders, private rooms that open 1 h before (anyone can still join), check-in with countdown, a shared live clock, pause for everyone, `/watch sync`, checkpoints, summary when it ends, rooms close themselves after 24 h
 - 🛠️ `/settings watch` for admins
+- 💞 Groups (`/group`): couples and fixed groups get a permanent private channel, a shared watchlist with 👍 votes and "up next", and their own series progress; `/watch now`/`plan` inside the group channel; private unless `/group calendar`; admins set the category and an optional limit per person
 - 📺 Series & anime: ⏭️ next episode (also across seasons), 🛑 stop here, continue where you left off, `absolute:` episode numbers for long anime, per-person episodes on the watchlist; movie series show "part 2 of 3" and the next part
 - 🗳️ Votes: plan without a title or use `/watch vote`; options from everyone's watchlists plus `/watch suggest`, pick as many as you like, winner set automatically (ties: the wheel); duration up to `/settings watch vote-max` or until the start
 - 📝 Watchlists (`/watchlist`): public by default, private per entry or for the whole list; "✅ mark as watched?" after movie nights (with ⚠️ I missed part), ⭐ ratings, `/watchlist pending`, your own country and streaming services, DM when your titles get planned, `/watchlist match`, `/watch history`, `/watch top`

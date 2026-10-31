@@ -124,7 +124,7 @@ function valueFor(option) {
   }
 }
 
-function fakeInteraction(commandName, sub, options = []) {
+function fakeInteraction(commandName, sub, options = [], group = null) {
   const values = Object.fromEntries(options.map(o => [o.name, valueFor(o)]));
   const i = {
     id: `i${Math.random()}`,
@@ -148,7 +148,7 @@ function fakeInteraction(commandName, sub, options = []) {
     deferred: false,
     options: {
       getSubcommand: () => sub,
-      getSubcommandGroup: () => null,
+      getSubcommandGroup: () => group,
       getString: k => values[k] ?? null,
       getInteger: k => values[k] ?? null,
       getNumber: k => values[k] ?? null,
@@ -201,13 +201,18 @@ console.log = () => {}; // keep the output short
   for (const cmd of commands) {
     const json = cmd.data.toJSON();
     const subs = (json.options || []).filter(o => o.type === 1);
-    const runs = subs.length
-      ? subs.map(s => [s.name, s.options || []])
-      : [[null, json.options || []]];
-    for (const [sub, options] of runs) {
+    const subGroups = (json.options || []).filter(o => o.type === 2);
+    const runs = [
+      ...subs.map(x => [x.name, x.options || [], null]),
+      ...subGroups.flatMap(g =>
+        (g.options || []).map(x => [x.name, x.options || [], g.name]),
+      ),
+    ];
+    if (!runs.length) runs.push([null, json.options || [], null]);
+    for (const [sub, options, group] of runs) {
       count++;
       try {
-        await cmd.execute(fakeInteraction(json.name, sub, options));
+        await cmd.execute(fakeInteraction(json.name, sub, options, group));
       } catch (e) {
         problems.push(
           `/${json.name} ${sub || ''}: ${e.constructor.name}: ${e.message}`,
@@ -221,8 +226,12 @@ console.log = () => {}; // keep the output short
   for (const cmd of commands.filter(c => c.autocomplete)) {
     const json = cmd.data.toJSON();
     const subs = (json.options || []).filter(o => o.type === 1);
-    const targets = subs.length
-      ? subs.flatMap(sub =>
+    const groupSubs = (json.options || [])
+      .filter(o => o.type === 2)
+      .flatMap(g => g.options || []);
+    const allSubs = [...subs, ...groupSubs];
+    const targets = allSubs.length
+      ? allSubs.flatMap(sub =>
           (sub.options || [])
             .filter(o => o.autocomplete)
             .map(o => [sub.name, o.name]),
@@ -242,6 +251,8 @@ console.log = () => {}; // keep the output short
           locale: 'de',
           options: {
             getSubcommand: () => sub,
+            getSubcommandGroup: () => null,
+            getString: () => null,
             getFocused: full => (full ? { name: option, value: 'co' } : 'co'),
           },
           respond: async () => {},

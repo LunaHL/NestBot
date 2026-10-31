@@ -145,6 +145,23 @@ module.exports = {
             .setName('reminders')
             .setDescription('Reminder in #movies one day before (default on)'),
         )
+        .addChannelOption(o =>
+          o
+            .setName('group-category')
+            .setDescription(
+              'Category for the permanent group channels (/group)',
+            )
+            .addChannelTypes(ChannelType.GuildCategory),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('max-groups')
+            .setDescription(
+              'Groups one person may own, 0 = unlimited (default 0)',
+            )
+            .setMinValue(0)
+            .setMaxValue(50),
+        )
         .addIntegerOption(o =>
           o
             .setName('vote-max')
@@ -220,6 +237,8 @@ module.exports = {
         watchAttendanceCoins: o.getInteger('attendance-coins'),
         watchReminders: o.getBoolean('reminders'),
         watchVoteMaxH: o.getInteger('vote-max'),
+        watchGroupCategoryId: o.getChannel('group-category')?.id,
+        watchMaxGroups: o.getInteger('max-groups'),
       };
       let changed = 0;
       for (const [key, value] of Object.entries(changes)) {
@@ -300,6 +319,16 @@ module.exports = {
           {
             name: 'Longest vote',
             value: `${g('watchVoteMaxH')} h`,
+            inline: true,
+          },
+          {
+            name: 'Group category',
+            value: show(g('watchGroupCategoryId')),
+            inline: true,
+          },
+          {
+            name: 'Groups per person',
+            value: g('watchMaxGroups') ? `${g('watchMaxGroups')}` : 'unlimited',
             inline: true,
           },
         )

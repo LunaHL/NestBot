@@ -89,7 +89,7 @@ const CATEGORIES = [
     name: 'Movie nights',
     intro:
       'Watch movies, series and anime together, each on your own device: NestBot keeps everyone in sync. No voice channel needed.',
-    commands: ['watch', 'watchlist'],
+    commands: ['watch', 'watchlist', 'group'],
     features: [
       {
         name: '🗓️ Plan & sign up',
@@ -106,6 +106,10 @@ const CATEGORIES = [
       {
         name: '📝 Watchlists',
         text: 'Everyone has a watchlist (`/watchlist add`): public by default, single entries can be private. After a movie night you get a **✅ mark as watched?** and can rate it ⭐1–5. `/watchlist match` shows what you all want to watch.',
+      },
+      {
+        name: '💞 Groups',
+        text: 'Couples and fixed groups get their own private channel with `/group create`, a shared watchlist with 👍 votes, and their own series progress. `/watch now` or `/watch plan` inside the group channel runs the movie night right there. Admins can technically see every channel; mute the group category if it pings you.',
       },
       {
         name: '▶️ Watching in sync',
@@ -322,6 +326,12 @@ const COMMANDS = {
     explain:
       'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. Public by default; make the whole list or single entries 🔒 private. Set your country and streaming services so "where can I watch it?" fits you.',
     tips: 'Movie nights ask you "mark as watched?" at the end; forgot? `/watchlist pending`. Turn on `/watchlist settings notify:` to get a DM when something from your list is planned.',
+  },
+
+  group: {
+    explain:
+      'Watch groups and couples: your own permanent private channel, a shared watchlist with 👍 votes ("up next"), and series that continue where your group stopped. Use `/watch now` or `/watch plan` inside the group channel.',
+    tips: 'The owner adds and removes people; anyone can leave. Group movie nights stay private unless the owner turns on `/group calendar`.',
   },
 
   // 🛠️ Admin

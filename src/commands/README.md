@@ -151,6 +151,15 @@ from the command files, so they're always current.
 | | `/watch plan` without a title, or `/watch vote` | 🗳️ Vote on what to watch: the room opens right away, options come from the watchlists of everyone signed up, the winner is set automatically (ties: the wheel). Duration: 1 h … 7 days or until the start |
 | | `/watch suggest` | In the room: add a title to the running vote |
 
+| `group.js` | `/group create` | Your own permanent private channel for a couple or a fixed group (no size limit; `/settings watch max-groups` limits how many one person may own) |
+| | `/group add` / `kick` (owner) · `leave` · `delete` (owner or admins, asks first) · `rename` · `list` | Manage it. If the owner leaves, the next member becomes owner |
+| | `/group watchlist add` / `remove` / `show` / `seen` / `next` | Shared watchlist with 👍 votes; "up next" = most 👍; start watching straight from the list |
+| | `/group calendar` | Show the group's movie nights in the public calendar (only members can join) |
+
+`/watch now` and `/watch plan` **inside a group channel** run the movie night
+right there (no temporary room, nothing in #movies), with the group's own
+series progress; a vote there uses the shared watchlist first.
+
 **Series and anime:** pick season/episode, or `absolute:` for long anime
 ("episode 1050"), or nothing to **continue where the server stopped last
 time**. After each episode: **⏭️ Next** (also into the next season) or
