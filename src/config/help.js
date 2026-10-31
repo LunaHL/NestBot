@@ -31,7 +31,7 @@ const CATEGORIES = [
         // Shown live: depends on /settings free
         text: guildId =>
           isFreeMode(guildId)
-            ? '**Active right now:** drinks, shop items, AI extras and targeted wheel spins cost nothing. You still earn coins as usual.'
+            ? '**Active right now:** drinks and rounds, shop items, nicknames, AI extras and targeted wheel spins cost nothing. You still earn coins as usual.'
             : 'Admins can make everything you can buy free for a while with `/settings free`.',
       },
       {
@@ -157,9 +157,17 @@ const CATEGORIES = [
     id: 'fun',
     emoji: '🔇',
     name: 'Fun moderation',
-    intro: 'Playful punishments: the wheel and gags.',
-    commands: ['wheel', 'ungag'],
+    intro: 'Playful punishments: the wheel, gags and paid nicknames.',
+    commands: ['wheel', 'nickname', 'ungag'],
     features: [
+      {
+        name: '🏷️ Paid nicknames',
+        text: 'Pay coins to rename someone for 10 minutes up to a whole day. More coins, more time. They can buy themselves out for the same price; afterwards NestBot gives the old name back. Admins can switch it off with `/settings nicknames`.',
+      },
+      {
+        name: '✨ Effects',
+        text: 'Shop items and wheel entries can **gag** (🔇) or **rename** (🏷️) their target automatically. Admins pick the effect when adding them.',
+      },
       {
         name: '🔇 Gags',
         text: 'A gagged member’s messages are replaced with garbled “mmph” versions until the gag runs out. Spamming while gagged doubles the time. Gags come from shop items, the wheel and Halloween tricks.',
@@ -215,9 +223,9 @@ const COMMANDS = {
   leaderboard: { explain: 'The richest members of the Nest.' },
   shop: {
     explain:
-      'Buy items with NestCoins. Some items have effects, like gagging another member.',
-    admin: ['add', 'remove'],
-    tips: 'Admins: an item gags its target when its description contains `[effect:gag;duration:300]` (seconds).',
+      'Look around with `/shop browse` and buy from the menu. Items with an effect (🔇 gag, 🏷️ nickname) ask who it’s for, then you confirm.',
+    admin: ['add', 'edit', 'remove'],
+    tips: 'Admins: `/shop add` has `effect`, `minutes` and `nickname` options, and an `emoji` for the item.',
   },
   gamble: {
     explain: 'Bet 5 coins on the Nest Roulette. Feeling lucky?',
@@ -252,7 +260,7 @@ const COMMANDS = {
   drinks: {
     explain:
       'Order a drink for yourself or gift one to a friend (with a note on the cup). Start typing in the `drink` option to search, e.g. "tea", "earl" or "beer". Each drink costs a few coins and is served with a picture.',
-    tips: 'See everything with `/drinks menu`, or just one section with `/drinks menu category:`.',
+    tips: 'See everything with `/drinks menu`, or just one section with `/drinks menu category:`. Buy a whole group a drink with `/drinks round`: everyone in your voice channel, everyone online or the whole server. 5+ people −10%, 10+ −20%, 20+ −30%. People at their daily limit are skipped and cost nothing.',
   },
 
   // ⚔️ Competition
@@ -288,12 +296,17 @@ const COMMANDS = {
   // 🔇 Fun
   wheel: {
     explain:
-      'Spin the punishment wheel. Spinning for yourself is free; spinning for someone else costs coins. Some entries gag the target.',
+      'Spin the punishment wheel. Spinning for yourself is free; spinning for someone else costs coins. Some entries gag (🔇) or rename (🏷️) the target.',
     admin: ['add', 'remove'],
   },
   ungag: {
     explain: 'Remove a gag early.',
     admin: ['*'],
+  },
+  nickname: {
+    explain:
+      'Rename someone for a while: `/nickname set`, pick the time (10 min = 15 coins … 24 h = 300 coins). See who’s renamed with `/nickname status`. Renamed? `/nickname buyout` gets your name back for the same price.',
+    tips: 'Whoever paid (or an admin) can end it early with `/nickname reset`. You can’t rename someone who’s already renamed.',
   },
 
   // 🎂 Social
@@ -337,7 +350,7 @@ const COMMANDS = {
   // 🛠️ Admin
   settings: {
     explain:
-      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). `free` makes everything you can buy free (drinks, shop, AI extras, targeted wheel spins); coins can still be earned. `watch` sets up movie nights (#movies channel, room category, mod role, timings). Without options, each shows the current state.',
+      'Server settings. `streak` switches how Puzzle and NestWord streaks are rewarded: the new capped bonus (+10% per day, max +50%, milestones) or the old multiplier (reward × streak days, no limit). `free` makes everything you can buy free (drinks, shop, nicknames, AI extras, targeted wheel spins); coins can still be earned. `watch` sets up movie nights (#movies channel, room category, mod role, timings). `nicknames` switches paid nicknames on/off and decides whether everyone may change their own nickname. Without options, each shows the current state.',
     admin: ['*'],
   },
 

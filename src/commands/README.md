@@ -21,8 +21,9 @@ replies and embeds. The real work (coins, stats, saving) is in
 | | `/balance grant` 🔒 / `remove` 🔒 | Add or take coins |
 | `leaderboard.js` | `/leaderboard` | Richest members |
 | `gamble.js` | `/gamble` | Bet 5 coins on the Nest Roulette |
-| `shop.js` | `/shop list` / `buy` | Browse and buy items |
-| | `/shop add` 🔒 / `remove` 🔒 | Manage items. An item can gag someone: put `[effect:gag;duration:300]` (seconds) in its description |
+| `shop.js` | `/shop browse` | The shop as a card with a buy menu: pick an item → (items with an effect: pick the target) → confirm |
+| | `/shop buy` | Buy directly (`item` with search while typing, `target` for items with an effect) |
+| | `/shop add` 🔒 / `edit` 🔒 / `remove` 🔒 | Manage items: name, price, emoji, description and an optional effect (🔇 gag / 🏷️ nickname, `minutes`, `nickname`). Old items with `[effect:gag;…]` in the text are converted automatically |
 | `lootdrop.js` | `/drop status` 🔒 | Loot drop status. Drops themselves happen automatically 3–8 times a day |
 | | `/drop blacklist` 🔒 | Turn drops off/on for a channel |
 
@@ -61,6 +62,7 @@ posted after midnight (`services/scoreboard.js`).
 | `drinks.js` | `/drinks menu` | All drinks and prices, or one section (`category:`) |
 | | `/drinks order` | Buy yourself a drink (with picture and maybe latte art). The drink is chosen by typing: "tea", "earl", "beer" … |
 | | `/drinks gift` | Buy someone a drink, with an optional note |
+| | `/drinks round` | 🍻 Buy a round: everyone in your voice channel (default), everyone online or everyone on the server. Preview with price first, then confirm. 5+ −10%, 10+ −20%, 20+ −30%, max 50 people; people at their limit are skipped and cost nothing. Online/everyone need the Server Members + Presence intents |
 | | `/drinks stats` / `leaderboard` | Drinks per category, today's limits, streak, favorite, most drinks |
 
 Sections: ☕ coffee, 🫖 tea (5 black teas), 🍫 hot chocolate, 🍹 cocktails,
@@ -105,10 +107,12 @@ Chatting with `@NestBot` isn't a command; it's handled in
 
 | File | Command | What it does |
 |---|---|---|
-| `wheel.js` | `/wheel spin` | Spin the punishment wheel (on someone else: costs coins) |
+| `wheel.js` | `/wheel spin` | Shows the wheel, then a 🎡 Spin button with a short animation (on someone else: costs coins). Only whoever opened it can spin |
 | | `/wheel list` | All entries |
-| | `/wheel add` 🔒 / `remove` 🔒 | Manage entries. An entry can gag: add `[effect:gag;duration:120]` |
+| | `/wheel add` 🔒 / `remove` 🔒 | Manage entries, with an optional effect (🔇 gag / 🏷️ nickname). The wheel is now per server; the old shared list moves into the first server that uses it |
 | `ungag.js` | `/ungag` 🔒 | Remove someone's gag |
+| `nickname.js` | `/nickname set` | Rename someone for 10 min … 24 h (15 … 300 coins). The old nickname comes back automatically |
+| | `/nickname status` / `buyout` / `reset` | Who's renamed until when; buy yourself out for the same price; whoever paid or an admin ends it early |
 
 ## 🎂 Social
 
@@ -136,7 +140,8 @@ from the command files, so they're always current.
 |---|---|---|
 | `settings.js` | `/settings streak` 🔒 | Switch how Puzzle and NestWord streaks are rewarded: **new** (+10% per day, max +50%, milestones) or **old** (reward × streak days, no limit). Without `mode` it shows the current one and a comparison table |
 | | `/settings watch` 🔒 | Movie nights: #movies channel, room category, mod role, who may plan, when rooms open, auto-close, checkpoints, check-in coins, reminders |
-| | `/settings free` 🔒 | **Free mode** on/off: drinks, shop items, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
+| | `/settings free` 🔒 | **Free mode** on/off: drinks and rounds, shop items, nicknames, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
+| | `/settings nicknames` 🔒 | `paid`: paid nicknames on/off (off resets all running ones). `self-change`: may everyone change their own nickname (edits the @everyone role; lists other roles that still allow it) |
 
 ## 🍿 Movie nights
 

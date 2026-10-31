@@ -25,6 +25,10 @@ used. Members who already qualify get it the next time they do something.
 | `memory.js` | The facts members save with `/memory` (max 10 each, max 150 characters) |
 | `drinks.js` | Café & bar logic: serving, charging, daily limits (caffeine, alcohol, total), streaks, drink stats, the search while typing |
 | `drinkArt.js` | Finds the right picture in `assets/drink-art/` for a drink and latte art |
+| `shop.js` | Shop items (name, emoji, price, description, effect), buying. Converts items from the old shop automatically |
+| `wheel.js` | Wheel entries per server, spinning, `PRICE_TARGETED_SPIN`. Moves the old shared wheel list into the first server |
+| `effects.js` | What shop items and wheel entries can do: 🔇 gag, 🏷️ nickname. Add a new effect here and it appears in the shop and the wheel |
+| `nickname.js` | Paid temporary nicknames: prices, renaming, giving the old name back when the time is up (job every minute), stats |
 | `gag.js` | Gagging: who is gagged and until when, garbling text, and handling messages of gagged members (delete, repost garbled, double the gag on spam) |
 | `puzzle.js` | Puzzle of the Day: setting (with date/link checks), solving (tries limit, first-solver bonus), queue, leaderboard, the puzzle card and the daily announcement in the puzzle channel. Rewards and limits are at the top of the file |
 | `settings.js` | Server settings changed with `/settings` (streak mode, free mode), stored per server |

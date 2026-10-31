@@ -1,37 +1,24 @@
+// /ungag: admins take a gag off early.
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { isAdmin } = require('../utils/permissions');
+const { isAdmin, denyNonAdmin } = require('../utils/permissions');
 const gag = require('../services/gag');
+const ui = require('../utils/ui');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ungag')
-    .setDescription('Remove gag from a user (admin only).')
+    .setDescription('Take a gag off someone (admins)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addUserOption(option =>
-      option
-        .setName('target')
-        .setDescription('User to ungag')
-        .setRequired(true),
+    .addUserOption(o =>
+      o.setName('target').setDescription('Who').setRequired(true),
     ),
 
   async execute(interaction) {
-    const guildId = interaction.guildId;
-
-    // Safety: in case permissions aren’t enforced by Discord for some reason
-    const admin = isAdmin(interaction);
-    if (!admin) {
-      return interaction.reply({
-        content: "You don't have permission to use this command.",
-        flags: 64,
-      });
-    }
-
+    if (!isAdmin(interaction)) return denyNonAdmin(interaction);
     const target = interaction.options.getUser('target');
-    gag.ungagUser(guildId, target.id);
-
-    return interaction.reply({
-      content: `✅ Ungagged <@${target.id}>.`,
-      flags: 64,
-    });
+    if (!gag.isGagged(interaction.guildId, target.id))
+      return interaction.reply(ui.info(`<@${target.id}> isn’t gagged.`));
+    gag.ungagUser(interaction.guildId, target.id);
+    return interaction.reply(ui.ok(`<@${target.id}> can talk again.`));
   },
 };

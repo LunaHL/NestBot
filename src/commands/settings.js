@@ -71,6 +71,27 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('nicknames')
+        .setDescription(
+          'Paid nicknames and who may change their own nickname. Empty = show',
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('paid')
+            .setDescription(
+              'Allow /nickname (paid temporary nicknames). Off = all are reset now',
+            ),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('self-change')
+            .setDescription(
+              'May everyone change their own nickname? (edits the @everyone role)',
+            ),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('watch')
         .setDescription(
           'Movie nights. Leave everything empty to see the current settings',
@@ -212,7 +233,7 @@ module.exports = {
           (free
             ? 'Everything you can buy costs **0 coins**. Coins can still be earned as usual.'
             : 'Everything costs its normal price.') +
-            '\n\n**Affected:** 🍹 drinks, 🛍️ shop items, 🤖 AI roast / compliment / poem / mood, 🎡 targeted wheel spins' +
+            '\n\n**Affected:** 🍹 drinks and rounds, 🛍️ shop items, 🏷️ nicknames, 🤖 AI roast / compliment / poem / mood, 🎡 targeted wheel spins' +
             '\n**Not affected:** 🎲 gamble and 🤺 duel bets (free bets would create coins from nothing), 💸 transfers' +
             (chosen === null
               ? ''
@@ -220,6 +241,86 @@ module.exports = {
         )
         .setFooter({ text: 'Switch with /settings free enabled:' });
       return interaction.reply({ embeds: [embed], flags: 64 });
+    }
+
+    if (sub === 'nicknames') {
+      const guild = interaction.guild;
+      const paid = interaction.options.getBoolean('paid');
+      const selfChange = interaction.options.getBoolean('self-change');
+      const notes = [];
+
+      if (paid !== null) {
+        setSetting(guildId, 'nicknamePranks', paid);
+        if (!paid) {
+          const n = await require('../services/nickname').restoreAll(guild);
+          if (n)
+            notes.push(
+              `Reset ${n} running paid nickname${n === 1 ? '' : 's'}.`,
+            );
+        }
+      }
+      const everyone = guild.roles.everyone;
+      if (selfChange !== null) {
+        const perms = selfChange
+          ? everyone.permissions.add(PermissionFlagsBits.ChangeNickname)
+          : everyone.permissions.remove(PermissionFlagsBits.ChangeNickname);
+        try {
+          await everyone.setPermissions(
+            perms,
+            `/settings nicknames by ${interaction.user.tag}`,
+          );
+        } catch (e) {
+          notes.push(`⚠️ I couldn't edit @everyone: ${e.message}`);
+        }
+      }
+      const canSelf = everyone.permissions.has(
+        PermissionFlagsBits.ChangeNickname,
+      );
+      // Other roles that still let people change their own nickname
+      const others = [...guild.roles.cache.values()]
+        .filter(
+          r =>
+            r.id !== everyone.id &&
+            !r.managed &&
+            r.permissions.has(PermissionFlagsBits.ChangeNickname),
+        )
+        .map(r => `<@&${r.id}>`);
+
+      const on = !!getSetting(guildId, 'nicknamePranks');
+      const embed = new EmbedBuilder()
+        .setTitle('🏷️ Nicknames')
+        .setColor(0xff79c6)
+        .addFields(
+          {
+            name: 'Paid nicknames (/nickname)',
+            value: on ? '✅ On: people can rename others for coins' : '❌ Off',
+            inline: true,
+          },
+          {
+            name: 'Change own nickname',
+            value: canSelf ? '✅ Everyone may' : '🔒 Not for @everyone',
+            inline: true,
+          },
+        )
+        .setFooter({
+          text: 'Change with /settings nicknames paid: self-change:',
+        });
+      if (!canSelf && others.length) {
+        notes.push(
+          `These roles still allow changing your own nickname: ${others.join(', ')} (Server Settings → Roles).`,
+        );
+      }
+      if (on && !interaction.client.privilegedIntents) {
+        notes.push(
+          'Tip: with the *Server Members* intent on, NestBot puts a paid nickname back if someone changes it early.',
+        );
+      }
+      if (notes.length) embed.setDescription(notes.join('\n'));
+      return interaction.reply({
+        embeds: [embed],
+        flags: 64,
+        allowedMentions: { parse: [] },
+      });
     }
 
     if (sub === 'watch') {

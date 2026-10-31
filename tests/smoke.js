@@ -66,7 +66,14 @@ const fakeMessage = () => ({
 const guild = {
   id: 'g',
   name: 'Nest',
-  roles: { everyone: { id: 'g' } },
+  roles: {
+    everyone: {
+      id: 'g',
+      permissions: { has: () => true, add: () => 0n, remove: () => 0n },
+      setPermissions: async () => {},
+    },
+    cache: new Map(),
+  },
   scheduledEvents: {
     create: async () => ({
       id: 'ev',
@@ -96,6 +103,7 @@ const client = {
   user: fakeUser('BOT'),
   channels: { fetch: async () => channel, cache: new Map([['c1', channel]]) },
   guilds: { cache: new Map([['g', guild]]) },
+  users: { fetch: async id => fakeUser(id) },
 };
 guild.client = client;
 

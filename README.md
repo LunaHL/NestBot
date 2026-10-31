@@ -7,6 +7,7 @@ chat with by pinging `@NestBot`.
 - **All commands:** [`src/commands/README.md`](src/commands/README.md)
 - **How the code is organized:** [`src/README.md`](src/README.md)
 - **What changed when:** [`CHANGELOG.md`](CHANGELOG.md)
+- **What comes next (ideas):** [`ROADMAP.md`](ROADMAP.md)
 
 ---
 
@@ -14,13 +15,13 @@ chat with by pinging `@NestBot`.
 
 | | |
 |---|---|
-| 💰 **Economy** | NestCoins, `/daily`, `/balance`, `/leaderboard`, `/shop`, `/gamble`, random loot drops in chat, free mode for admins (`/settings free`) |
+| 💰 **Economy** | NestCoins, `/daily`, `/balance`, `/leaderboard`, `/shop` (menu, effects), `/gamble`, random loot drops in chat, free mode for admins (`/settings free`) |
 | 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters), `/puzzle` (puzzle of the day), coins for the Discord **Wordle app** (`/wordle`), streak bonuses, daily results post |
 | 🍹 **Café & Bar** | `/drinks` to order or gift coffee, tea, hot chocolate, cocktails, beer and wine, with pictures, latte art, streaks and daily limits |
 | ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss), `/duel` rock-paper-scissors with bets |
 | 🏅 **Progress** | `/profile` with all stats (and a 🎬 Movies tab), 49 `/achievements` with coin rewards |
 | 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, `/memory` |
-| 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag` |
+| 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag`, paid temporary nicknames (`/nickname`) |
 | 🎂 **Social** | `/birthday` announcements with coins, `/pictracker` weekly picture leaderboard |
 | 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device. `/watchlist`: personal watchlists with ratings and matches |
 | 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
@@ -49,10 +50,16 @@ Needs **Node.js 20 or newer** (`node -v`).
    The bot registers its slash commands and logs in. Data files are created
    automatically in `src/data/`.
 
-In the Discord Developer Portal, the bot needs the **Message Content** intent
-turned on (for the AI chat, gags and the picture tracker). On the server, its
-role needs **Manage Channels**, **Manage Roles** and **Manage Events** (movie
-night rooms and events).
+In the Discord Developer Portal (Bot → Privileged Gateway Intents), turn on:
+- **Message Content** (required: AI chat, gags, picture tracker)
+- **Server Members** and **Presence** (optional: `/drinks round` for everyone
+  or everyone online, and paid nicknames that can't be changed back early).
+  If they're off, NestBot starts without them and logs a warning.
+
+On the server, its role needs **Manage Channels**, **Manage Roles**, **Manage
+Events** (movie night rooms and events) and **Manage Nicknames** (`/nickname`).
+For nicknames, NestBot's role must be **above** the roles of the people it
+renames; the server owner can never be renamed.
 
 **Movie nights:** set them up once in Discord with
 `/settings watch channel:#movies category:<a category for the rooms>`.
@@ -109,7 +116,11 @@ See [`tests/README.md`](tests/README.md).
 | Birthday coins | `src/commands/birthday.js` (`BIRTHDAY_COINS`) |
 | Picture tracker rewards | `src/services/pictracker.js` |
 | Duel limits | `src/commands/duel.js` (`MAX_BET`, timers) |
-| Targeted wheel spin price | `src/commands/wheel.js` (`PRICE_TARGETED_SPIN`) |
+| Targeted wheel spin price | `src/services/wheel.js` (`PRICE_TARGETED_SPIN`) |
+| Nickname prices and durations | `src/services/nickname.js` (`PRICES`) |
+| Drink round discounts, max people | `src/services/drinks.js` (`ROUND_DISCOUNTS`, `ROUND_MAX`) |
+| Colors and the shared message style | `src/utils/ui.js` |
+| New effects for shop items and the wheel | `src/services/effects.js` |
 | Halloween outcomes and tries | `src/services/halloween.js` |
 | How long old data stays before archiving | `src/services/cleanup.js` |
 | Number of daily backups | `src/utils/db.js` (`BACKUPS_TO_KEEP`) |

@@ -1,300 +1,263 @@
+// /wheel: the punishment wheel. Logic: src/services/wheel.js; effects (gag,
+// nickname): src/services/effects.js. The spin button ("wheel:…") keeps
+// working after restarts.
 const {
   SlashCommandBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
-const achievements = require('../services/achievements');
-const db = require('../utils/db');
-const { isAdmin } = require('../utils/permissions');
+const wheel = require('../services/wheel');
 const nestcoins = require('../services/nestcoins');
-const gag = require('../services/gag');
+const achievements = require('../services/achievements');
+const { EFFECT_CHOICES, describe } = require('../services/effects');
+const { isAdmin, denyNonAdmin } = require('../utils/permissions');
+const ui = require('../utils/ui');
 
-function parseEffectFromText(text) {
-  const s = String(text || '');
-  const m = s.match(/\[effect:(\w+);duration:(\d+)\]/i);
-  if (!m) return null;
+const spinning = new Set(); // message ids being spun right now (no double spins)
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  const type = String(m[1]).toLowerCase();
-  const durationSec = Number(m[2]);
-  if (!Number.isFinite(durationSec) || durationSec <= 0) return null;
+const entryLine = e =>
+  `\`#${e.id}\` ${e.text}${e.effect ? ` · ${describe(e.effect).split(' ')[0]}` : ''}`;
 
-  return { type, durationSec };
+function listCard(guildId, title = '🎡 The Punishment Wheel') {
+  const entries = wheel.getEntries(guildId);
+  return ui.card({
+    title,
+    color: ui.COLORS.wheel,
+    text: entries.length
+      ? entries.map(entryLine).join('\n').slice(0, 4000)
+      : 'The wheel is empty. Admins add entries with `/wheel add`.',
+    footer: entries.length
+      ? `${entries.length} entries · 🔇 gag · 🏷️ nickname`
+      : null,
+  });
 }
 
-function stripEffectMarker(text) {
-  return String(text || '')
-    .replace(/\s*\[effect:\w+;duration:\d+\]\s*/i, '')
-    .trim();
-}
+async function handleComponent(interaction) {
+  const [, action, issuerId, targetId] = interaction.customId.split(':');
+  if (action !== 'spin') return interaction.reply(ui.fail('Unknown button.'));
+  if (interaction.user.id !== issuerId)
+    return interaction.reply(
+      ui.fail('Only the person who opened the wheel can spin it.'),
+    );
+  const msgId = interaction.message?.id;
+  if (spinning.has(msgId)) return interaction.deferUpdate().catch(() => {});
+  spinning.add(msgId);
 
-// cost in Nestcoins for a targeted spin
-const PRICE_TARGETED_SPIN = 15;
+  try {
+    const guild = interaction.guild;
+    const entries = wheel.getEntries(guild.id);
+    if (!entries.length)
+      return interaction.update({
+        embeds: [listCard(guild.id)],
+        components: [],
+      });
+
+    // Spinning for someone else costs coins
+    const targeted = targetId !== issuerId;
+    let paid = 0;
+    if (targeted) {
+      const payment = nestcoins.pay(
+        guild.id,
+        issuerId,
+        wheel.PRICE_TARGETED_SPIN,
+      );
+      if (!payment.ok) {
+        spinning.delete(msgId);
+        return interaction.reply(
+          ui.fail(
+            `A spin for someone else costs ${wheel.PRICE_TARGETED_SPIN} coins, you have ${payment.balance}.`,
+          ),
+        );
+      }
+      paid = payment.paid;
+    }
+
+    // A little animation: three random entries flash by
+    const frame = (n, text) =>
+      ui.card({
+        title: `🎡 Spinning${'.'.repeat(n)}`,
+        color: ui.COLORS.wheel,
+        text: `▶ **${text}** ◀`,
+        footer: `For: ${targeted ? 'someone else' : 'yourself'}`,
+      });
+    const pick = () => entries[Math.floor(Math.random() * entries.length)].text;
+    await interaction.update({ embeds: [frame(1, pick())], components: [] });
+    for (const n of [2, 3]) {
+      await wait(700);
+      await interaction
+        .editReply({ embeds: [frame(n, pick())] })
+        .catch(() => {});
+    }
+    await wait(700);
+
+    const r = await wheel.spin(guild, issuerId, targetId);
+    const result = ui.card({
+      title: '🎯 The wheel has spoken!',
+      color: ui.COLORS.wheel,
+      text: `<@${targetId}>: **${r.entry.text}**${r.effectText ? `\n\n${r.effectText}` : ''}`,
+      footer: paid
+        ? `Spun by someone else for ${paid} coins`
+        : targeted
+          ? 'Spun by someone else (free)'
+          : 'Self spin (free)',
+    });
+    await interaction
+      .editReply({
+        embeds: [result],
+        components: [],
+        allowedMentions: { users: [targetId] },
+      })
+      .catch(() => {});
+    await achievements.announce(interaction, [issuerId, targetId]);
+  } finally {
+    spinning.delete(msgId);
+  }
+}
 
 module.exports = {
+  handleComponent,
+
   data: new SlashCommandBuilder()
     .setName('wheel')
-    .setDescription('Spin the Punishment Wheel!')
-    //*sub commands
-    .addSubcommand(sub =>
-      sub
+    .setDescription('The Punishment Wheel')
+    .addSubcommand(s =>
+      s
         .setName('spin')
-        .setDescription('Spin the wheel and get a random punishment')
-        .addUserOption(option =>
-          option
+        .setDescription('Spin the wheel (for someone else it costs coins)')
+        .addUserOption(o =>
+          o
             .setName('target')
-            .setDescription('Optionally choose someone to punish'),
+            .setDescription('Who gets the punishment (default: you)'),
         ),
     )
-    .addSubcommand(sub =>
-      sub
+    .addSubcommand(s => s.setName('list').setDescription('All entries'))
+    .addSubcommand(s =>
+      s
         .setName('add')
-        .setDescription('Add a new punishment to the wheel')
-        .addStringOption(option =>
-          option
+        .setDescription('Add an entry (admins)')
+        .addStringOption(o =>
+          o
             .setName('text')
-            .setDescription('The punishment to add')
-            .setRequired(true),
+            .setDescription('What happens, e.g. "Sing a song in voice"')
+            .setRequired(true)
+            .setMaxLength(200),
+        )
+        .addStringOption(o =>
+          o
+            .setName('effect')
+            .setDescription('Something NestBot does automatically')
+            .addChoices(...EFFECT_CHOICES),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('minutes')
+            .setDescription('How long the effect lasts (default 5)')
+            .setMinValue(1)
+            .setMaxValue(1440),
+        )
+        .addStringOption(o =>
+          o
+            .setName('nickname')
+            .setDescription('Nickname effect: the name the target gets')
+            .setMaxLength(32),
         ),
     )
-    .addSubcommand(sub =>
-      sub
+    .addSubcommand(s =>
+      s
         .setName('remove')
-        .setDescription('Remove a punishment by its ID')
-        .addIntegerOption(option =>
-          option
-            .setName('id')
-            .setDescription('The ID of the punishment to remove')
-            .setRequired(true),
+        .setDescription('Remove an entry (admins)')
+        .addStringOption(o =>
+          o
+            .setName('entry')
+            .setDescription('Which entry (start typing)')
+            .setRequired(true)
+            .setAutocomplete(true),
         ),
-    )
-    .addSubcommand(sub =>
-      sub.setName('list').setDescription('List all punishments'),
     ),
 
-  //* sub command execution
+  async autocomplete(interaction) {
+    const q = String(interaction.options.getFocused() || '').toLowerCase();
+    return interaction.respond(
+      wheel
+        .getEntries(interaction.guildId)
+        .filter(
+          e => !q || e.text.toLowerCase().includes(q) || String(e.id) === q,
+        )
+        .slice(0, 25)
+        .map(e => ({
+          name: `#${e.id} ${e.text}`.slice(0, 100),
+          value: String(e.id),
+        })),
+    );
+  },
+
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
+    const guildId = interaction.guildId;
+    const o = interaction.options;
+
+    if (sub === 'list')
+      return interaction.reply({ embeds: [listCard(guildId)] });
 
     if (sub === 'spin') {
-      const target = interaction.options.getUser('target') ?? interaction.user;
-
-      // Load the wheel list
-      let wheelList = [];
-      db.perform(data => {
-        if (!data.wheel) data.wheel = [];
-        wheelList = data.wheel.slice();
-      });
-
-      if (wheelList.length === 0) {
-        return interaction.reply({
-          content: '🎡 The wheel is empty!',
-          flags: 64,
-        });
-      }
-
-      const lines = wheelList.map((txt, i) => `#${i}: ${txt}`).join('\n');
-      const isTargeted = target.id !== interaction.user.id;
-
-      const priceInfo = !isTargeted
-        ? `Self spin is free.`
-        : nestcoins.isFreeMode(interaction.guildId)
-          ? `Targeted spins are free right now 🎉`
-          : `This targeted spin will cost **${PRICE_TARGETED_SPIN}** Nestcoins.`;
-
-      const tokenTarget = isTargeted ? target.id : 'self';
-      const customId = `wheel:spin:${tokenTarget}:${interaction.user.id}`;
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(customId)
-          .setLabel('Spin the Wheel')
-          .setStyle(ButtonStyle.Primary),
+      const target = o.getUser('target') || interaction.user;
+      if (target.bot)
+        return interaction.reply(ui.fail('Bots are immune to the wheel.'));
+      const targeted = target.id !== interaction.user.id;
+      const cost = !targeted
+        ? 'Self spin: free.'
+        : nestcoins.isFreeMode(guildId)
+          ? 'Spin for someone else: **free** right now 🎉'
+          : `Spin for someone else: ${ui.coins(wheel.PRICE_TARGETED_SPIN)}`;
+      const card = listCard(guildId, `🎡 Spin for ${target.username}?`);
+      card.addFields(
+        { name: '🎯 Target', value: `<@${target.id}>`, inline: true },
+        { name: '💳 Cost', value: cost, inline: true },
       );
-
-      const message = await interaction.reply({
-        content:
-          `🎡 **Punishment Wheel**\n` +
-          `${lines}\n\n` +
-          `🎯 Target: ${isTargeted ? target : interaction.user}\n` +
-          `${priceInfo}`,
-        components: [row],
-        fetchReply: true,
+      return interaction.reply({
+        embeds: [card],
+        components: wheel.getEntries(guildId).length
+          ? [
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`wheel:spin:${interaction.user.id}:${target.id}`)
+                  .setLabel('Spin!')
+                  .setEmoji('🎡')
+                  .setStyle(ButtonStyle.Primary),
+              ),
+            ]
+          : [],
+        allowedMentions: { parse: [] },
       });
-
-      const filter = i =>
-        i.isButton() &&
-        i.customId === customId &&
-        i.user.id === interaction.user.id;
-
-      const collector = message.createMessageComponentCollector({
-        filter,
-        time: 7200_000, // 2h window
-      });
-
-      collector.on('collect', async i => {
-        let currentList = [];
-        db.perform(data => {
-          if (!data.wheel) data.wheel = [];
-          currentList = data.wheel.slice();
-        });
-
-        if (currentList.length === 0) {
-          const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(customId)
-              .setLabel('Spin the Wheel')
-              .setStyle(ButtonStyle.Primary)
-              .setDisabled(true),
-          );
-          await i.update({
-            content: '🎡 The wheel is empty!',
-            components: [disabledRow],
-          });
-          return collector.stop('empty');
-        }
-
-        const parts = i.customId.split(':');
-        const tokenTarget = parts[2];
-        const issuerId = parts[3];
-
-        const isTargetedClick = tokenTarget !== 'self';
-        const targetId = isTargetedClick ? tokenTarget : issuerId;
-        let chargeLine = '';
-
-        // Charge Nestcoins only for targeted spins
-        if (isTargetedClick) {
-          const payment = nestcoins.pay(
-            i.guildId,
-            issuerId,
-            PRICE_TARGETED_SPIN,
-          );
-          if (!payment.ok) {
-            const current = payment.balance;
-            return i.reply({
-              content:
-                `💸 Not enough Nestcoins for a targeted spin.\n` +
-                `You need **${PRICE_TARGETED_SPIN}**, you have **${current}**. ` +
-                `Come back when your wallet isn't echoing.`,
-              flags: 64,
-            });
-          } else if (payment.paid) {
-            chargeLine = `\n💳 Charged **${payment.paid}** Nestcoins from <@${issuerId}>.`;
-          }
-        }
-
-        const randomIndex = Math.floor(Math.random() * currentList.length);
-        const punishment = currentList[randomIndex];
-
-        const effect = parseEffectFromText(punishment);
-
-        // Apply effect (e.g., gag). Only once: this used to run twice,
-        // which doubled every wheel gag.
-        if (effect?.type === 'gag') {
-          gag.gagUser(i.guildId, targetId, effect.durationSec, issuerId);
-        }
-
-        const visiblePunishment = stripEffectMarker(punishment);
-
-        const refreshed = currentList
-          .map((txt, idx) => `#${idx}: ${txt}`)
-          .join('\n');
-        const disabledRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(customId)
-            .setLabel('Spin the Wheel')
-            .setStyle(ButtonStyle.Primary)
-            .setDisabled(true),
-        );
-
-        const content =
-          `🎡 **Punishment Wheel**\n` +
-          `${refreshed}\n\n` +
-          `🎯 Target: <@${targetId}>\n` +
-          `**Result:** ${visiblePunishment}${chargeLine}`;
-
-        await i.update({ content, components: [disabledRow] });
-        collector.stop('done');
-        await achievements.announce(i, [issuerId, targetId]);
-      });
-
-      collector.on('end', async (_collected, reason) => {
-        if (reason === 'done' || reason === 'empty') return;
-        try {
-          const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(customId)
-              .setLabel('Spin the Wheel')
-              .setStyle(ButtonStyle.Primary)
-              .setDisabled(true),
-          );
-          await message.edit({ components: [disabledRow] });
-        } catch {}
-      });
-
-      return;
     }
+
+    if (!isAdmin(interaction)) return denyNonAdmin(interaction);
 
     if (sub === 'add') {
-      const text = interaction.options.getString('text');
-      let id;
-      if (!isAdmin(interaction)) {
-        return interaction.reply({
-          content: '❌ You need to be an administrator to add punishments.',
-          flags: 64,
-        });
-      }
-
-      db.perform(data => {
-        if (!data.wheel) data.wheel = [];
-        data.wheel.push(text);
-        id = data.wheel.length - 1; // index as ID
-      });
-
-      await interaction.reply(`✅ Added new punishment (#${id}): ${text}`);
+      const type = o.getString('effect');
+      const effect = type
+        ? {
+            type,
+            durationSec: (o.getInteger('minutes') || 5) * 60,
+            text: o.getString('nickname'),
+          }
+        : null;
+      const e = wheel.addEntry(guildId, o.getString('text'), effect);
+      return interaction.reply(
+        ui.ok(
+          `Added \`#${e.id}\` ${e.text}${effect ? `\n${describe(effect)}` : ''}`,
+        ),
+      );
     }
-
     if (sub === 'remove') {
-      const id = interaction.options.getInteger('id');
-      let removed;
-      if (!isAdmin(interaction)) {
-        return interaction.reply({
-          content: '❌ You need to be an administrator to remove punishments.',
-          flags: 64,
-        });
-      }
-
-      db.perform(data => {
-        if (!data.wheel) data.wheel = [];
-        if (id >= 0 && id < data.wheel.length) {
-          removed = data.wheel.splice(id, 1);
-        }
-      });
-
-      if (removed) {
-        await interaction.reply(`🗑️ Removed punishment #${id}: ${removed}`);
-      } else {
-        await interaction.reply(`⚠️ No punishment found with ID #${id}`);
-      }
-    }
-
-    if (sub === 'list') {
-      let list = '🎡 **Punishment Wheel List:**\n';
-      let count = 0;
-
-      db.perform(data => {
-        if (!data.wheel) data.wheel = [];
-        data.wheel.forEach((punishment, index) => {
-          list += `#${index}: ${punishment}\n`;
-          count++;
-        });
-      });
-
-      if (count === 0) {
-        await interaction.reply({ content: '🎡 The wheel is empty!' });
-      } else {
-        await interaction.reply({ content: list });
-      }
+      const removed = wheel.removeEntry(guildId, o.getString('entry'));
+      return interaction.reply(
+        removed
+          ? ui.ok(`Removed \`#${removed.id}\` ${removed.text}`)
+          : ui.fail('Entry not found.'),
+      );
     }
   },
 };

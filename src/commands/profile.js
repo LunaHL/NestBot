@@ -5,6 +5,8 @@ const {
   ButtonBuilder,
   ButtonStyle,
 } = require('discord.js');
+const nickname = require('../services/nickname');
+const { discordTime } = require('../utils/time');
 const gag = require('../services/gag');
 const db = require('../utils/db');
 const { getUserStats } = require('../services/stats');
@@ -123,6 +125,22 @@ function overviewEmbed(guildId, targetUser, member) {
     )
     .setTimestamp();
 
+  const nick = nickname.getActive(guildId, userId);
+  const nickStats = nickname.getStats(guildId, userId);
+  if (nick) {
+    embed.addFields({
+      name: '🏷️ Paid nickname',
+      value: `**${nick.name}** (by <@${nick.by}>)\nback to normal ${discordTime(nick.until, 'R')}`,
+      inline: true,
+    });
+  }
+  if (nickStats.given || nickStats.received) {
+    embed.addFields({
+      name: '🏷️ Nicknames',
+      value: `Renamed others **${nickStats.given}**×\nGot renamed **${nickStats.received}**×`,
+      inline: true,
+    });
+  }
   if (gagMs > 0) {
     embed.addFields({
       name: '🔇 Gagged',

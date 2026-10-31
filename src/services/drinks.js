@@ -207,6 +207,79 @@ function serve(guildId, buyerId, drinkerId, drinkKey) {
   return { stats, lucky, paid };
 }
 
+// ---------- Rounds ----------
+// "/drinks round": one person buys a drink for a whole group. Bigger rounds
+// get a discount. People at their daily limit are skipped (and don't cost).
+const ROUND_DISCOUNTS = [
+  { from: 20, percent: 30 },
+  { from: 10, percent: 20 },
+  { from: 5, percent: 10 },
+];
+const ROUND_MAX = 50; // most people in one round
+
+const roundDiscount = n => ROUND_DISCOUNTS.find(d => n >= d.from)?.percent || 0;
+
+/** Who can have this drink right now, who can't (and why). */
+function roundGuests(guildId, drinkerIds, drinkKey) {
+  const drink = MENU[drinkKey];
+  const ok = [];
+  const skipped = [];
+  for (const id of [...new Set(drinkerIds)]) {
+    const t = todayCounts(readStats(guildId, id));
+    const why =
+      t.total >= TOTAL_LIMIT
+        ? 'full'
+        : drink.caffeine && t.caffeine >= CAFFEINE_LIMIT
+          ? 'caffeine'
+          : drink.alcohol && t.alcohol >= ALCOHOL_LIMIT
+            ? 'alcohol'
+            : null;
+    (why ? skipped : ok).push(why ? { id, why } : id);
+  }
+  return {
+    ok: ok.slice(0, ROUND_MAX),
+    skipped,
+    cut: Math.max(0, ok.length - ROUND_MAX),
+  };
+}
+
+/** Price of a round: { full, percent, total }. */
+function roundPrice(drinkKey, count) {
+  const full = MENU[drinkKey].price * count;
+  const percent = roundDiscount(count);
+  return { full, percent, total: Math.round((full * (100 - percent)) / 100) };
+}
+
+/**
+ * Buy a round. Returns { error: 'empty' | 'coins', balance } or
+ * { served: [ids], skipped, price, paid }.
+ */
+function serveRound(guildId, buyerId, drinkerIds, drinkKey) {
+  const guests = roundGuests(guildId, drinkerIds, drinkKey);
+  if (!guests.ok.length) return { error: 'empty', skipped: guests.skipped };
+  const price = roundPrice(drinkKey, guests.ok.length);
+  const payment = nestcoins.pay(guildId, buyerId, price.total);
+  if (!payment.ok) return { error: 'coins', balance: payment.balance, price };
+
+  db.perform(data => {
+    for (const id of guests.ok) {
+      const s = addDrink(data, guildId, id, drinkKey);
+      if (id !== buyerId) s.received++;
+    }
+    const buyer = (data.coffee[guildId][buyerId] ||= emptyStats());
+    buyer.spent += payment.paid;
+    buyer.given += guests.ok.filter(id => id !== buyerId).length;
+    buyer.rounds = (buyer.rounds || 0) + 1;
+  });
+  return {
+    served: guests.ok,
+    skipped: guests.skipped,
+    cut: guests.cut,
+    price,
+    paid: payment.paid,
+  };
+}
+
 function serveLine(drink) {
   return pick(drink.lines).replace('{secret}', pick(SECRETS));
 }
@@ -234,6 +307,11 @@ function extrasText(stats, lucky, art, drink) {
 }
 
 module.exports = {
+  ROUND_DISCOUNTS,
+  ROUND_MAX,
+  roundGuests,
+  roundPrice,
+  serveRound,
   pick,
   availableDrinks,
   searchDrinks,

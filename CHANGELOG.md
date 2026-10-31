@@ -1,5 +1,21 @@
 # NestBot Changelog
 
+## V 1.9 (November 2026)
+
+**New**
+- 🍻 `/drinks round`: buy a drink for everyone in your voice channel, everyone online or the whole server. Price preview first; 5+ people −10%, 10+ −20%, 20+ −30%; people at their daily limit are skipped and cost nothing
+- 🏷️ `/nickname`: pay coins to rename someone for 10 min (15 coins) up to 24 h (300 coins). The old name comes back automatically; `buyout` for the same price; `status`, `reset`. Shown in `/profile`
+- 🛠️ `/settings nicknames` (admins): paid nicknames on/off, and whether everyone may change their own nickname (edits @everyone)
+- ✨ Effects for shop items and wheel entries: 🔇 gag or 🏷️ nickname, chosen with options instead of `[effect:…]` in the text
+- 🗺️ `ROADMAP.md`: ideas for Christmas, Easter, blindfolds and more
+
+**Changed**
+- 🛍️ New shop: `/shop browse` is a card with a buy menu (pick → target → confirm), `/shop buy` searches while typing, items have emojis, `/shop edit`. Old items are converted, nobody loses anything
+- 🎡 New wheel: preview card, 🎡 Spin button with a short animation, entries per server, `remove` searches while typing. The old list is kept
+- 🎲 `/gamble`: the "Punishment Roulette" now really spins the wheel for you
+- 💰 `/balance`, `/leaderboard`, `/ungag` and the above share one look (`utils/ui.js`)
+- Optional Server Members / Presence intents: NestBot falls back to starting without them
+
 ## V 1.8 (November 2026)
 
 **New**

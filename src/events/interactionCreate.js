@@ -17,7 +17,11 @@ module.exports = async function onInteraction(interaction) {
   // Buttons and menus whose customId starts with a command name ("watch:…")
   // go to that command's handleComponent(). Works after restarts too.
   // (Other buttons, e.g. duels, are handled by short-lived collectors.)
-  if (interaction.isButton?.() || interaction.isStringSelectMenu?.()) {
+  if (
+    interaction.isButton?.() ||
+    interaction.isStringSelectMenu?.() ||
+    interaction.isUserSelectMenu?.()
+  ) {
     const prefix = String(interaction.customId).split(':')[0];
     const command = interaction.client.commands.get(prefix);
     if (!command?.handleComponent) return;
