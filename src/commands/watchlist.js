@@ -11,6 +11,7 @@ const {
 } = require('discord.js');
 const wl = require('../services/watchlist');
 const tmdb = require('../services/tmdb');
+const achievements = require('../services/achievements');
 
 const PAGE_SIZE = 10;
 const COLOR = 0x5865f2;
@@ -176,11 +177,12 @@ async function handleComponent(interaction) {
       return interaction.reply(
         ephemeral("👍 Okay, it won't be marked as watched."),
       );
-    return interaction.reply({
+    await interaction.reply({
       content: `✅ **${result.label || watch.fullTitle(n)}** is marked as watched on your watchlist. How was it?`,
       components: ratingButtons(result.key),
       flags: 64,
     });
+    return achievements.announce(interaction, [userId]);
   }
 
   // Pending list: confirm / dismiss
@@ -207,10 +209,11 @@ async function handleComponent(interaction) {
       return interaction.reply(
         ephemeral("That title isn't on your watchlist anymore."),
       );
-    return interaction.update({
+    await interaction.update({
       content: `${stars(rating)} Rated **${item.title}**. Thanks!`,
       components: [],
     });
+    return achievements.announce(interaction, [userId]);
   }
 
   // Copy something from someone else's public list

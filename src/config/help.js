@@ -269,7 +269,7 @@ const COMMANDS = {
   // 🏅 Progress
   profile: {
     explain:
-      'Your stats in one place: coins and rank, puzzles, NestWord, tournaments, duels, drinks, pictures, achievements.',
+      'Your stats in one place: coins and rank, puzzles, NestWord, tournaments, duels, drinks, pictures, achievements. The 🎬 Movies tab shows movies, series and anime you watched, movie nights, ratings and favorites (and your movie settings, only to you).',
   },
   achievements: {
     explain: 'All achievements, which ones you have, and what the others need.',

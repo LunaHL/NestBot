@@ -65,13 +65,11 @@ function listView(group) {
     });
   const components = [];
   if (open.length) {
-    const options = open
-      .slice(0, 25)
-      .map(i => ({
-        label: `${i.title}${i.year ? ` (${i.year})` : ''}`.slice(0, 100),
-        value: i.key,
-        emoji: tmdb.kindEmoji(i.type, i.anime),
-      }));
+    const options = open.slice(0, 25).map(i => ({
+      label: `${i.title}${i.year ? ` (${i.year})` : ''}`.slice(0, 100),
+      value: i.key,
+      emoji: tmdb.kindEmoji(i.type, i.anime),
+    }));
     components.push(
       new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()

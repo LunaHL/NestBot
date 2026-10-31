@@ -84,7 +84,7 @@ Pictures: `assets/drink-art/`.
 
 | File | Command | What it does |
 |---|---|---|
-| `profile.js` | `/profile` | All stats of a member, plus achievement badges |
+| `profile.js` | `/profile` | All stats of a member, plus achievement badges. Buttons switch between 📊 Overview and 🎬 Movies (watched, movie nights, ratings, favorites; your own movie settings only shown to you) |
 | `achievements.js` | `/achievements` | All achievements, locked and unlocked |
 
 The achievements themselves are defined in `services/achievements.js`.

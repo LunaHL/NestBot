@@ -1951,6 +1951,19 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
   }
   addPendingFor(n);
 
+  // Achievements (Popcorn Time, Host, Matchmaker, …) in the summary channel
+  if (channel) {
+    const winnerBy = n.vote?.winner
+      ? n.vote.options?.find(o => o.key === n.vote.winner)?.by
+      : null;
+    await require('./achievements')
+      .announce(
+        channel,
+        [...watchers(n), n.createdBy, winnerBy].filter(Boolean),
+      )
+      .catch(() => {});
+  }
+
   if (n.roomId && !n.groupId) {
     const room = await fetchChannel(guild.client, n.roomId);
     await room
@@ -2095,8 +2108,104 @@ async function clockTick(client) {
   }
 }
 
+// ---------- Monthly recap ----------
+
+const monthOf = ms =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.TIMEZONE || 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(ms);
+
+/** On the 1st of each month: last month's movie nights in #movies. */
+async function monthlyRecap(client, now = Date.now()) {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.TIMEZONE || 'Europe/Berlin',
+    day: '2-digit',
+  }).format(now);
+  if (today !== '01') return;
+  const lastMonth = monthOf(now - 2 * 86400000);
+
+  for (const guildId of db.read(d => Object.keys(d.watch || {}))) {
+    if (db.read(d => d.watch[guildId].lastRecap) === lastMonth) continue;
+    db.perform(d => (d.watch[guildId].lastRecap = lastMonth));
+    const nights = allNights(guildId).filter(
+      n =>
+        n.status === 'ended' &&
+        isPublicNight(n) &&
+        monthOf(n.startAt) === lastMonth,
+    );
+    if (!nights.length) continue;
+    const channel = await moviesChannel(client, guildId);
+    if (!channel) continue;
+
+    const count = {};
+    const hosts = {};
+    for (const n of nights) {
+      for (const u of watchers(n)) count[u] = (count[u] || 0) + 1;
+      hosts[n.createdBy] = (hosts[n.createdBy] || 0) + 1;
+    }
+    const top = obj => Object.entries(obj).sort((a, b) => b[1] - a[1])[0];
+    const [fan, fanN] = top(count) || [];
+    const [host, hostN] = top(hosts) || [];
+    const episodes = nights.reduce(
+      (sum, n) => sum + (n.session.history || []).length,
+      0,
+    );
+    const movies = nights.filter(n => n.kind === 'movie').length;
+    const rated = nights
+      .map(n => ({ n, avg: averageRating(n) }))
+      .filter(x => x.avg)
+      .sort((a, b) => b.avg - a.avg)[0];
+    const [y, mo] = lastMonth.split('-').map(Number);
+    const name = new Date(y, mo - 1, 15).toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const embed = new EmbedBuilder()
+      .setColor(COLOR)
+      .setTitle(`🎞️ ${name} in the Nest cinema`)
+      .addFields(
+        {
+          name: '🍿 Movie nights',
+          value: `**${nights.length}**`,
+          inline: true,
+        },
+        { name: '🎬 Movies', value: `**${movies}**`, inline: true },
+        { name: '📺 Episodes', value: `**${episodes}**`, inline: true },
+        {
+          name: '👥 Watchers',
+          value: `**${Object.keys(count).length}**`,
+          inline: true,
+        },
+      );
+    if (fan)
+      embed.addFields({
+        name: '🏆 Most nights',
+        value: `<@${fan}> (${fanN})`,
+        inline: true,
+      });
+    if (host)
+      embed.addFields({
+        name: '📣 Top host',
+        value: `<@${host}> (${hostN})`,
+        inline: true,
+      });
+    if (rated)
+      embed.addFields({
+        name: '⭐ Best rated',
+        value: `${emojiOf(rated.n)} ${rated.n.title} · ${rated.avg.toFixed(1)}`,
+      });
+    await channel
+      .send({ embeds: [embed], allowedMentions: { parse: [] } })
+      .catch(() => {});
+  }
+}
+
 /** Called once when the bot is ready. */
 function startWatch(client) {
+  runEvery('WatchRecap', 60, () => monthlyRecap(client));
   runEvery('Watch', 1, () => schedulerTick(client));
   setInterval(
     () =>
@@ -2167,5 +2276,6 @@ module.exports = {
   nightFields,
   schedulerTick,
   clockTick,
+  monthlyRecap,
   startWatch,
 };

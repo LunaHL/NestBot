@@ -97,6 +97,41 @@ function drinksStats(guildId, userId) {
   };
 }
 
+// Movie nights and watchlist numbers
+function movieStats(guildId, userId) {
+  const nights = Object.values(
+    db.read(d => d.watch?.[guildId]?.nights) || {},
+  ).filter(n => n.status === 'ended');
+  const watchedBy = n => {
+    const s = n.session || {};
+    const missed = s.missed || [];
+    return new Set([
+      ...(s.history || []).flatMap(h => h.watchers),
+      ...(s.checkedIn || []).filter(u => !missed.includes(u)),
+    ]);
+  };
+  const mine = nights.filter(n => watchedBy(n).has(userId));
+  const episodesPerNight = nights.map(
+    n =>
+      (n.session?.history || []).filter(h => h.watchers.includes(userId))
+        .length,
+  );
+  return {
+    ...require('./watchlist').stats(guildId, userId),
+    attended: mine.length,
+    hosted: nights.filter(n => n.createdBy === userId && watchedBy(n).size > 0)
+      .length,
+    maxEpisodes: Math.max(0, ...episodesPerNight),
+    voteWins: nights.filter(
+      n =>
+        n.vote?.winner &&
+        n.vote.options?.find(o => o.key === n.vote.winner)?.by === userId,
+    ).length,
+    groups: require('./groups').groupsOf(guildId, userId).length,
+    lastWatched: mine.sort((a, b) => b.startAt - a.startAt)[0] || null,
+  };
+}
+
 /** Everything about a member in one object. */
 function getUserStats(guildId, userId) {
   const balances = nestcoins
@@ -120,6 +155,7 @@ function getUserStats(guildId, userId) {
       dist: {},
     },
     drinks: drinksStats(guildId, userId),
+    movies: movieStats(guildId, userId),
     gags: db.read(d => d.gagStats?.[guildId]?.[userId]) || {
       received: 0,
       given: 0,
