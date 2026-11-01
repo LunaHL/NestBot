@@ -1,5 +1,10 @@
 # NestBot Changelog
 
+## V 1.16 (November 2026)
+
+**New**
+- 📺 Series in the watchlist: open one in `/watchlist show` → ⏭️ **next episode watched** (into the next season; after the last episode it's marked watched and asks for a rating), ⏮️ back one, 📺 **set episode** (season + episode, or one overall number for long anime). `/watchlist add` has `season:` and `episode:`
+
 ## V 1.15 (November 2026)
 
 Simpler for members: they only see what they can use.

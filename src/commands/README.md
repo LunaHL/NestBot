@@ -169,8 +169,8 @@ series progress; a vote there uses the shared watchlist first.
 time**. After each episode: **⏭️ Next** (also into the next season) or
 **🛑 Stop here**. Everyone gets exactly the episodes they were there for marked
 on their watchlist. Movie series show "part 2 of 3" and the next part at the end.
-| `watchlist.js` | `/watchlist add` | Add a title (📌 want to watch). With `watched:` or `rating:` for something you already saw; plus must-watch ❗, a note, 🌐/🔒 |
-| | `/watchlist show` | Your list (with private ones) or someone else's public list, with filters. Own list: pick an entry to set 📌/▶️/✅, ⭐ rate, 🔒/🌐, ❗, ✏️ note or episode, 🗑️ remove. Buttons: ◀️ ▶️ pages, 🎲 pick for me, 📬 movie nights waiting for your “✅ yes, I watched it” (7 days). Someone else's: 📋 copy to your list |
+| `watchlist.js` | `/watchlist add` | Add a title (📌 want to watch). With `watched:` or `rating:` for something you already saw, `season:` + `episode:` for a series you're in the middle of; plus must-watch ❗, a note, 🌐/🔒 |
+| | `/watchlist show` | Your list (with private ones) or someone else's public list, with filters. Own list: pick an entry to set 📌/▶️/✅, ⭐ rate, 🔒/🌐, ❗, ✏️ note, 🗑️ remove. Series: ⏭️ next episode watched (moves to the next season, marks the series watched after the last episode), ⏮️ back one, 📺 set season + episode (or one overall number for long anime). Buttons: ◀️ ▶️ pages, 🎲 pick for me, 📬 movie nights waiting for your “✅ yes, I watched it” (7 days). Someone else's: 📋 copy to your list |
 | | `/watchlist settings` | Public/private list, your country, your streaming services, DM when your titles get planned |
 | | `/watchlist match` | 🎯 what you all want to watch |
 

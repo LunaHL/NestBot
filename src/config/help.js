@@ -346,7 +346,7 @@ const COMMANDS = {
 
   watchlist: {
     explain:
-      'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. `add` (with `watched:` / `rating:` for things you already saw), `show` (open entries to change them, 🎲 pick for me, 📬 movie nights waiting for your answer), `settings`, `match`. Public by default; make the whole list or single entries 🔒 private.',
+      'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. `add` (with `watched:` / `rating:` for things you already saw, `season:` / `episode:` for a series you’re in the middle of), `show` (open entries to change them; series have ⏭️ next episode watched, ⏮️ back one and 📺 set episode, also as one number for long anime; 🎲 pick for me, 📬 movie nights waiting for your answer), `settings`, `match`. Public by default; make the whole list or single entries 🔒 private.',
     tips: 'Movie nights ask you "mark as watched?" at the end; forgot? `/watchlist show` → 📬. Turn on `/watchlist settings notify:` to get a DM when something from your list is planned.',
   },
 

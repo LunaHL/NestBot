@@ -51,6 +51,7 @@ module.exports = {
   ],
   watchlist: [
     'Open an entry in `/watchlist show` to mark it watched, rate it or hide it.',
+    'Watching a series? Open it in `/watchlist show` and press ⏭️ after each episode.',
     'Can’t decide? 🎲 **Pick for me** in `/watchlist show`.',
     'What do you all want to watch? `/watchlist match @friend`.',
     'Set your streaming services so “Where can I watch it?” fits you: `/watchlist settings`.',

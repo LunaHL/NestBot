@@ -138,13 +138,11 @@ async function handleComponent(interaction) {
             .setCustomId(`usermenu:drink:${targetId}`)
             .setPlaceholder('Pick a drink…')
             .addOptions(
-              list
-                .slice(0, 25)
-                .map(([key, d]) => ({
-                  label: `${d.name} · ${d.price} coins`.slice(0, 100),
-                  value: key,
-                  emoji: d.emoji,
-                })),
+              list.slice(0, 25).map(([key, d]) => ({
+                label: `${d.name} · ${d.price} coins`.slice(0, 100),
+                value: key,
+                emoji: d.emoji,
+              })),
             ),
         ),
       ],

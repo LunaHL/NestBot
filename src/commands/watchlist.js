@@ -294,13 +294,17 @@ function itemPanel(
   const lines = [
     `${note ? `${note}\n\n` : ''}**${label(item)}**`,
     `${st.emoji} ${st.label}` +
-      (item.type === 'tv' && item.progress
-        ? ` · S${item.progress.season}E${item.progress.episode}`
-        : '') +
       (item.rating ? ` · ${stars(item.rating)}` : '') +
       (item.must ? ' · ❗ must-watch' : '') +
       ` · ${pub ? '🌐 public' : '🔒 private'}`,
   ];
+  if (item.type === 'tv') {
+    lines.push(
+      item.progress
+        ? `📺 Last watched: **S${item.progress.season}E${item.progress.episode}**`
+        : '📺 Not started yet. Press ⏭️ after the first episode, or 📺 to set where you are.',
+    );
+  }
   if (item.note) lines.push(`↳ *${item.note}*`);
   const status = s =>
     btn(
@@ -327,14 +331,26 @@ function itemPanel(
         item.must ? 'Not a must' : 'Must-watch',
         '❗',
       ),
-      btn(
-        `watchlist:i:editform:${enc}`,
-        item.type === 'tv' ? 'Note / episode' : 'Note',
-        '✏️',
-      ),
+      btn(`watchlist:i:editform:${enc}`, 'Note', '✏️'),
       btn(`watchlist:i:remove:${enc}`, 'Remove', '🗑️', ButtonStyle.Danger),
     ),
   ];
+  if (item.type === 'tv') {
+    const series = new ActionRowBuilder().addComponents(
+      btn(
+        `watchlist:i:nextep:${enc}`,
+        item.progress ? 'Next episode watched' : 'Watched episode 1',
+        '⏭️',
+        ButtonStyle.Success,
+      ),
+    );
+    if (item.progress)
+      series.addComponents(btn(`watchlist:i:prevep:${enc}`, 'Back one', '⏮️'));
+    series.addComponents(
+      btn(`watchlist:i:epform:${enc}`, 'Set episode…', '📺'),
+    );
+    rows.push(series);
+  }
   if (withRating) rows.push(...ratingButtons(item.key));
   return { content: lines.join('\n'), components: rows, embeds: [], flags: 64 };
 }
@@ -426,20 +442,6 @@ async function listAction(interaction, action, rest) {
     const fields = [
       { id: 'note', label: 'Note (empty = none)', value: item.note, max: 200 },
     ];
-    if (item.type === 'tv') {
-      fields.push(
-        {
-          id: 'season',
-          label: 'Season you are at',
-          value: item.progress?.season,
-        },
-        {
-          id: 'episode',
-          label: 'Last episode you watched',
-          value: item.progress?.episode,
-        },
-      );
-    }
     return interaction.showModal(
       new ModalBuilder()
         .setCustomId(`watchlist:i:edit:${enc}`)
@@ -458,6 +460,121 @@ async function listAction(interaction, action, rest) {
         ),
     );
   }
+  // 📺 Series progress
+  if (what === 'nextep' || what === 'prevep') {
+    const p = item.progress;
+    let next;
+    if (what === 'prevep') {
+      if (!p) return show(item);
+      next =
+        p.episode > 1 ? { season: p.season, episode: p.episode - 1 } : null;
+      if (!next && p.season > 1) {
+        const info = item.tmdbId
+          ? await tmdb.details('tv', item.tmdbId).catch(() => null)
+          : null;
+        const prev = (info?.seasons || [])
+          .filter(x => x.number > 0 && x.number < p.season)
+          .at(-1);
+        next = { season: p.season - 1, episode: prev?.episodes || 1 };
+      }
+      if (!next)
+        return show(
+          wl.editItem(guildId, userId, key, { progress: null, status: 'want' }),
+          { note: '⏮️ Back to not started.' },
+        );
+      return show(wl.editItem(guildId, userId, key, { progress: next }), {
+        note: `⏮️ Back to S${next.season}E${next.episode}.`,
+      });
+    }
+    if (!p) next = { season: 1, episode: 1 };
+    else {
+      const info = item.tmdbId
+        ? await tmdb.details('tv', item.tmdbId).catch(() => null)
+        : null;
+      next = require('../services/watch').episodeAfter(
+        info,
+        p.season,
+        p.episode,
+      );
+    }
+    if (!next) {
+      const done = wl.editItem(guildId, userId, key, { status: 'watched' });
+      await show(done, {
+        note: '🎉 That was the last episode! Marked as watched. How was it?',
+        withRating: !done.rating,
+      });
+      return achievements.announce(interaction, [userId]);
+    }
+    const changes = { progress: next };
+    if (item.status !== 'watching') changes.status = 'watching';
+    const newSeason = p && next.season !== p.season;
+    return show(wl.editItem(guildId, userId, key, changes), {
+      note: newSeason
+        ? `🎬 Season ${next.season} begins! Watched S${next.season}E${next.episode}.`
+        : `⏭️ Watched S${next.season}E${next.episode}.`,
+    });
+  }
+  if (what === 'epform') {
+    const field = (id, label, value, max = 4) => {
+      const input = new TextInputBuilder()
+        .setCustomId(id)
+        .setLabel(label)
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(max);
+      if (value) input.setValue(String(value));
+      return new ActionRowBuilder().addComponents(input);
+    };
+    return interaction.showModal(
+      new ModalBuilder()
+        .setCustomId(`watchlist:i:ep:${enc}`)
+        .setTitle(item.title.slice(0, 45))
+        .addComponents(
+          field('season', 'Season', item.progress?.season),
+          field('episode', 'Last episode you watched', item.progress?.episode),
+          field('absolute', 'Or: episode number overall (long anime)', null, 5),
+        ),
+    );
+  }
+  if (what === 'ep') {
+    const num = id => {
+      try {
+        return parseInt(interaction.fields.getTextInputValue(id), 10);
+      } catch {
+        return NaN;
+      }
+    };
+    let progress = null;
+    const absolute = num('absolute');
+    if (absolute > 0) {
+      const info = item.tmdbId
+        ? await tmdb.details('tv', item.tmdbId).catch(() => null)
+        : null;
+      progress = info
+        ? require('../services/watch').fromAbsolute(info, absolute)
+        : null;
+      if (!progress)
+        return interaction.reply(
+          ephemeral('❓ I couldn’t find that episode number for this series.'),
+        );
+    } else {
+      const season = num('season');
+      const episode = num('episode');
+      if (!(season > 0) && !(episode > 0))
+        return interaction.reply(
+          ephemeral('❓ Type a season and an episode, e.g. 2 and 5.'),
+        );
+      progress = {
+        season: season > 0 ? season : item.progress?.season || 1,
+        episode: episode > 0 ? episode : 1,
+      };
+    }
+    const changes = { progress };
+    if (item.status !== 'watching') changes.status = 'watching';
+    return show(wl.editItem(guildId, userId, key, changes), {
+      note: `📺 Saved: S${progress.season}E${progress.episode}.`,
+    });
+  }
   if (what === 'edit') {
     const get = id => {
       try {
@@ -467,17 +584,6 @@ async function listAction(interaction, action, rest) {
       }
     };
     const changes = { note: get('note') || null };
-    if (item.type === 'tv') {
-      const season = parseInt(get('season'), 10);
-      const episode = parseInt(get('episode'), 10);
-      if (season > 0 || episode > 0) {
-        changes.progress = {
-          season: season > 0 ? season : item.progress?.season || 1,
-          episode: episode > 0 ? episode : item.progress?.episode || 1,
-        };
-        if (item.status === 'want') changes.status = 'watching';
-      }
-    }
     return show(wl.editItem(guildId, userId, key, changes), {
       note: '✏️ Saved.',
     });
@@ -667,6 +773,18 @@ module.exports = {
           o
             .setName('watched')
             .setDescription('Already watched it? (outside a movie night)'),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('season')
+            .setDescription('Series: the season you are at')
+            .setMinValue(1),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('episode')
+            .setDescription('Series: the last episode you watched')
+            .setMinValue(1),
         )
         .addIntegerOption(o =>
           o
@@ -867,6 +985,15 @@ module.exports = {
         must: o.getBoolean('must'),
         note: o.getString('note'),
       });
+      // Series: where you are
+      const season = o.getInteger('season');
+      const episode = o.getInteger('episode');
+      if (r.item.type === 'tv' && (season || episode)) {
+        r.item = wl.editItem(guildId, userId, r.item.key, {
+          progress: { season: season || 1, episode: episode || 1 },
+          status: 'watching',
+        });
+      }
       const others =
         wl.wantCount(guildId, r.item.key) -
         (wl.isPublic(r.item, wl.getList(guildId, userId).settings) ? 1 : 0);
@@ -874,6 +1001,9 @@ module.exports = {
         (r.existed
           ? `📌 **${label(r.item)}** was already on your watchlist (updated).`
           : `📌 Added **${label(r.item)}** to your watchlist.`) +
+          (r.item.progress
+            ? ` ▶️ At S${r.item.progress.season}E${r.item.progress.episode}.`
+            : '') +
           (wl.isPublic(r.item, wl.getList(guildId, userId).settings)
             ? ''
             : ' 🔒 (private)') +
