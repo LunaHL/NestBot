@@ -3,6 +3,7 @@
 // pick them up automatically (also in their "effect" choices).
 const gag = require('./gag');
 const nickname = require('./nickname');
+const blindfold = require('./blindfold');
 const { duration } = require('../utils/ui');
 
 const EFFECTS = {
@@ -18,6 +19,29 @@ const EFFECTS = {
       const stacked = left > effect.durationSec + 5 ? ' (stacked)' : '';
       return {
         text: `🔇 <@${targetId}> is gagged for **${duration(Math.max(left, effect.durationSec))}**${stacked}.`,
+      };
+    },
+  },
+  blindfold: {
+    emoji: '🙈',
+    label: 'Blindfold',
+    describe: e => `Blindfolds the target for ${duration(e.durationSec)}`,
+    async apply(guild, { targetId, byId, effect }) {
+      const r = await blindfold.apply(
+        guild,
+        targetId,
+        effect.durationSec,
+        byId,
+      );
+      const why = {
+        off: '(Blindfolds aren’t set up on this server.)',
+        admin: '(Admins see everything, even blindfolded.)',
+      };
+      if (r.error)
+        return { text: `🙈 ${why[r.error] || '(I couldn’t blindfold them.)'}` };
+      const left = Math.round((r.until - Date.now()) / 1000);
+      return {
+        text: `🙈 <@${targetId}> is blindfolded for **${duration(left)}**${r.stacked ? ' (stacked)' : ''}. Everything goes dark…`,
       };
     },
   },

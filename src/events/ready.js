@@ -9,6 +9,7 @@ const { startPuzzleAnnouncer } = require('../services/puzzle');
 const { startWordle } = require('../services/wordle');
 const { startWatch } = require('../services/watch');
 const { startNicknames } = require('../services/nickname');
+const { startBlindfolds } = require('../services/blindfold');
 
 module.exports = function onReady(client) {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -19,6 +20,7 @@ module.exports = function onReady(client) {
   startWordle(client); // pays Wordle app results the bot missed while offline
   startWatch(client); // movie nights: reminders, rooms, live clocks
   startNicknames(client); // gives paid nicknames back when their time is up
+  startBlindfolds(client); // ends blindfolds, whispers what blindfolded people miss
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)

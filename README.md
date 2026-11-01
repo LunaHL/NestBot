@@ -21,7 +21,7 @@ chat with by pinging `@NestBot`.
 | ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss), `/duel` rock-paper-scissors with bets |
 | 🏅 **Progress** | `/profile` with all stats in tabs (games, drinks, duels & fun, movies, achievements), 49 achievements with coin rewards |
 | 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, `/memory` |
-| 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag`, paid temporary nicknames (in `/shop`) |
+| 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag`, 🙈 blindfolds, paid temporary nicknames (in `/shop`) |
 | 🎂 **Social** | `/birthday` announcements with coins, weekly picture leaderboard |
 | 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device. `/watchlist`: personal watchlists with ratings and matches |
 | 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
@@ -57,7 +57,7 @@ In the Discord Developer Portal (Bot → Privileged Gateway Intents), turn on:
   If they're off, NestBot starts without them and logs a warning.
 
 On the server, its role needs **Manage Channels**, **Manage Roles**, **Manage
-Events** (movie night rooms and events) and **Manage Nicknames** (`/nickname`).
+Events** (movie night rooms and events) **Manage Nicknames** (paid nicknames) and **Manage Roles** (blindfolds).
 For nicknames, NestBot's role must be **above** the roles of the people it
 renames; the server owner can never be renamed.
 

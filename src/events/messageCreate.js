@@ -1,6 +1,7 @@
 // Runs for every message in the server.
 const ai = require('../services/ai');
 const gag = require('../services/gag');
+const blindfold = require('../services/blindfold');
 const { countImages } = require('../services/pictracker');
 const wordle = require('../services/wordle');
 
@@ -15,10 +16,13 @@ module.exports = async function onMessage(message) {
       return;
     }
 
-    // 1. Gagged members: their message is replaced by a garbled version
+    // 1. Blindfolded members miss this message: count it, whisper mentions
+    await blindfold.onMessage(message);
+
+    // 2. Gagged members: their message is replaced by a garbled version
     if (await gag.handleGaggedMessage(message)) return;
 
-    // 2. AI chat, but only for a real @NestBot. Replying to one of the bot's
+    // 3. AI chat, but only for a real @NestBot. Replying to one of the bot's
     //    messages also counts as a mention in Discord, so that's ignored,
     //    as are @everyone/@here and role pings.
     const pinged = message.mentions.has(message.client.user, {
@@ -28,7 +32,7 @@ module.exports = async function onMessage(message) {
     });
     if (pinged) return ai.handleMessage(message, message.client);
 
-    // 3. Picture tracker
+    // 4. Picture tracker
     countImages(message);
   } catch (e) {
     console.error('messageCreate error:', e);

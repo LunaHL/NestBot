@@ -73,6 +73,8 @@ const guild = {
       setPermissions: async () => {},
     },
     cache: new Map(),
+    fetch: async () => null,
+    create: async o => ({ id: 'role', name: o.name, delete: async () => {} }),
   },
   scheduledEvents: {
     create: async () => ({

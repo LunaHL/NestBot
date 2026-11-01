@@ -13,6 +13,7 @@ const {
   ALCOHOL_LIMIT,
 } = require('../config/drinksMenu');
 const nickname = require('../services/nickname');
+const blindfold = require('../services/blindfold');
 const { discordTime } = require('../utils/time');
 const gag = require('../services/gag');
 const db = require('../utils/db');
@@ -342,7 +343,7 @@ function drinksEmbed(guildId, user, member) {
   });
 }
 
-/** ⚔️ Duels & fun: duels, tournaments, gags, nicknames, Halloween. */
+/** ⚔️ Duels & fun: duels, tournaments, gags, nicknames, blindfolds, Halloween. */
 function funEmbed(guildId, user, member) {
   const s = getUserStats(guildId, user.id);
   const d = s.duels;
@@ -350,6 +351,8 @@ function funEmbed(guildId, user, member) {
   const nickStats = nickname.getStats(guildId, user.id);
   const nick = nickname.getActive(guildId, user.id);
   const gagMs = gag.getRemainingMs(guildId, user.id);
+  const blind = blindfold.getStats(guildId, user.id);
+  const blindNow = blindfold.getActive(guildId, user.id);
   return ui.card({
     title: `⚔️ Duels & fun: ${nameOf(user, member)}`,
     color: 0xe74c3c,
@@ -380,6 +383,15 @@ function funEmbed(guildId, user, member) {
           `Renamed others **${nickStats.given}**× · got renamed **${nickStats.received}**×` +
           (nick
             ? `\nNow: **${nick.name}** (by <@${nick.by}>) until ${discordTime(nick.until, 'R')}`
+            : ''),
+        inline: true,
+      },
+      {
+        name: '🙈 Blindfolds',
+        value:
+          `Blindfolded others **${blind.given}**× · got blindfolded **${blind.received}**×` +
+          (blindNow
+            ? `\nIn the dark until ${discordTime(blindNow.until, 'R')}`
             : ''),
         inline: true,
       },

@@ -1,5 +1,16 @@
 # NestBot Changelog
 
+## V 1.11 (November 2026)
+
+**New**
+- 🙈 Blindfolds: a blindfolded member only sees **🕶️ in-the-dark**. NestBot whispers what they miss (someone said their name, busy channels) and DMs a summary when it comes off. Several blindfolded people share the dark. Stacks up to 3 h. Admins can't be blindfolded
+- 🙈 New effect for shop items and wheel entries
+- `/settings blindfold` (admins): set up / remove (role, channel, overwrites), give, take off, status
+- Blindfold stats and status in `/profile` (⚔️ Duels & fun)
+
+**Fixed**
+- `/drinks round` for online/everyone: the member list is loaded at most every 10 minutes (Discord rate limit)
+
 ## V 1.10 (November 2026)
 
 Fewer commands, same features: 27 → 23 commands, 158 → 145 subcommands.

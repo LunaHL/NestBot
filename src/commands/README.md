@@ -140,6 +140,7 @@ from the command files, so they're always current.
 | | `/settings watch` 🔒 | Movie nights: #movies channel, room category, mod role, who may plan, when rooms open, auto-close, checkpoints, check-in coins, reminders |
 | | `/settings free` 🔒 | **Free mode** on/off: drinks and rounds, shop items, nicknames, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
 | | `/settings nicknames` 🔒 | `paid`: paid nicknames on/off (off resets all running ones). `self-change`: may everyone change their own nickname (edits the @everyone role; lists other roles that still allow it). `end-for`: end one person's paid nickname |
+| | `/settings blindfold` 🔒 | `enabled:true` creates the 🙈 Blindfolded role and the 🕶️ in-the-dark channel and hides every channel from the role (lists channels that other roles explicitly allow); `enabled:false` removes all of it. `give` + `minutes`: blindfold someone; `end-for`: take it off |
 | | `/settings channels` 🔒 | All posting channels in one place: puzzle (+ `puzzle-ping` role), Wordle app, birthdays, pictures. Empty = show them |
 | | `/settings tools` 🔒 | One-off actions: pay missed Wordle results, reset this week's picture count, end all paid nicknames |
 

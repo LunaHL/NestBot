@@ -157,7 +157,8 @@ const CATEGORIES = [
     id: 'fun',
     emoji: '🔇',
     name: 'Fun moderation',
-    intro: 'Playful punishments: the wheel, gags and paid nicknames.',
+    intro:
+      'Playful punishments: the wheel, gags, blindfolds and paid nicknames.',
     commands: ['wheel', 'ungag'],
     features: [
       {
@@ -166,7 +167,11 @@ const CATEGORIES = [
       },
       {
         name: '✨ Effects',
-        text: 'Shop items and wheel entries can **gag** (🔇) or **rename** (🏷️) their target automatically. Admins pick the effect when adding them.',
+        text: 'Shop items and wheel entries can **gag** (🔇), **blindfold** (🙈) or **rename** (🏷️) their target automatically. Admins pick the effect when adding them.',
+      },
+      {
+        name: '🙈 Blindfolds',
+        text: 'A blindfolded member can’t see any channel except **🕶️ in-the-dark**. There NestBot whispers what they’re missing: when someone says their name, and which channels are busy. When it comes off, NestBot DMs a summary of everything they missed. Several blindfolded people end up in the dark together. Blindfolds stack (max 3 h) and come from shop items, the wheel or admins. Admins can’t be blindfolded (Discord shows them everything).',
       },
       {
         name: '🔇 Gags',
@@ -342,7 +347,7 @@ const COMMANDS = {
   // 🛠️ Admin
   settings: {
     explain:
-      'Server settings. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
+      'Server settings. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
     admin: ['*'],
   },
 

@@ -159,6 +159,35 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('blindfold')
+        .setDescription(
+          '🙈 Blindfolds: set up, give, take off. Empty = show status',
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('enabled')
+            .setDescription(
+              'On = create the role + dark channel and hide all channels from it. Off = remove all of it',
+            ),
+        )
+        .addUserOption(o =>
+          o.setName('give').setDescription('Blindfold this person'),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('minutes')
+            .setDescription('How long for "give" (default 10)')
+            .setMinValue(1)
+            .setMaxValue(180),
+        )
+        .addUserOption(o =>
+          o
+            .setName('end-for')
+            .setDescription('Take this person’s blindfold off now'),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('watch')
         .setDescription(
           'Movie nights. Leave everything empty to see the current settings',
@@ -441,6 +470,102 @@ module.exports = {
           flags: 64,
         });
       }
+    }
+
+    if (sub === 'blindfold') {
+      const blindfold = require('../services/blindfold');
+      const guild = interaction.guild;
+      const o = interaction.options;
+      const enabled = o.getBoolean('enabled');
+      const notes = [];
+      await interaction.deferReply({ flags: 64 });
+
+      if (enabled === true) {
+        const r = await blindfold.setup(guild);
+        notes.push(
+          `✅ Set up: <@&${r.role.id}> and <#${r.channel.id}>. Hidden from the role: ${r.hidden} channel(s).`,
+        );
+        if (r.leaks.length) {
+          notes.push(
+            `⚠️ These channels explicitly allow other roles, so someone with such a role still sees them while blindfolded: ${r.leaks
+              .slice(0, 15)
+              .map(c => `<#${c.id}>`)
+              .join(', ')}`,
+          );
+        }
+      } else if (enabled === false) {
+        await blindfold.teardown(guild);
+        notes.push(
+          '✅ Blindfolds are off: role, dark channel and all overwrites removed.',
+        );
+      }
+      const giveTo = o.getUser('give');
+      if (giveTo) {
+        const r = await blindfold.apply(
+          guild,
+          giveTo.id,
+          (o.getInteger('minutes') || 10) * 60,
+          interaction.user.id,
+        );
+        const why = {
+          off: 'Set blindfolds up first with `enabled:true`.',
+          admin: 'Admins see every channel, so they can’t be blindfolded.',
+          bot: 'Bots can’t be blindfolded.',
+          'not-found': 'That person isn’t on this server.',
+          cannot:
+            'I couldn’t give the role (is my role above 🙈 Blindfolded?).',
+        };
+        notes.push(
+          r.error
+            ? `❌ ${why[r.error]}`
+            : `🙈 <@${giveTo.id}> is blindfolded until <t:${Math.floor(r.until / 1000)}:t>.`,
+        );
+      }
+      const endFor = o.getUser('end-for');
+      if (endFor) {
+        notes.push(
+          (await blindfold.remove(guild, endFor.id))
+            ? `✅ <@${endFor.id}> can see again.`
+            : `<@${endFor.id}> wasn’t blindfolded.`,
+        );
+      }
+
+      const { roleId, channelId } = blindfold.config(guildId);
+      const active = Object.entries(
+        db.read(d => d.blindfolds?.[guildId]) || {},
+      ).filter(([, r]) => r.until > Date.now());
+      const embed = new EmbedBuilder()
+        .setTitle('🙈 Blindfolds')
+        .setColor(0x2c2f33)
+        .addFields(
+          {
+            name: 'Status',
+            value: roleId
+              ? `✅ On · <@&${roleId}> · <#${channelId}>`
+              : '❌ Not set up',
+            inline: true,
+          },
+          {
+            name: 'In the dark right now',
+            value: active.length
+              ? active
+                  .map(
+                    ([id, r]) =>
+                      `<@${id}> until <t:${Math.floor(r.until / 1000)}:t>`,
+                  )
+                  .join('\n')
+              : 'Nobody',
+            inline: true,
+          },
+        )
+        .setFooter({
+          text: 'Shop items and wheel entries can blindfold too (effect: 🙈 Blindfold)',
+        });
+      if (notes.length) embed.setDescription(notes.join('\n'));
+      return interaction.editReply({
+        embeds: [embed],
+        allowedMentions: { parse: [] },
+      });
     }
 
     if (sub === 'nicknames') {

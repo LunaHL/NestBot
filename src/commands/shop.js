@@ -65,14 +65,12 @@ function specials(guildId) {
 /** The shop card. `category` = only that category (null = all). */
 function browseView(guildId, category = null) {
   const all = [
-    ...shop
-      .getItems(guildId)
-      .map(i => ({
-        ...i,
-        category: categoryOf(i),
-        priceText: price(guildId, i.price),
-        menuPrice: priceShort(guildId, i.price),
-      })),
+    ...shop.getItems(guildId).map(i => ({
+      ...i,
+      category: categoryOf(i),
+      priceText: price(guildId, i.price),
+      menuPrice: priceShort(guildId, i.price),
+    })),
     ...specials(guildId),
   ];
   const categories = [...new Set(all.map(i => i.category))];

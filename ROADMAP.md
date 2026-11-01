@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.11 | 🙈 Blindfolds, step 1: dark channel, whispers, summary, shop/wheel effect |
 | V 1.10 | 🧹 Fewer commands: stats in `/profile` tabs, all rankings in `/leaderboard`, channels in `/settings channels`, nicknames in `/shop`, shop categories |
 | V 1.9 | 🍻 Drink rounds, 🏷️ paid nicknames, new shop and wheel, shared look for economy commands |
 | V 1.8 | 🍿 Movie nights: `/watch`, watchlists, votes, series & anime, groups, Movies tab |
@@ -23,7 +24,9 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 ## 📋 Next
 
-### 🙈 Blindfold
+### 🙈 Blindfold, step 2
+
+✅ **Step 1 is done (V 1.11):** role + dark channel, `/settings blindfold`, shop and wheel effect, stacking, whispers for mentions and busy channels, DM summary. Still open from the plan below: anonymous voices + guess who, peek, "lead the way", Full Package achievement, a second dark room, more whispers (drinks, laughter, wheel), earmuffs.
 
 The partner of the gag: the gag takes your voice, the blindfold takes your
 sight. A shop item (category "🔇 Punishments"), a wheel effect, and something
