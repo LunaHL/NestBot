@@ -148,14 +148,10 @@ from the command files, so they're always current.
 
 | File | Command | What it does |
 |---|---|---|
-| `watch.js` | `/watch plan` | Plan a movie night: title (search while typing: movies, series, anime), day, time; for series also season, episode and how many episodes. Posts a card in #movies and a Discord event |
+| `watch.js` | `/watch plan` | Plan a movie night: `when` (understands “tomorrow 20:00”, “friday”, “fr 21:00”, “6.11. 20:00”; suggests the next days while typing), title (search while typing: movies, series, anime; leave it out to vote), for series also season, episode and how many episodes. Posts a card in #movies and a Discord event |
 | | `/watch now` | Start right away: the room opens immediately |
-| | `/watch calendar` | Upcoming nights with sign-up buttons (also pinned in #movies) |
-| | `/watch sync` | In a room: "you're 40 s behind" |
-| | `/watch edit` / `cancel` / `end` | Planner, admins and the mod role only |
-| | `/watch history` / `top` | Past movie nights; 🏆 Nest Top 10 by rating |
-| | `/watch plan` without a title, or `/watch vote` | 🗳️ Vote on what to watch: the room opens right away, options come from the watchlists of everyone signed up, the winner is set automatically (ties: the wheel). Duration: 1 h … 7 days or until the start |
-| | `/watch suggest` | In the room: add a title to the running vote |
+| | **Buttons instead of commands** | **⚙️** on the card, check-in and clock (planner, admins, mod role): ✏️ change time or title (a form), 🗳️ start a vote, ❌ cancel (asks first), 🏁 end. In the room: **🔄 I’m at…** (“you're 40 s behind”), **💡 Suggest** during a vote. Under the calendar in #movies: 🎞️ History and 🏆 Nest Top 10 |
+| | `/watch plan` without a title, or ⚙️ → 🗳️ | Vote on what to watch: the room opens right away, options come from the watchlists of everyone signed up, the winner is set automatically (ties: the wheel). Duration: 1 h … 7 days or until the start |
 
 | `group.js` | `/group create` | Your own permanent private channel for a couple or a fixed group (no size limit; `/settings watch max-groups` limits how many one person may own) |
 | | `/group add` / `kick` (owner) · `leave` · `delete` (owner or admins, asks first) · `rename` · `list` | Manage it. If the owner leaves, the next member becomes owner |
@@ -171,17 +167,15 @@ series progress; a vote there uses the shared watchlist first.
 time**. After each episode: **⏭️ Next** (also into the next season) or
 **🛑 Stop here**. Everyone gets exactly the episodes they were there for marked
 on their watchlist. Movie series show "part 2 of 3" and the next part at the end.
-| `watchlist.js` | `/watchlist add` / `remove` / `edit` | Your list: 📌 want, ▶️ watching (season/episode), ✅ watched; must-watch ❗, notes, 🌐/🔒 per entry |
-| | `/watchlist show` | Yours (with private ones) or someone else's public list, with filters and "📋 copy to my watchlist" |
-| | `/watchlist seen` / `rate` | Mark as watched / rate ⭐1–5 (outside movie nights) |
-| | `/watchlist pending` | Movie nights waiting for your "✅ yes, I watched it" (7 days) |
+| `watchlist.js` | `/watchlist add` | Add a title (📌 want to watch). With `watched:` or `rating:` for something you already saw; plus must-watch ❗, a note, 🌐/🔒 |
+| | `/watchlist show` | Your list (with private ones) or someone else's public list, with filters. Own list: pick an entry to set 📌/▶️/✅, ⭐ rate, 🔒/🌐, ❗, ✏️ note or episode, 🗑️ remove. Buttons: ◀️ ▶️ pages, 🎲 pick for me, 📬 movie nights waiting for your “✅ yes, I watched it” (7 days). Someone else's: 📋 copy to your list |
 | | `/watchlist settings` | Public/private list, your country, your streaming services, DM when your titles get planned |
-| | `/watchlist match` / `random` | 🎯 what you all want to watch; 🎲 pick something |
+| | `/watchlist match` | 🎯 what you all want to watch |
 
 How a night works: sign up in the calendar → 1 hour before, a private room
 opens (anyone can still **🚪 Enter room**) → at the start everyone pauses at
 0:00 and presses **✅ Ready** → 3… 2… 1… ▶️ → shared live clock with
-**⏸️ Pause** (anyone) and **🕐 Where should I be?** → `/watch end` posts a
+**⏸️ Pause** (anyone), **🕐 Where should I be?** and **🔄 I’m at…** → **⚙️ → 🏁 End** posts a
 summary in #movies and deletes the room (or it closes itself after 24 h).
 Admins set it up with `/settings watch`.
 

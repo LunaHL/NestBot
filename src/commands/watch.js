@@ -2,14 +2,24 @@
 // buttons). Logic, rooms and the live clock: src/services/watch.js.
 // Buttons work across bot restarts: they're routed here by their customId
 // ("watch:…") from events/interactionCreate.js.
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+} = require('discord.js');
 const watch = require('../services/watch');
 const tmdb = require('../services/tmdb');
 const wl = require('../services/watchlist');
 const groups = require('../services/groups');
 const { zonedToUtc, discordTime, TZ } = require('../utils/time');
 
-const DATE_SUGGESTIONS = 21; // days offered in the date autocomplete
+const DEFAULT_TIME = '20:00'; // when only a day is given
 const VOTE_CHOICES = [
   { name: '🗳️ Until the movie night starts', value: 'start' },
   { name: '1 hour', value: '1h' },
@@ -60,6 +70,118 @@ function zonedParts(ms) {
   };
 }
 
+const DAY_WORDS = {
+  today: 0,
+  heute: 0,
+  tonight: 0,
+  tomorrow: 1,
+  morgen: 1,
+  tmr: 1,
+};
+const WEEKDAYS = [
+  ['sunday', 'sun', 'sonntag', 'so'],
+  ['monday', 'mon', 'montag', 'mo'],
+  ['tuesday', 'tue', 'dienstag', 'di'],
+  ['wednesday', 'wed', 'mittwoch', 'mi'],
+  ['thursday', 'thu', 'donnerstag', 'do'],
+  ['friday', 'fri', 'freitag', 'fr'],
+  ['saturday', 'sat', 'samstag', 'sa'],
+];
+const weekdayOf = date => new Date(`${date}T12:00:00Z`).getUTCDay();
+const addDays = (date, days) =>
+  new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+/**
+ * "tomorrow 20:00", "friday", "fr 21", "20:30", "6.11. 20:00", "2026-11-06 20:00"
+ * → { date, time } in server time, or null. A day without a time means 20:00;
+ * a time without a day means today (or tomorrow if it's already past).
+ */
+function parseWhen(text, now = Date.now()) {
+  const raw = String(text || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+at\s+|\s+um\s+/g, ' ')
+    .replace(/,/g, ' ');
+  if (!raw) return null;
+  const today = zonedParts(now);
+  let date = null;
+  let rest = raw;
+  let m;
+  if ((m = /^(\d{4}-\d{2}-\d{2})\s*(.*)$/.exec(raw))) {
+    date = m[1];
+    rest = m[2];
+  }
+  if (!date && (m = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})?\s*(.*)$/.exec(raw))) {
+    const year = m[3]
+      ? m[3].length === 2
+        ? 2000 + Number(m[3])
+        : Number(m[3])
+      : Number(today.date.slice(0, 4));
+    date = `${year}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+    if (!m[3] && date < today.date) date = `${year + 1}${date.slice(4)}`;
+    rest = m[4];
+  }
+  let weekday = null;
+  if (!date) {
+    const [first, ...others] = raw.split(' ');
+    if (Object.hasOwn(DAY_WORDS, first)) {
+      date = addDays(today.date, DAY_WORDS[first]);
+      rest = others.join(' ');
+    } else {
+      weekday = WEEKDAYS.findIndex(names => names.includes(first));
+      if (weekday >= 0) rest = others.join(' ');
+      else weekday = null;
+    }
+  }
+  const time = rest.trim()
+    ? parseTime(rest.trim().replace(/\s*(uhr|h)$/, ''))
+    : date || weekday !== null
+      ? DEFAULT_TIME
+      : null;
+  if (!time) return null;
+  if (weekday !== null) {
+    let offset = (weekday - weekdayOf(today.date) + 7) % 7;
+    if (offset === 0 && time <= today.time) offset = 7;
+    date = addDays(today.date, offset);
+  }
+  if (!date) date = time > today.time ? today.date : addDays(today.date, 1);
+  return isValidDate(date) ? { date, time } : null;
+}
+
+/** "Friday, Nov 7 · 20:00" */
+function prettyWhen({ date, time }) {
+  const label = new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+  return `${label} · ${time}`;
+}
+
+/** Suggestions for the "when" option: what was typed, plus the next days at 20:00. */
+function whenChoices(q) {
+  const today = zonedParts(Date.now()).date;
+  const choices = [];
+  const typed = q ? parseWhen(q) : null;
+  if (typed)
+    choices.push({
+      name: `📅 ${prettyWhen(typed)}`,
+      value: `${typed.date} ${typed.time}`,
+    });
+  for (let i = 0; i < 14; i++) {
+    const w = { date: addDays(today, i), time: typed?.time || DEFAULT_TIME };
+    if (i === 0 && zonedToUtc(w.date, w.time) < Date.now()) continue;
+    const tag = i === 0 ? ' (today)' : i === 1 ? ' (tomorrow)' : '';
+    const value = `${w.date} ${w.time}`;
+    if (choices.some(c => c.value === value)) continue;
+    choices.push({ name: `${prettyWhen(w)}${tag}`, value });
+  }
+  return choices.slice(0, 25);
+}
+
 const titleOption = (opt, required = true) =>
   opt
     .setName('title')
@@ -106,13 +228,6 @@ const seriesOptions = sub =>
         .setMaxValue(600),
     );
 
-const nightOption = (opt, required = true) =>
-  opt
-    .setName('night')
-    .setDescription('Which movie night (start typing)')
-    .setRequired(required)
-    .setAutocomplete(true);
-
 const ephemeral = content => ({ content, flags: 64 });
 
 function seriesValues(options) {
@@ -123,6 +238,370 @@ function seriesValues(options) {
     length: options.getInteger('length'),
     absolute: options.getInteger('absolute'),
   };
+}
+
+// ---------- Panels: ⚙️ Manage, 🔄 sync, 💡 suggest, history, top ----------
+
+const button = (customId, label, emoji, style = ButtonStyle.Secondary) =>
+  new ButtonBuilder()
+    .setCustomId(customId)
+    .setLabel(label)
+    .setEmoji(emoji)
+    .setStyle(style);
+
+/** A small form with text fields: [{ id, label, value, placeholder, required }]. */
+function form(customId, title, fields) {
+  return new ModalBuilder()
+    .setCustomId(customId)
+    .setTitle(title.slice(0, 45))
+    .addComponents(
+      fields.map(f => {
+        const input = new TextInputBuilder()
+          .setCustomId(f.id)
+          .setLabel(f.label.slice(0, 45))
+          .setStyle(TextInputStyle.Short)
+          .setRequired(f.required !== false)
+          .setMaxLength(100);
+        if (f.value) input.setValue(String(f.value).slice(0, 100));
+        if (f.placeholder)
+          input.setPlaceholder(String(f.placeholder).slice(0, 100));
+        return new ActionRowBuilder().addComponents(input);
+      }),
+    );
+}
+
+/** Typed text → the best TMDB match ("movie:27205"), or the text itself. */
+async function bestMatch(text) {
+  const t = String(text || '').trim();
+  if (!t || /^(movie|tv):\d+$/.test(t) || !tmdb.isEnabled()) return t;
+  const [first] = await tmdb.search(t).catch(() => []);
+  return first ? `${first.type}:${first.id}` : t;
+}
+
+function managePanel(n) {
+  const row = [];
+  if (n.status === 'planned')
+    row.push(button(`watch:editform:${n.id}`, 'Change time or title', '✏️'));
+  if (
+    ['planned', 'open'].includes(n.status) &&
+    n.session.phase === 'waiting' &&
+    !n.vote?.open
+  )
+    row.push(button(`watch:votestart:${n.id}`, 'Start a vote', '🗳️'));
+  if (n.status !== 'planned')
+    row.push(button(`watch:endnow:${n.id}`, 'End', '🏁', ButtonStyle.Primary));
+  row.push(
+    button(`watch:cancelask:${n.id}`, 'Cancel', '❌', ButtonStyle.Danger),
+  );
+  return {
+    content: `⚙️ **${watch.fullTitle(n)}** · ${discordTime(n.startAt, 'F')}`,
+    components: [new ActionRowBuilder().addComponents(row)],
+    flags: 64,
+  };
+}
+
+function historyView(guildId, pageWanted) {
+  const past = watch.pastNights(guildId);
+  if (!past.length)
+    return {
+      content: '📭 No movie nights yet. Plan one with `/watch plan`!',
+      embeds: [],
+      components: [],
+    };
+  const pages = Math.ceil(past.length / 10);
+  const page = Math.min(Math.max(1, pageWanted), pages);
+  const lines = past.slice((page - 1) * 10, page * 10).map(n => {
+    const avg = watch.averageRating(n);
+    return (
+      `**${discordTime(n.startAt, 'd')}** · ${watch.emojiOf(n)} ${watch.fullTitle(n)} · 👥 ${watch.watchers(n).length}` +
+      (avg ? ` · ⭐ ${avg.toFixed(1)}` : '')
+    );
+  });
+  const nav = [];
+  if (page > 1)
+    nav.push(button(`watch:historypage:${page - 1}`, 'Newer', '◀️'));
+  if (page < pages)
+    nav.push(button(`watch:historypage:${page + 1}`, 'Older', '▶️'));
+  return {
+    content: '',
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xe50914)
+        .setTitle(`🎞️ Movie night history (${past.length})`)
+        .setDescription(lines.join('\n'))
+        .setFooter({
+          text: `Page ${page}/${pages} · ⭐ = average rating of the people who watched`,
+        }),
+    ],
+    components: nav.length ? [new ActionRowBuilder().addComponents(nav)] : [],
+    allowedMentions: { parse: [] },
+  };
+}
+
+function topEmbed(guildId) {
+  const top = wl.topRated(guildId, { min: 2, limit: 10 });
+  const medals = ['🥇', '🥈', '🥉'];
+  return new EmbedBuilder()
+    .setColor(0xf1c40f)
+    .setTitle('🏆 Nest Top 10')
+    .setDescription(
+      top.length
+        ? top
+            .map(
+              (t, i) =>
+                `${medals[i] || `**${i + 1}.**`} ${tmdb.kindEmoji(t.type, t.anime)} **${t.title}**${t.year ? ` (${t.year})` : ''} · ⭐ ${t.avg.toFixed(1)} (${t.n} ratings)`,
+            )
+            .join('\n')
+        : 'Not enough ratings yet. A title needs at least 2 ratings: rate with the ⭐ buttons after a movie night or in `/watchlist show`.',
+    );
+}
+
+const PANEL_ACTIONS = [
+  'history',
+  'historypage',
+  'top',
+  'manage',
+  'editform',
+  'edit',
+  'votestart',
+  'voteduration',
+  'cancelask',
+  'cancelno',
+  'cancelyes',
+  'endnow',
+  'sync',
+  'syncform',
+  'suggest',
+  'suggestform',
+];
+
+/** Buttons and forms that replace the old subcommands (actions in PANEL_ACTIONS). */
+async function panelAction(interaction, guild, action, id, idText) {
+  const member = interaction.member;
+  const guildId = guild.id;
+
+  if (action === 'history')
+    return interaction.reply({
+      ...historyView(guildId, Number(idText) || 1),
+      flags: 64,
+    });
+  if (action === 'historypage')
+    return interaction.update(historyView(guildId, Number(idText) || 1));
+  if (action === 'top')
+    return interaction.reply({ embeds: [topEmbed(guildId)], flags: 64 });
+
+  if (action === 'cancelno')
+    return interaction.update({
+      content: '👍 Nothing cancelled.',
+      components: [],
+    });
+
+  const n = watch.getNight(guildId, id);
+  if (!n || !['planned', 'open', 'live'].includes(n.status))
+    return interaction.reply(ephemeral('❌ This movie night is over.'));
+
+  // 🔄 "I'm at…": anyone in the room
+  if (action === 'sync') {
+    return interaction.showModal(
+      form(`watch:syncform:${n.id}`, 'Where are you in the movie?', [
+        {
+          id: 'pos',
+          label: 'Your player shows… (e.g. 41:50 or 1:12:05)',
+          placeholder: '41:50',
+        },
+      ]),
+    );
+  }
+  if (action === 'syncform') {
+    const given = watch.parsePos(interaction.fields.getTextInputValue('pos'));
+    if (given === null)
+      return interaction.reply(
+        ephemeral('❌ Write your time like `41:50` or `1:12:05`.'),
+      );
+    if (!['playing', 'paused'].includes(n.session.phase))
+      return interaction.reply(
+        ephemeral('⏳ The movie isn’t running right now.'),
+      );
+    const { expected, diff } = watch.syncInfo(n, given);
+    const secs = Math.round(Math.abs(diff) / 1000);
+    const amount =
+      secs >= 60 ? `${Math.floor(secs / 60)} min ${secs % 60} s` : `${secs} s`;
+    let text;
+    if (secs <= 3)
+      text = `✅ You're perfectly in sync (**${watch.fmtPos(expected)}**).`;
+    else if (diff > 0)
+      text = `⏪ You're **${amount} behind**: skip forward to **${watch.fmtPos(expected)}**.`;
+    else
+      text = `⏩ You're **${amount} ahead**: go back to **${watch.fmtPos(expected)}**.`;
+    if (n.session.phase === 'paused') text += '\n⏸️ (It’s paused right now.)';
+    return interaction.reply(ephemeral(text));
+  }
+
+  // 💡 Suggest for the vote: anyone in the room
+  if (action === 'suggest') {
+    if (!n.vote?.open)
+      return interaction.reply(ephemeral('❌ The vote is over.'));
+    return interaction.showModal(
+      form(`watch:suggestform:${n.id}`, 'Suggest a title', [
+        {
+          id: 'title',
+          label: 'Movie, series or anime',
+          placeholder: 'e.g. Inception, or Dune 2021',
+        },
+      ]),
+    );
+  }
+  if (action === 'suggestform') {
+    await interaction.deferReply({ flags: 64 });
+    const ref = await bestMatch(interaction.fields.getTextInputValue('title'));
+    const r = await watch.suggest(guild, n.id, interaction.user.id, ref);
+    const msg = {
+      closed: '❌ The vote is over.',
+      'not-member': '❌ Enter the room first.',
+      exists: `👍 **${r.option?.title}** is already an option. Vote for it in the menu!`,
+      full: '❌ The vote is full (25 options).',
+    };
+    return interaction.editReply(
+      r.error
+        ? msg[r.error]
+        : `💡 Added **${r.option.title}** to the vote. Wrong one? Suggest again with the year, e.g. “Dune 2021”.`,
+    );
+  }
+
+  // Everything below: planner or admins only
+  if (!watch.canManage(member, n))
+    return interaction.reply(
+      ephemeral('❌ Only the planner or an admin can manage this movie night.'),
+    );
+
+  if (action === 'manage') return interaction.reply(managePanel(n));
+
+  if (action === 'editform') {
+    const cur = zonedParts(n.startAt);
+    return interaction.showModal(
+      form(`watch:edit:${n.id}`, 'Change movie night', [
+        {
+          id: 'when',
+          label: 'When (e.g. tomorrow 20:00, fri 21:00)',
+          value: `${cur.date} ${cur.time}`,
+        },
+        {
+          id: 'title',
+          label: 'New title (leave empty to keep it)',
+          required: false,
+          placeholder: watch.fullTitle(n),
+        },
+      ]),
+    );
+  }
+  if (action === 'edit') {
+    if (n.status !== 'planned')
+      return interaction.reply(
+        ephemeral('❌ It already started, so it can’t be changed anymore.'),
+      );
+    const when = parseWhen(interaction.fields.getTextInputValue('when'));
+    if (!when)
+      return interaction.reply(
+        ephemeral(
+          '❌ I didn’t understand the time. Try `tomorrow 20:00`, `friday 21:00` or `2026-11-06 20:00`.',
+        ),
+      );
+    const startAt = zonedToUtc(when.date, when.time);
+    if (startAt < Date.now() - 60000)
+      return interaction.reply(ephemeral('❌ That time is in the past.'));
+    await interaction.deferReply({ flags: 64 });
+    const changes = { startAt };
+    const newTitle = interaction.fields.getTextInputValue('title')?.trim();
+    if (newTitle) {
+      Object.assign(
+        changes,
+        await watch.resolveTitle(await bestMatch(newTitle), {
+          guildId,
+          scope: n.groupId || 'server',
+        }),
+      );
+    }
+    const updated = await watch.editNight(guild, n.id, changes);
+    return interaction.editReply(
+      `✅ Updated: **${watch.fullTitle(updated)}** on ${discordTime(updated.startAt, 'F')}. Everyone signed up was notified.`,
+    );
+  }
+
+  if (action === 'votestart') {
+    return interaction.update({
+      content: `🗳️ How long should people vote on **${watch.fullTitle(n)}**? (The current title is one of the options.)`,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId(`watch:voteduration:${n.id}`)
+            .setPlaceholder('⏱️ Vote duration…')
+            .addOptions(
+              VOTE_CHOICES.map(c => ({
+                label: c.name.replace('🗳️ ', ''),
+                value: c.value,
+              })),
+            ),
+        ),
+      ],
+    });
+  }
+  if (action === 'voteduration') {
+    if (n.vote?.open)
+      return interaction.update({
+        content: `🗳️ There's already a vote in <#${n.roomId}>.`,
+        components: [],
+      });
+    await interaction.deferUpdate();
+    const updated = await watch.startVote(
+      guild,
+      n.id,
+      interaction.values?.[0] || 'start',
+    );
+    return interaction.editReply({
+      content: `🗳️ Vote started in <#${updated.roomId}>.`,
+      components: [],
+    });
+  }
+
+  if (action === 'cancelask') {
+    return interaction.update({
+      content: `❌ Really cancel **${watch.fullTitle(n)}**? Everyone signed up gets told.`,
+      components: [
+        new ActionRowBuilder().addComponents(
+          button(
+            `watch:cancelyes:${n.id}`,
+            'Yes, cancel it',
+            '❌',
+            ButtonStyle.Danger,
+          ),
+          button(`watch:cancelno:${n.id}`, 'No', '↩️'),
+        ),
+      ],
+    });
+  }
+  if (action === 'cancelyes') {
+    await interaction.deferUpdate();
+    await watch.cancelNight(guild, n.id, interaction.user.id);
+    return interaction
+      .editReply({
+        content: `❌ **${watch.fullTitle(n)}** was cancelled. Everyone signed up was notified.`,
+        components: [],
+      })
+      .catch(() => {});
+  }
+
+  if (action === 'endnow') {
+    const inRoom = n.roomId === interaction.channelId;
+    await interaction.reply(
+      ephemeral(
+        inRoom
+          ? '🎬 Closing this room in 5 seconds…'
+          : `🎬 **${watch.fullTitle(n)}** ended.`,
+      ),
+    );
+    if (inRoom) await new Promise(r => setTimeout(r, 5000));
+    await watch.endNight(guild, n.id, { by: interaction.user.tag });
+  }
 }
 
 // ---------- Buttons and menus ----------
@@ -184,12 +663,10 @@ async function handleComponent(interaction) {
     );
   }
 
-  if (action === 'suggest') {
-    return interaction.reply(
-      ephemeral(
-        '💡 Type `/watch suggest title:` here in the room and pick a title from the list.',
-      ),
-    );
+  // ⚙️ Manage, 🔄 sync, 💡 suggest, history, top: buttons instead of commands
+  if (PANEL_ACTIONS.includes(action)) {
+    await panelAction(interaction, guild, action, id, idText);
+    return;
   }
 
   if (action === 'next' || action === 'stop') {
@@ -389,16 +866,12 @@ module.exports = {
           )
           .addStringOption(o =>
             o
-              .setName('date')
-              .setDescription('Day (start typing, or YYYY-MM-DD)')
+              .setName('when')
+              .setDescription(
+                'e.g. "tomorrow 20:00", "friday", "fr 21:00" (start typing)',
+              )
               .setRequired(true)
               .setAutocomplete(true),
-          )
-          .addStringOption(o =>
-            o
-              .setName('time')
-              .setDescription('Start time, e.g. 20:00 (server time)')
-              .setRequired(true),
           )
           .addStringOption(o => titleOption(o, false))
           .addStringOption(o =>
@@ -418,88 +891,6 @@ module.exports = {
           .setDescription('Watch something right now')
           .addStringOption(o => titleOption(o)),
       ),
-    )
-    .addSubcommand(sub =>
-      seriesOptions(
-        sub
-          .setName('edit')
-          .setDescription('Change a planned movie night (planner or admins)')
-          .addStringOption(o => nightOption(o))
-          .addStringOption(o => titleOption(o, false))
-          .addStringOption(o =>
-            o.setName('date').setDescription('New day').setAutocomplete(true),
-          )
-          .addStringOption(o =>
-            o.setName('time').setDescription('New start time, e.g. 20:30'),
-          ),
-      ),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('cancel')
-        .setDescription('Cancel a movie night (planner or admins)')
-        .addStringOption(o => nightOption(o)),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('vote')
-        .setDescription(
-          'Start a vote on what to watch for a planned night (planner or admins)',
-        )
-        .addStringOption(o => nightOption(o))
-        .addStringOption(o =>
-          o
-            .setName('duration')
-            .setDescription('How long the vote runs')
-            .addChoices(...VOTE_CHOICES),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('suggest')
-        .setDescription(
-          'Suggest a title for a running vote (use it in the room)',
-        )
-        .addStringOption(o => titleOption(o)),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('calendar')
-        .setDescription('Upcoming movie nights, sign up with a click'),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('history')
-        .setDescription('Past movie nights')
-        .addIntegerOption(o =>
-          o.setName('page').setDescription('Page').setMinValue(1),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('top')
-        .setDescription('🏆 Nest Top 10: best rated movies and series'),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('sync')
-        .setDescription(
-          'Am I in sync? Enter where you are, e.g. 41:50 or 1:12:05',
-        )
-        .addStringOption(o =>
-          o
-            .setName('time')
-            .setDescription('Your position in the movie')
-            .setRequired(true),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('end')
-        .setDescription(
-          'End a movie night and close its room (planner or admins)',
-        )
-        .addStringOption(o => nightOption(o, false)),
     ),
 
   async autocomplete(interaction) {
@@ -523,47 +914,8 @@ module.exports = {
       return interaction.respond(choices.slice(0, 25));
     }
 
-    if (focused.name === 'date') {
-      const choices = [];
-      for (let i = 0; i < DATE_SUGGESTIONS; i++) {
-        const ms = Date.now() + i * 86400000;
-        const date = new Intl.DateTimeFormat('en-CA', {
-          timeZone: TZ,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        }).format(ms);
-        const label =
-          new Date(ms).toLocaleDateString('en-US', {
-            timeZone: TZ,
-            weekday: 'long',
-            month: 'short',
-            day: 'numeric',
-          }) + (i === 0 ? ' (today)' : i === 1 ? ' (tomorrow)' : '');
-        if (
-          !q ||
-          label.toLowerCase().includes(q.toLowerCase()) ||
-          date.includes(q)
-        )
-          choices.push({ name: label, value: date });
-      }
-      return interaction.respond(choices.slice(0, 25));
-    }
+    if (focused.name === 'when') return interaction.respond(whenChoices(q));
 
-    if (focused.name === 'night') {
-      const choices = watch
-        .upcoming(interaction.guildId)
-        .filter(n => !q || n.title.toLowerCase().includes(q.toLowerCase()))
-        .slice(0, 25)
-        .map(n => ({
-          name: `${new Date(n.startAt).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })} · ${watch.fullTitle(n)}`.slice(
-            0,
-            100,
-          ),
-          value: String(n.id),
-        }));
-      return interaction.respond(choices);
-    }
     return interaction.respond([]);
   },
 
@@ -573,212 +925,6 @@ module.exports = {
     const member = interaction.member;
     const s = watch.settingsOf(interaction.guildId);
     const o = interaction.options;
-
-    // ---------- history ----------
-    if (sub === 'history') {
-      const past = watch.pastNights(interaction.guildId);
-      if (!past.length)
-        return interaction.reply(
-          ephemeral('📭 No movie nights yet. Plan one with `/watch plan`!'),
-        );
-      const pages = Math.ceil(past.length / 10);
-      const page = Math.min(o.getInteger('page') || 1, pages);
-      const lines = past.slice((page - 1) * 10, page * 10).map(n => {
-        const avg = watch.averageRating(n);
-        return (
-          `**${discordTime(n.startAt, 'd')}** · ${watch.emojiOf(n)} ${watch.fullTitle(n)} · 👥 ${watch.watchers(n).length}` +
-          (avg ? ` · ⭐ ${avg.toFixed(1)}` : '')
-        );
-      });
-      const embed = new EmbedBuilder()
-        .setColor(0xe50914)
-        .setTitle(`🎞️ Movie night history (${past.length})`)
-        .setDescription(lines.join('\n'))
-        .setFooter({
-          text: `Page ${page}/${pages} · ⭐ = average rating of the people who watched`,
-        });
-      return interaction.reply({
-        embeds: [embed],
-        allowedMentions: { parse: [] },
-      });
-    }
-
-    // ---------- top ----------
-    if (sub === 'top') {
-      const top = wl.topRated(interaction.guildId, { min: 2, limit: 10 });
-      const medals = ['🥇', '🥈', '🥉'];
-      const embed = new EmbedBuilder()
-        .setColor(0xf1c40f)
-        .setTitle('🏆 Nest Top 10')
-        .setDescription(
-          top.length
-            ? top
-                .map(
-                  (t, i) =>
-                    `${medals[i] || `**${i + 1}.**`} ${tmdb.kindEmoji(t.type, t.anime)} **${t.title}**${t.year ? ` (${t.year})` : ''} · ⭐ ${t.avg.toFixed(1)} (${t.n} ratings)`,
-                )
-                .join('\n')
-            : 'Not enough ratings yet. A title needs at least 2 ratings. Rate with the ⭐ buttons after a movie night or `/watchlist rate`.',
-        );
-      return interaction.reply({ embeds: [embed] });
-    }
-
-    // ---------- calendar ----------
-    if (sub === 'calendar') {
-      return interaction.reply({
-        embeds: [watch.calendarEmbed(interaction.guildId)],
-        components: watch.calendarComponents(interaction.guildId),
-        flags: 64,
-      });
-    }
-
-    // ---------- sync ----------
-    if (sub === 'sync') {
-      const n = watch.nightByRoom(interaction.guildId, interaction.channelId);
-      if (!n)
-        return interaction.reply(
-          ephemeral('❌ Use this in a movie night room.'),
-        );
-      const given = watch.parsePos(o.getString('time'));
-      if (given === null)
-        return interaction.reply(
-          ephemeral('❌ Write your time like `41:50` or `1:12:05`.'),
-        );
-      if (!['playing', 'paused'].includes(n.session.phase)) {
-        return interaction.reply(
-          ephemeral('⏳ The movie isn’t running right now.'),
-        );
-      }
-      const { expected, diff } = watch.syncInfo(n, given);
-      const secs = Math.round(Math.abs(diff) / 1000);
-      const amount =
-        secs >= 60
-          ? `${Math.floor(secs / 60)} min ${secs % 60} s`
-          : `${secs} s`;
-      let text;
-      if (secs <= 3)
-        text = `✅ You're perfectly in sync (**${watch.fmtPos(expected)}**).`;
-      else if (diff > 0)
-        text = `⏪ You're **${amount} behind**: skip forward to **${watch.fmtPos(expected)}**.`;
-      else
-        text = `⏩ You're **${amount} ahead**: go back to **${watch.fmtPos(expected)}**.`;
-      if (n.session.phase === 'paused') text += '\n⏸️ (It’s paused right now.)';
-      return interaction.reply(ephemeral(text));
-    }
-
-    // ---------- end ----------
-    if (sub === 'end') {
-      const id = o.getString('night');
-      const n = id
-        ? watch.getNight(interaction.guildId, Number(id))
-        : watch.nightByRoom(interaction.guildId, interaction.channelId);
-      if (!n || !['open', 'live', 'planned'].includes(n.status)) {
-        return interaction.reply(
-          ephemeral('❌ Pick a movie night, or use this inside its room.'),
-        );
-      }
-      if (!watch.canManage(member, n))
-        return interaction.reply(
-          ephemeral(
-            '❌ Only the planner or an admin can end this movie night.',
-          ),
-        );
-      const inRoom = n.roomId === interaction.channelId;
-      await interaction.reply(
-        ephemeral(
-          inRoom
-            ? '🎬 Closing this room in 5 seconds…'
-            : `🎬 **${watch.fullTitle(n)}** ended.`,
-        ),
-      );
-      if (inRoom) await new Promise(r => setTimeout(r, 5000));
-      await watch.endNight(guild, n.id, { by: interaction.user.tag });
-      return;
-    }
-
-    // ---------- cancel ----------
-    if (sub === 'cancel') {
-      const n = watch.getNight(
-        interaction.guildId,
-        Number(o.getString('night')),
-      );
-      if (!n || !['planned', 'open', 'live'].includes(n.status))
-        return interaction.reply(ephemeral('❌ Movie night not found.'));
-      if (!watch.canManage(member, n))
-        return interaction.reply(
-          ephemeral('❌ Only the planner or an admin can cancel this.'),
-        );
-      await interaction.deferReply({ flags: 64 });
-      await watch.cancelNight(guild, n.id, interaction.user.id);
-      return interaction.editReply(
-        `❌ **${watch.fullTitle(n)}** was cancelled. Everyone signed up was notified.`,
-      );
-    }
-
-    // ---------- vote ----------
-    if (sub === 'vote') {
-      const n = watch.getNight(
-        interaction.guildId,
-        Number(o.getString('night')),
-      );
-      if (
-        !n ||
-        !['planned', 'open'].includes(n.status) ||
-        n.session.phase !== 'waiting'
-      ) {
-        return interaction.reply(
-          ephemeral(
-            '❌ Only movie nights that haven’t started can get a vote.',
-          ),
-        );
-      }
-      if (n.vote?.open)
-        return interaction.reply(
-          ephemeral(`🗳️ There's already a vote running in <#${n.roomId}>.`),
-        );
-      if (!watch.canManage(member, n))
-        return interaction.reply(
-          ephemeral('❌ Only the planner or an admin can start a vote.'),
-        );
-      await interaction.deferReply({ flags: 64 });
-      const updated = await watch.startVote(
-        guild,
-        n.id,
-        o.getString('duration') || 'start',
-      );
-      return interaction.editReply(
-        `🗳️ Vote started in <#${updated.roomId}>. The current title is one of the options.`,
-      );
-    }
-
-    // ---------- suggest ----------
-    if (sub === 'suggest') {
-      const n = watch.nightByRoom(interaction.guildId, interaction.channelId);
-      if (!n?.vote?.open)
-        return interaction.reply(
-          ephemeral(
-            '❌ Use this in a movie night room while a vote is running.',
-          ),
-        );
-      await interaction.deferReply({ flags: 64 });
-      const r = await watch.suggest(
-        guild,
-        n.id,
-        interaction.user.id,
-        o.getString('title'),
-      );
-      const msg = {
-        closed: '❌ The vote is over.',
-        'not-member': '❌ Enter the room first.',
-        exists: `👍 **${r.option?.title}** is already an option. Vote for it in the menu!`,
-        full: '❌ The vote is full (25 options).',
-      };
-      return interaction.editReply(
-        r.error
-          ? msg[r.error]
-          : `💡 Added **${r.option.title}** to the vote. Don't forget to vote for it!`,
-      );
-    }
 
     // Used inside a group channel? Then it's a private group movie night
     const group = groups.groupByChannel(
@@ -807,19 +953,14 @@ module.exports = {
       }
       let startAt = Date.now();
       if (sub === 'plan') {
-        const date = o.getString('date');
-        const time = parseTime(o.getString('time'));
-        if (!isValidDate(date))
+        const when = parseWhen(o.getString('when'));
+        if (!when)
           return interaction.reply(
             ephemeral(
-              '❌ Pick a day from the list, or write it like `2026-11-06`.',
+              '❌ I didn’t understand when. Try `tomorrow 20:00`, `friday`, `fr 21:00` or pick one from the list.',
             ),
           );
-        if (!time)
-          return interaction.reply(
-            ephemeral('❌ Write the time like `20:00`.'),
-          );
-        startAt = zonedToUtc(date, time);
+        startAt = zonedToUtc(when.date, when.time);
         if (startAt < Date.now() - 60000)
           return interaction.reply(ephemeral('❌ That time is in the past.'));
       }
@@ -853,7 +994,7 @@ module.exports = {
         return interaction.editReply(
           `🗳️ Movie night planned for ${discordTime(n.startAt, 'F')}, **vote is open** in <#${n.roomId}> ` +
             `(ends ${n.vote.mode === 'start' ? 'when it starts' : discordTime(n.vote.endsAt, 'R')}).\n` +
-            `Everyone who signs up can vote; their watchlists add options automatically. Suggest more with \`/watch suggest\`.`,
+            `Everyone who signs up can vote; their watchlists add options automatically. Suggest more with **💡 Suggest** in the room.`,
         );
       }
       if (sub === 'now') {
@@ -874,75 +1015,10 @@ module.exports = {
             : '\n💡 Tip: pick the title from the list to get poster, length and streaming info.'),
       );
     }
-
-    // ---------- edit ----------
-    if (sub === 'edit') {
-      const n = watch.getNight(
-        interaction.guildId,
-        Number(o.getString('night')),
-      );
-      if (!n || n.status !== 'planned')
-        return interaction.reply(
-          ephemeral(
-            '❌ Only planned (not yet started) movie nights can be edited.',
-          ),
-        );
-      if (!watch.canManage(member, n))
-        return interaction.reply(
-          ephemeral('❌ Only the planner or an admin can edit this.'),
-        );
-
-      const changes = {};
-      const dateIn = o.getString('date');
-      const timeIn = o.getString('time');
-      if (dateIn || timeIn) {
-        const cur = zonedParts(n.startAt);
-        const date = dateIn || cur.date;
-        const time = timeIn ? parseTime(timeIn) : cur.time;
-        if (!isValidDate(date))
-          return interaction.reply(
-            ephemeral(
-              '❌ Pick a day from the list, or write it like `2026-11-06`.',
-            ),
-          );
-        if (!time)
-          return interaction.reply(
-            ephemeral('❌ Write the time like `20:00`.'),
-          );
-        changes.startAt = zonedToUtc(date, time);
-        if (changes.startAt < Date.now() - 60000)
-          return interaction.reply(ephemeral('❌ That time is in the past.'));
-      }
-
-      const series = seriesValues(o);
-      const newTitle = o.getString('title');
-      await interaction.deferReply({ flags: 64 });
-      if (newTitle || Object.values(series).some(v => v !== null)) {
-        const ref =
-          newTitle || (n.info ? `${n.info.type}:${n.info.id}` : n.title);
-        const keep = newTitle
-          ? {}
-          : { season: n.season, episode: n.episode, episodes: n.episodes };
-        const merged = Object.fromEntries(
-          Object.entries({ ...keep, ...series }).map(([k, v]) => [
-            k,
-            v ?? keep[k] ?? null,
-          ]),
-        );
-        Object.assign(changes, await watch.resolveTitle(ref, merged));
-      }
-      if (!Object.keys(changes).length)
-        return interaction.editReply(
-          '🤔 Nothing to change. Pick a new title, date or time.',
-        );
-      const updated = await watch.editNight(guild, n.id, changes);
-      return interaction.editReply(
-        `✅ Updated: **${watch.fullTitle(updated)}** on ${discordTime(updated.startAt, 'F')}. Everyone signed up was notified.`,
-      );
-    }
   },
 };
 
 // Exported for tests
 module.exports.parseTime = parseTime;
 module.exports.zonedParts = zonedParts;
+module.exports.parseWhen = parseWhen;

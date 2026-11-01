@@ -1,5 +1,19 @@
 # NestBot Changelog
 
+## V 1.12 (November 2026)
+
+Movie nights got simpler: buttons instead of commands. `/watch` 11 → 2 subcommands, `/watchlist` 10 → 4.
+
+**Changed**
+- 🗓️ `/watch plan when:` understands "tomorrow 20:00", "friday", "fr 21:00", "6.11. 20:00" and suggests the next days while typing (replaces `date` + `time`)
+- ⚙️ **Manage** button on the movie card, the check-in and the clock (planner, admins, mod role): ✏️ change time or title (a form), 🗳️ start a vote, ❌ cancel (asks first), 🏁 end. Replaces `/watch edit`, `cancel`, `vote`, `end`
+- 🔄 **I'm at…** button on the clock (replaces `/watch sync`), 💡 **Suggest** opens a form (replaces `/watch suggest`)
+- 🎞️ History and 🏆 Nest Top 10 are buttons under the calendar in #movies; 🍿 Movie nights board in `/leaderboard`. Replaces `/watch calendar`, `history`, `top`
+- 📝 `/watchlist show` is interactive: open an entry to set 📌/▶️/✅, ⭐ rate, 🔒/🌐, ❗, ✏️ note or episode, 🗑️ remove; ◀️ ▶️ pages, 🎲 pick for me, 📬 movie nights waiting for your answer. `/watchlist add watched:/rating:` for things you already saw. Replaces `/watchlist remove`, `edit`, `seen`, `rate`, `pending`, `random`
+
+**Fixed**
+- Menus/buttons that open a form no longer risk a second reply
+
 ## V 1.11 (November 2026)
 
 **New**

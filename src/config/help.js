@@ -93,7 +93,7 @@ const CATEGORIES = [
     features: [
       {
         name: '🗓️ Plan & sign up',
-        text: 'Plan with `/watch plan` (or `/watch now`). The calendar in #movies shows what’s coming up: one click to sign up, another to leave. Times are shown in your own time zone.',
+        text: 'Plan with `/watch plan when:tomorrow 20:00` (or `/watch now`). The calendar in #movies shows what’s coming up: one click to sign up, another to leave. Times are shown in your own time zone. Everything else is a button: **⚙️** on the card or in the room changes the time or title, starts a vote, cancels or ends it (planner and admins); 🎞️ History and 🏆 Top 10 are under the calendar.',
       },
       {
         name: '🚪 Your room',
@@ -101,11 +101,11 @@ const CATEGORIES = [
       },
       {
         name: '🗳️ Votes',
-        text: 'Not sure what to watch? Plan without a title (or `/watch vote`): the room opens right away and everyone who signed up votes in it. Their watchlists add options automatically, `/watch suggest` adds more. The winner is set automatically; ties are decided by the wheel.',
+        text: 'Not sure what to watch? Plan without a title (or **⚙️ → 🗳️ Start a vote**): the room opens right away and everyone who signed up votes in it. Their watchlists add options automatically, **💡 Suggest** adds more. The winner is set automatically; ties are decided by the wheel.',
       },
       {
         name: '📝 Watchlists',
-        text: 'Everyone has a watchlist (`/watchlist add`): public by default, single entries can be private. After a movie night you get a **✅ mark as watched?** and can rate it ⭐1–5. `/watchlist match` shows what you all want to watch.',
+        text: 'Everyone has a watchlist (`/watchlist add`): public by default, single entries can be private. `/watchlist show` opens it: pick an entry to mark it watched, rate it, make it private, add a note or remove it; 🎲 picks something for you. After a movie night you get a **✅ mark as watched?** and can rate it ⭐1–5. `/watchlist match` shows what you all want to watch.',
       },
       {
         name: '💞 Groups',
@@ -113,7 +113,7 @@ const CATEGORIES = [
       },
       {
         name: '▶️ Watching in sync',
-        text: 'Pause your movie at 0:00 and press **✅ Ready**, then 3… 2… 1… ▶️. The live clock shows where everyone should be, `/watch sync` tells you if you’re ahead or behind, and anyone can press **⏸️ Pause**.',
+        text: 'Pause your movie at 0:00 and press **✅ Ready**, then 3… 2… 1… ▶️. The live clock shows where everyone should be, **🔄 I’m at…** tells you if you’re ahead or behind, and anyone can press **⏸️ Pause**.',
       },
     ],
   },
@@ -328,14 +328,14 @@ const COMMANDS = {
   // 🍿 Movie nights
   watch: {
     explain:
-      'Movie nights for movies, series and anime: plan one (or start right away), sign up in the #movies calendar, get a private room, check in, and watch in sync with the live clock. Titles come with poster, length and where to stream them.',
+      'Movie nights for movies, series and anime: plan one (`when:` understands “tomorrow 20:00”, “friday”, “fr 21:00”) or start right away, sign up in the #movies calendar, get a private room, check in, and watch in sync with the live clock. Titles come with poster, length and where to stream them. Changing, voting, cancelling, ending and syncing are buttons on the card and in the room.',
     tips: 'Pick the title from the list while typing to get all the info. Only the planner and admins can edit, cancel or end a movie night. Rooms close automatically after a day.',
   },
 
   watchlist: {
     explain:
-      'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. Public by default; make the whole list or single entries 🔒 private. Set your country and streaming services so "where can I watch it?" fits you.',
-    tips: 'Movie nights ask you "mark as watched?" at the end; forgot? `/watchlist pending`. Turn on `/watchlist settings notify:` to get a DM when something from your list is planned.',
+      'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. `add` (with `watched:` / `rating:` for things you already saw), `show` (open entries to change them, 🎲 pick for me, 📬 movie nights waiting for your answer), `settings`, `match`. Public by default; make the whole list or single entries 🔒 private.',
+    tips: 'Movie nights ask you "mark as watched?" at the end; forgot? `/watchlist show` → 📬. Turn on `/watchlist settings notify:` to get a DM when something from your list is planned.',
   },
 
   group: {

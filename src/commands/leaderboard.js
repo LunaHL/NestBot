@@ -161,6 +161,43 @@ const BOARDS = {
       };
     },
   },
+  movies: {
+    label: 'Movie nights',
+    emoji: '🍿',
+    color: 0xe50914,
+    build: guildId => {
+      const watch = require('../services/watch');
+      const tmdb = require('../services/tmdb');
+      const nights = {};
+      for (const n of watch.pastNights(guildId))
+        for (const id of watch.watchers(n)) nights[id] = (nights[id] || 0) + 1;
+      const best = require('../services/watchlist').topRated(guildId, {
+        min: 2,
+        limit: 5,
+      });
+      return {
+        fields: [
+          {
+            name: '🏆 Nest Top 5 (rated by you)',
+            value: best.length
+              ? best
+                  .map(
+                    (t, i) =>
+                      `${ui.rank(i)} ${tmdb.kindEmoji(t.type, t.anime)} **${t.title}** · ⭐ ${t.avg.toFixed(1)} (${t.n})`,
+                  )
+                  .join('\n')
+              : '– (a title needs 2 ratings)',
+          },
+          {
+            name: '🍿 Most movie nights',
+            value: list(top(nights, 5), n => plural(n, 'night')),
+          },
+        ],
+        footer:
+          'Full Top 10 and history: buttons under the calendar in #movies',
+      };
+    },
+  },
   achievements: {
     label: 'Achievements',
     emoji: '🏅',
@@ -215,7 +252,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('leaderboard')
     .setDescription(
-      'All leaderboards of the Nest: coins, puzzle, Wordle, drinks, duels, pictures, achievements',
+      'All leaderboards: coins, puzzle, Wordle, drinks, duels, movies, pictures, achievements',
     )
     .addStringOption(o =>
       o

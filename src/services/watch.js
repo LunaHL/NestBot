@@ -432,6 +432,10 @@ function cardButtons(n) {
       .setLabel('Watchlist')
       .setEmoji('➕')
       .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`watch:manage:${n.id}`)
+      .setEmoji('⚙️')
+      .setStyle(ButtonStyle.Secondary),
   );
   return [row];
 }
@@ -508,6 +512,20 @@ function calendarComponents(guildId) {
       ),
     );
   }
+  rows.push(
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('watch:history:1')
+        .setLabel('History')
+        .setEmoji('🎞️')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('watch:top')
+        .setLabel('Nest Top 10')
+        .setEmoji('🏆')
+        .setStyle(ButtonStyle.Secondary),
+    ),
+  );
   return rows;
 }
 
@@ -822,7 +840,7 @@ async function enterRoom(guild, id, userId) {
     const phase = n.session.phase;
     const where =
       phase === 'playing' || phase === 'paused'
-        ? ` The movie is running: we're at **${fmtPos(position(n))}**. Use \`/watch sync\` to catch up.`
+        ? ` The movie is running: we're at **${fmtPos(position(n))}**. Press **🔄 I’m at…** to catch up.`
         : phase === 'checkin'
           ? ' We’re checking in right now: pause at 0:00 and press **✅ Ready** above.'
           : '';
@@ -913,7 +931,7 @@ async function openRoom(guild, n, { spontaneous = false } = {}) {
           .setDescription(
             '1. When it starts, load the movie on your own device and **pause it at 0:00**.\n' +
               '2. Press **✅ Ready**. When everyone is ready, NestBot counts down: 3… 2… 1… ▶️\n' +
-              '3. The **live clock** shows where everyone should be. Behind? Use `/watch sync <your time>`.\n' +
+              '3. The **live clock** shows where everyone should be. Behind? Press **🔄 I’m at…**.\n' +
               '4. Anyone can press **⏸️ Pause**. To continue, everyone presses ✅ Ready again.',
           ),
       ],
@@ -996,6 +1014,11 @@ function checkinButtons(n) {
         .setCustomId(`watch:force:${n.id}`)
         .setLabel('Start anyway')
         .setEmoji('▶️')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`watch:manage:${n.id}`)
+        .setLabel('Manage')
+        .setEmoji('⚙️')
         .setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -1166,8 +1189,8 @@ function clockEmbed(n) {
     desc += `\n\n⏸️ Paused by <@${s.pausedBy}>. Press **▶️ Resume** when everyone's back.`;
   else if (s.phase === 'finished')
     desc +=
-      '\n\n🎬 That was it! The planner (or an admin) closes the room with `/watch end`.';
-  else desc += '\n\nBehind or ahead? `/watch sync <your time>`';
+      '\n\n🎬 That was it! The planner (or an admin) closes the room with **⚙️ → 🏁 End**.';
+  else desc += '\n\nBehind or ahead? Press **🔄 I’m at…**';
   return new EmbedBuilder()
     .setColor(
       s.phase === 'paused'
@@ -1202,9 +1225,19 @@ function clockButtons(n) {
         .setEmoji('🕐')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
+        .setCustomId(`watch:sync:${n.id}`)
+        .setLabel('I’m at…')
+        .setEmoji('🔄')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
         .setCustomId(`watch:missed:${n.id}`)
         .setLabel('I missed part')
         .setEmoji('⚠️')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`watch:manage:${n.id}`)
+        .setLabel('Manage')
+        .setEmoji('⚙️')
         .setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -1267,7 +1300,7 @@ async function forceStart(client, member, id) {
   return { night: n };
 }
 
-/** "/watch sync 41:50": how far off is this person? */
+/** "🔄 I’m at 41:50": how far off is this person? */
 function syncInfo(n, givenMs) {
   const expected = position(n);
   return { expected, diff: expected - givenMs }; // >0: behind
@@ -1358,7 +1391,7 @@ function averageRating(n) {
 
 // ---------- Votes: what do we watch? ----------
 
-/** Vote durations for /watch plan vote: and /watch vote (hours; null = until the start). */
+/** Vote durations for /watch plan vote: and ⚙️ → Start a vote (hours; null = until the start). */
 const VOTE_DURATIONS = {
   '1h': 1,
   '6h': 6,
@@ -1420,7 +1453,7 @@ function voteEmbed(n) {
     .setTitle(n.vote.open ? '🗳️ What do we watch?' : '🗳️ The vote is over')
     .setDescription(
       (lines.join('\n') ||
-        'No options yet. Suggest something with `/watch suggest`!') +
+        'No options yet. Suggest something with **💡 Suggest**!') +
         (n.vote.open
           ? `\n\n⏳ Ends ${ends}. Pick **everything** you'd like to watch.`
           : ''),
@@ -1561,7 +1594,7 @@ function castVote(guildId, id, userId, keys) {
   });
 }
 
-/** /watch suggest: add a title to the vote. Returns { error } or { option }. */
+/** 💡 Suggest: add a title to the vote. Returns { error } or { option }. */
 async function suggest(guild, id, userId, ref) {
   const n0 = getNight(guild.id, id);
   if (!n0?.vote?.open) return { error: 'closed' };
@@ -1610,7 +1643,7 @@ async function closeVote(guild, n) {
   const text = !winner
     ? '🗳️ The vote is over, but there were no options. <@' +
       n.createdBy +
-      '>, set a title with `/watch edit`.'
+      '>, set a title with **⚙️ Manage → ✏️ Change**.'
     : `🏆 **${winner.title}** won with **${winner.count}** vote${winner.count === 1 ? '' : 's'}!` +
       (tied.length > 1
         ? ` (🎡 ${tied.length}-way tie, the wheel decided)`
@@ -1752,7 +1785,7 @@ async function stopSeries(client, guildId, id, userId, marker) {
   const room = await fetchChannel(client, n.roomId);
   await room
     ?.send({
-      content: `🛑 <@${userId}> stopped after **${fullTitle(n)}**. Mark the episodes you watched on your watchlist?\n<@${n.createdBy}>, close the room with \`/watch end\` when you're done.`,
+      content: `🛑 <@${userId}> stopped after **${fullTitle(n)}**. Mark the episodes you watched on your watchlist?\n<@${n.createdBy}>, close the room with **⚙️ → 🏁 End** when you're done.`,
       components: watchedPrompt(n),
       allowedMentions: { users: [n.createdBy] },
     })
@@ -1918,7 +1951,7 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
     if (ask.length) {
       embed.addFields({
         name: '📝 Watchlist',
-        value: `${ask.map(u => `<@${u}>`).join(' ')}: mark it as watched? (Or later with \`/watchlist pending\`.)`,
+        value: `${ask.map(u => `<@${u}>`).join(' ')}: mark it as watched? (Or later in \`/watchlist show\` → 📬.)`,
       });
     }
     await channel
@@ -2083,7 +2116,7 @@ async function clockTick(client) {
         } else {
           await room
             ?.send({
-              content: `🎬 **${fullTitle(n)}** is over! Mark it as watched on your watchlist?\n<@${n.createdBy}>, close the room with \`/watch end\` when you're done chatting.`,
+              content: `🎬 **${fullTitle(n)}** is over! Mark it as watched on your watchlist?\n<@${n.createdBy}>, close the room with **⚙️ → 🏁 End** when you're done chatting.`,
               components: watchedPrompt(n),
               allowedMentions: { users: [n.createdBy] },
             })
@@ -2219,6 +2252,8 @@ function startWatch(client) {
 }
 
 module.exports = {
+  cardButtons,
+  clockButtons,
   fmtPos,
   parsePos,
   fmtLength,

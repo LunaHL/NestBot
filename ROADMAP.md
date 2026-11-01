@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.12 | 🍿 Simpler movie nights: `when:`, ⚙️ Manage and 🔄 buttons, interactive watchlist |
 | V 1.11 | 🙈 Blindfolds, step 1: dark channel, whispers, summary, shop/wheel effect |
 | V 1.10 | 🧹 Fewer commands: stats in `/profile` tabs, all rankings in `/leaderboard`, channels in `/settings channels`, nicknames in `/shop`, shop categories |
 | V 1.9 | 🍻 Drink rounds, 🏷️ paid nicknames, new shop and wheel, shared look for economy commands |
@@ -228,6 +229,12 @@ A cute Easter outfit you can wear yourself or put on a friend.
   you're away for up to 7 days).
 
 ---
+
+## 🍿 Movie nights: next simplifications
+
+- 💞 Groups: a pinned control panel in the group channel (➕ member, 👋 leave, ✏️ rename, 📝 shared list) so only `/group create` stays a command
+- 🎬 One room message that changes (ready → countdown → clock → end) instead of several messages
+- Watching alone: skip the check-in
 
 ## 💡 Quality-of-life ideas
 

@@ -8,6 +8,9 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 const wl = require('../services/watchlist');
 const tmdb = require('../services/tmdb');
@@ -149,12 +152,378 @@ function listEmbed(
     });
 }
 
+// ---------- The interactive list ----------
+
+const FILTER_NONE = '-';
+
+/** Filtered entries of a list, as the viewer may see them. */
+async function filteredEntries(guildId, viewerId, ownerId, f, locale) {
+  const own = viewerId === ownerId;
+  let entries = wl.items(guildId, ownerId, { publicOnly: !own });
+  if (f.status) entries = entries.filter(i => i.status === f.status);
+  if (f.type === 'anime') entries = entries.filter(i => i.anime);
+  else if (f.type) entries = entries.filter(i => i.type === f.type && !i.anime);
+  if (f.available) {
+    const profile = profileOf(guildId, viewerId, locale);
+    const keep = [];
+    for (const i of entries) if (await onMyServices(i, profile)) keep.push(i);
+    entries = keep;
+  }
+  return entries;
+}
+
+const filterId = f =>
+  `${f.status || FILTER_NONE}:${f.type || FILTER_NONE}:${f.available ? 1 : 0}`;
+const parseFilter = ([status, type, available]) => ({
+  status: status && status !== FILTER_NONE ? status : null,
+  type: type && type !== FILTER_NONE ? type : null,
+  available: available === '1',
+});
+
+/** The list card with a menu (open / copy an entry) and buttons (pages, random, pending). */
+async function listView(interaction, ownerId, f, pageWanted) {
+  const guildId = interaction.guildId;
+  const viewerId = interaction.user.id;
+  const own = viewerId === ownerId;
+  const owner = own
+    ? interaction.user
+    : await interaction.client.users
+        .fetch(ownerId)
+        .catch(() => ({ username: 'Someone' }));
+  const settings = wl.getList(guildId, ownerId).settings;
+  const entries = await filteredEntries(
+    guildId,
+    viewerId,
+    ownerId,
+    f,
+    interaction.locale,
+  );
+  const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const page = Math.min(Math.max(1, pageWanted || 1), pages);
+  const slice = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const name = own ? 'Your watchlist' : `${owner.username}'s watchlist`;
+  const embed = listEmbed(`📝 ${name} (${entries.length})`, slice, {
+    page,
+    pages,
+    showPrivacy: own,
+    settings,
+  });
+  if (!slice.length)
+    embed.setDescription(
+      own
+        ? 'Nothing here yet. Add something with `/watchlist add`!'
+        : 'Nothing public here.',
+    );
+
+  const components = [];
+  if (slice.length) {
+    components.push(
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(
+            own ? `watchlist:pick:${ownerId}` : `watchlist:copy:${ownerId}`,
+          )
+          .setPlaceholder(
+            own
+              ? '✏️ Open an entry: watched, rate, private, remove…'
+              : '📋 Copy to my watchlist…',
+          )
+          .addOptions(
+            slice.map(i => ({
+              label: `${i.title}${i.year ? ` (${i.year})` : ''}`.slice(0, 100),
+              value: i.key,
+              emoji: emojiOf(i),
+              description:
+                `${wl.STATUS[i.status]?.label || ''}${i.rating ? ` · ${'⭐'.repeat(i.rating)}` : ''}`.slice(
+                  0,
+                  100,
+                ) || undefined,
+            })),
+          ),
+      ),
+    );
+  }
+  const buttons = [];
+  if (page > 1)
+    buttons.push(
+      btn(`watchlist:page:${ownerId}:${page - 1}:${filterId(f)}`, 'Back', '◀️'),
+    );
+  if (page < pages)
+    buttons.push(
+      btn(`watchlist:page:${ownerId}:${page + 1}:${filterId(f)}`, 'Next', '▶️'),
+    );
+  if (entries.some(i => i.status !== 'watched'))
+    buttons.push(
+      btn(`watchlist:random:${ownerId}:${filterId(f)}`, 'Pick for me', '🎲'),
+    );
+  if (own) {
+    const pending = wl.getPending(guildId, ownerId).length;
+    if (pending)
+      buttons.push(
+        btn(
+          'watchlist:pending',
+          `Watched? (${pending})`,
+          '📬',
+          ButtonStyle.Primary,
+        ),
+      );
+  }
+  if (buttons.length)
+    components.push(new ActionRowBuilder().addComponents(buttons));
+  return { embeds: [embed], components, allowedMentions: { parse: [] } };
+}
+
+const btn = (customId, label, emoji, style = ButtonStyle.Secondary) =>
+  new ButtonBuilder()
+    .setCustomId(customId)
+    .setLabel(label)
+    .setEmoji(emoji)
+    .setStyle(style);
+
+/** One entry of your own list, with everything you can do with it. */
+function itemPanel(
+  guildId,
+  userId,
+  item,
+  { note = '', withRating = false } = {},
+) {
+  const settings = wl.getList(guildId, userId).settings;
+  const enc = wl.encodeKey(item.key);
+  const pub = wl.isPublic(item, settings);
+  const st = wl.STATUS[item.status];
+  const lines = [
+    `${note ? `${note}\n\n` : ''}**${label(item)}**`,
+    `${st.emoji} ${st.label}` +
+      (item.type === 'tv' && item.progress
+        ? ` · S${item.progress.season}E${item.progress.episode}`
+        : '') +
+      (item.rating ? ` · ${stars(item.rating)}` : '') +
+      (item.must ? ' · ❗ must-watch' : '') +
+      ` · ${pub ? '🌐 public' : '🔒 private'}`,
+  ];
+  if (item.note) lines.push(`↳ *${item.note}*`);
+  const status = s =>
+    btn(
+      `watchlist:i:${s}:${enc}`,
+      wl.STATUS[s].label,
+      wl.STATUS[s].emoji,
+      item.status === s ? ButtonStyle.Primary : ButtonStyle.Secondary,
+    );
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      status('want'),
+      status('watching'),
+      status('watched'),
+      btn(`watchlist:i:ratemenu:${enc}`, 'Rate', '⭐'),
+    ),
+    new ActionRowBuilder().addComponents(
+      btn(
+        `watchlist:i:privacy:${enc}`,
+        pub ? 'Make private' : 'Make public',
+        pub ? '🔒' : '🌐',
+      ),
+      btn(
+        `watchlist:i:must:${enc}`,
+        item.must ? 'Not a must' : 'Must-watch',
+        '❗',
+      ),
+      btn(
+        `watchlist:i:editform:${enc}`,
+        item.type === 'tv' ? 'Note / episode' : 'Note',
+        '✏️',
+      ),
+      btn(`watchlist:i:remove:${enc}`, 'Remove', '🗑️', ButtonStyle.Danger),
+    ),
+  ];
+  if (withRating) rows.push(...ratingButtons(item.key));
+  return { content: lines.join('\n'), components: rows, embeds: [], flags: 64 };
+}
+
+const LIST_ACTIONS = ['page', 'random', 'pending', 'pick', 'i'];
+
+/** Buttons of the list and the entry panel (actions in LIST_ACTIONS). */
+async function listAction(interaction, action, rest) {
+  const guildId = interaction.guildId;
+  const userId = interaction.user.id;
+
+  if (action === 'page') {
+    const [ownerId, page, ...f] = rest;
+    return interaction.update(
+      await listView(interaction, ownerId, parseFilter(f), Number(page)),
+    );
+  }
+  if (action === 'random') {
+    const [ownerId, ...f] = rest;
+    const entries = (
+      await filteredEntries(
+        guildId,
+        userId,
+        ownerId,
+        parseFilter(f),
+        interaction.locale,
+      )
+    ).filter(i => i.status !== 'watched');
+    if (!entries.length)
+      return interaction.reply(ephemeral('🎲 Nothing to pick from.'));
+    const pick = entries[Math.floor(Math.random() * entries.length)];
+    return interaction.reply(
+      ephemeral(
+        `🎲 How about **${label(pick)}**?${pick.note ? `\n↳ *${pick.note}*` : ''}`,
+      ),
+    );
+  }
+  if (action === 'pending')
+    return interaction.reply(pendingView(guildId, userId));
+  if (action === 'pick') {
+    const item = wl.getItem(guildId, userId, interaction.values?.[0]);
+    if (!item) return interaction.reply(ephemeral('That entry is gone.'));
+    return interaction.reply(itemPanel(guildId, userId, item));
+  }
+
+  const [what, enc] = rest;
+  const key = wl.decodeKey(enc);
+  const item = wl.getItem(guildId, userId, key);
+  if (!item)
+    return interaction.reply(
+      ephemeral('That entry isn’t on your watchlist anymore.'),
+    );
+  const show = (it, opts) =>
+    interaction.isModalSubmit?.()
+      ? interaction.reply(itemPanel(guildId, userId, it, opts))
+      : interaction.update(itemPanel(guildId, userId, it, opts));
+
+  if (wl.STATUS[what]) {
+    const updated = wl.editItem(guildId, userId, key, { status: what });
+    if (what === 'watched') {
+      await show(updated, {
+        note: '✅ Marked as watched. How was it?',
+        withRating: !updated.rating,
+      });
+      return achievements.announce(interaction, [userId]);
+    }
+    return show(updated);
+  }
+  if (what === 'ratemenu')
+    return show(item, { note: '⭐ Your rating:', withRating: true });
+  if (what === 'privacy') {
+    const settings = wl.getList(guildId, userId).settings;
+    return show(
+      wl.editItem(guildId, userId, key, {
+        visibility: wl.isPublic(item, settings) ? 'private' : 'public',
+      }),
+    );
+  }
+  if (what === 'must')
+    return show(wl.editItem(guildId, userId, key, { must: !item.must }));
+  if (what === 'remove') {
+    wl.removeItem(guildId, userId, key);
+    return interaction.update({
+      content: `🗑️ Removed **${label(item)}**.`,
+      components: [],
+    });
+  }
+  if (what === 'editform') {
+    const fields = [
+      { id: 'note', label: 'Note (empty = none)', value: item.note, max: 200 },
+    ];
+    if (item.type === 'tv') {
+      fields.push(
+        {
+          id: 'season',
+          label: 'Season you are at',
+          value: item.progress?.season,
+        },
+        {
+          id: 'episode',
+          label: 'Last episode you watched',
+          value: item.progress?.episode,
+        },
+      );
+    }
+    return interaction.showModal(
+      new ModalBuilder()
+        .setCustomId(`watchlist:i:edit:${enc}`)
+        .setTitle(item.title.slice(0, 45))
+        .addComponents(
+          fields.map(f => {
+            const input = new TextInputBuilder()
+              .setCustomId(f.id)
+              .setLabel(f.label)
+              .setStyle(TextInputStyle.Short)
+              .setRequired(false)
+              .setMaxLength(f.max || 4);
+            if (f.value) input.setValue(String(f.value));
+            return new ActionRowBuilder().addComponents(input);
+          }),
+        ),
+    );
+  }
+  if (what === 'edit') {
+    const get = id => {
+      try {
+        return interaction.fields.getTextInputValue(id)?.trim() || '';
+      } catch {
+        return '';
+      }
+    };
+    const changes = { note: get('note') || null };
+    if (item.type === 'tv') {
+      const season = parseInt(get('season'), 10);
+      const episode = parseInt(get('episode'), 10);
+      if (season > 0 || episode > 0) {
+        changes.progress = {
+          season: season > 0 ? season : item.progress?.season || 1,
+          episode: episode > 0 ? episode : item.progress?.episode || 1,
+        };
+        if (item.status === 'want') changes.status = 'watching';
+      }
+    }
+    return show(wl.editItem(guildId, userId, key, changes), {
+      note: '✏️ Saved.',
+    });
+  }
+  return interaction.reply(ephemeral('🤔 Unknown button.'));
+}
+
+function pendingView(guildId, userId) {
+  const pending = wl.getPending(guildId, userId);
+  if (!pending.length)
+    return ephemeral('✅ Nothing waiting. All movie nights are sorted.');
+  const rows = pending.slice(0, 5).map(p =>
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`watchlist:confirm:${wl.encodeKey(p.key)}`)
+        .setLabel(`Watched: ${p.label || p.fields.title}`.slice(0, 80))
+        .setEmoji('✅')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`watchlist:dismiss:${wl.encodeKey(p.key)}`)
+        .setLabel('No')
+        .setEmoji('❌')
+        .setStyle(ButtonStyle.Secondary),
+    ),
+  );
+  return {
+    content:
+      `🍿 **${pending.length}** movie night${pending.length === 1 ? '' : 's'} waiting for your answer` +
+      (pending.length > 5 ? ' (showing 5)' : '') +
+      `. They expire after ${wl.PENDING_DAYS} days.`,
+    components: rows,
+    flags: 64,
+  };
+}
+
 // ---------- Buttons ----------
 
 async function handleComponent(interaction) {
   const [, action, ...rest] = interaction.customId.split(':');
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
+
+  if (LIST_ACTIONS.includes(action)) {
+    await listAction(interaction, action, rest);
+    return;
+  }
 
   // After a movie night: "did you watch it?"
   if (action === 'night') {
@@ -293,68 +662,27 @@ module.exports = {
             .setName('note')
             .setDescription('A note, e.g. "Mia recommended it"')
             .setMaxLength(200),
-        ),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('remove')
-        .setDescription('Remove something')
-        .addStringOption(o =>
-          titleOpt(o, 'From your watchlist (start typing)'),
-        ),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('edit')
-        .setDescription('Change status, privacy, note or series progress')
-        .addStringOption(o => titleOpt(o, 'From your watchlist (start typing)'))
-        .addStringOption(o =>
-          o
-            .setName('status')
-            .setDescription('Status')
-            .addChoices(
-              ...Object.entries(wl.STATUS).map(([value, st]) => ({
-                name: `${st.emoji} ${st.label}`,
-                value,
-              })),
-            ),
-        )
-        .addStringOption(o =>
-          o
-            .setName('visibility')
-            .setDescription('Who can see this entry')
-            .addChoices(
-              { name: '🌐 Public', value: 'public' },
-              { name: '🔒 Private', value: 'private' },
-              { name: '↩️ Like my list', value: 'default' },
-            ),
         )
         .addBooleanOption(o =>
-          o.setName('must').setDescription('Must-watch ❗'),
-        )
-        .addStringOption(o =>
           o
-            .setName('note')
-            .setDescription('Note (write "-" to remove)')
-            .setMaxLength(200),
+            .setName('watched')
+            .setDescription('Already watched it? (outside a movie night)'),
         )
         .addIntegerOption(o =>
           o
-            .setName('season')
-            .setDescription('Series: season you are at')
-            .setMinValue(1),
-        )
-        .addIntegerOption(o =>
-          o
-            .setName('episode')
-            .setDescription('Series: last episode you watched')
-            .setMinValue(1),
+            .setName('rating')
+            .setDescription('Your rating (marks it as watched)')
+            .addChoices(
+              ...[1, 2, 3, 4, 5].map(n => ({ name: '⭐'.repeat(n), value: n })),
+            ),
         ),
     )
     .addSubcommand(s =>
       s
         .setName('show')
-        .setDescription("Your watchlist, or someone else's public one")
+        .setDescription(
+          "Your watchlist (open entries to mark, rate, edit), or someone else's",
+        )
         .addUserOption(o =>
           o.setName('user').setDescription('Whose list (default: yours)'),
         )
@@ -383,44 +711,7 @@ module.exports = {
           o
             .setName('available')
             .setDescription('Only what runs on my streaming services'),
-        )
-        .addIntegerOption(o =>
-          o.setName('page').setDescription('Page').setMinValue(1),
         ),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('seen')
-        .setDescription('Mark something as watched (outside movie nights)')
-        .addStringOption(o => titleOpt(o))
-        .addIntegerOption(o =>
-          o
-            .setName('rating')
-            .setDescription('Your rating')
-            .addChoices(
-              ...[1, 2, 3, 4, 5].map(n => ({ name: '⭐'.repeat(n), value: n })),
-            ),
-        ),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('rate')
-        .setDescription('Rate something you watched')
-        .addStringOption(o => titleOpt(o, 'From your watchlist (start typing)'))
-        .addIntegerOption(o =>
-          o
-            .setName('rating')
-            .setDescription('Your rating')
-            .setRequired(true)
-            .addChoices(
-              ...[1, 2, 3, 4, 5].map(n => ({ name: '⭐'.repeat(n), value: n })),
-            ),
-        ),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('pending')
-        .setDescription('Movie nights waiting for your "✅ yes, I watched it"'),
     )
     .addSubcommand(s =>
       s
@@ -466,26 +757,6 @@ module.exports = {
         .addUserOption(o => o.setName('user3').setDescription('Person'))
         .addUserOption(o => o.setName('user4').setDescription('Person'))
         .addUserOption(o => o.setName('user5').setDescription('Person')),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('random')
-        .setDescription('🎲 Pick something from your watchlist')
-        .addStringOption(o =>
-          o
-            .setName('type')
-            .setDescription('Only this type')
-            .addChoices(
-              { name: '🎬 Movies', value: 'movie' },
-              { name: '📺 Series', value: 'tv' },
-              { name: '🎌 Anime', value: 'anime' },
-            ),
-        )
-        .addBooleanOption(o =>
-          o
-            .setName('available')
-            .setDescription('Only what runs on my streaming services'),
-        ),
     ),
 
   async autocomplete(interaction) {
@@ -540,8 +811,6 @@ module.exports = {
         name: `${wl.STATUS[i.status].emoji} ${label(i)}`.slice(0, 100),
         value: i.key,
       }));
-    if (['remove', 'edit', 'rate'].includes(sub))
-      return interaction.respond(own.slice(0, 25));
 
     const found = tmdb.isEnabled() ? await tmdb.search(q) : [];
     const choices = found.map(r => ({
@@ -551,7 +820,6 @@ module.exports = {
       ),
       value: `${r.type}:${r.id}`,
     }));
-    if (sub === 'seen') choices.unshift(...own.slice(0, 5));
     if (q && choices.length < 25)
       choices.push({
         name: `✏️ Use “${q}”`.slice(0, 100),
@@ -570,6 +838,30 @@ module.exports = {
     if (sub === 'add') {
       await interaction.deferReply({ flags: 64 });
       const fields = await fieldsFor(o.getString('title'));
+      const rating = o.getInteger('rating');
+      if (o.getBoolean('watched') || rating) {
+        const item = wl.markWatched(guildId, userId, fields, { rating });
+        if (item.type === 'tv' && item.status !== 'watched')
+          wl.editItem(guildId, userId, item.key, { status: 'watched' });
+        if (
+          o.getString('note') ||
+          o.getString('visibility') ||
+          o.getBoolean('must')
+        ) {
+          wl.editItem(guildId, userId, item.key, {
+            note: o.getString('note') ?? undefined,
+            visibility: o.getString('visibility') ?? undefined,
+            must: o.getBoolean('must') ?? undefined,
+          });
+        }
+        await interaction.editReply({
+          content:
+            `✅ **${label(item)}** is on your list as watched.` +
+            (rating ? ` ${stars(rating)}` : ' How was it?'),
+          components: rating ? [] : ratingButtons(item.key),
+        });
+        return achievements.announce(interaction, [userId]);
+      }
       const r = wl.addItem(guildId, userId, fields, {
         visibility: o.getString('visibility'),
         must: o.getBoolean('must'),
@@ -591,200 +883,28 @@ module.exports = {
       );
     }
 
-    // ---------- remove ----------
-    if (sub === 'remove') {
-      const removed = wl.removeItem(guildId, userId, o.getString('title'));
-      return interaction.reply(
-        ephemeral(
-          removed
-            ? `🗑️ Removed **${label(removed)}**.`
-            : "❓ That's not on your watchlist. Pick it from the list while typing.",
-        ),
-      );
-    }
-
-    // ---------- edit ----------
-    if (sub === 'edit') {
-      const key = o.getString('title');
-      const item = wl.getItem(guildId, userId, key);
-      if (!item)
-        return interaction.reply(
-          ephemeral(
-            "❓ That's not on your watchlist. Pick it from the list while typing.",
-          ),
-        );
-      const vis = o.getString('visibility');
-      const note = o.getString('note');
-      const season = o.getInteger('season');
-      const episode = o.getInteger('episode');
-      const changes = {
-        status: o.getString('status') ?? undefined,
-        visibility: vis === null ? undefined : vis === 'default' ? null : vis,
-        must: o.getBoolean('must') ?? undefined,
-        note: note === null ? undefined : note === '-' ? null : note,
-        progress:
-          season || episode
-            ? {
-                season: season || item.progress?.season || 1,
-                episode: episode || item.progress?.episode || 1,
-              }
-            : undefined,
-      };
-      if (changes.progress && !changes.status) changes.status = 'watching';
-      const updated = wl.editItem(guildId, userId, key, changes);
-      const settings = wl.getList(guildId, userId).settings;
-      return interaction.reply(
-        ephemeral(
-          `✏️ **${label(updated)}**: ${wl.STATUS[updated.status].emoji} ${wl.STATUS[updated.status].label}` +
-            (updated.progress
-              ? ` · S${updated.progress.season}E${updated.progress.episode}`
-              : '') +
-            ` · ${wl.isPublic(updated, settings) ? '🌐 public' : '🔒 private'}` +
-            (updated.must ? ' · ❗ must-watch' : '') +
-            (updated.note ? `\n↳ *${updated.note}*` : ''),
-        ),
-      );
-    }
-
     // ---------- show ----------
     if (sub === 'show') {
       const target = o.getUser('user') || interaction.user;
       const own = target.id === userId;
-      const settings = wl.getList(guildId, target.id).settings;
-      let entries = wl.items(guildId, target.id, { publicOnly: !own });
-      const status = o.getString('status');
-      const type = o.getString('type');
-      if (status) entries = entries.filter(i => i.status === status);
-      if (type === 'anime') entries = entries.filter(i => i.anime);
-      else if (type) entries = entries.filter(i => i.type === type && !i.anime);
-
-      await interaction.deferReply({ flags: own ? 64 : undefined });
-      if (o.getBoolean('available')) {
-        const profile = profileOf(guildId, userId, interaction.locale);
-        if (!profile.services.length)
-          return interaction.editReply(
+      const f = {
+        status: o.getString('status'),
+        type: o.getString('type'),
+        available: !!o.getBoolean('available'),
+      };
+      if (
+        f.available &&
+        !profileOf(guildId, userId, interaction.locale).services.length
+      )
+        return interaction.reply(
+          ephemeral(
             '📺 Set your services first: `/watchlist settings services:`',
-          );
-        const keep = [];
-        for (const i of entries)
-          if (await onMyServices(i, profile)) keep.push(i);
-        entries = keep;
-      }
-
-      const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
-      const page = Math.min(o.getInteger('page') || 1, pages);
-      const slice = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-      const name = own ? 'Your watchlist' : `${target.username}'s watchlist`;
-      const embed = listEmbed(`📝 ${name} (${entries.length})`, slice, {
-        page,
-        pages,
-        showPrivacy: own,
-        settings,
-      });
-      if (!own && !slice.length) embed.setDescription('Nothing public here.');
-
-      const components = [];
-      if (!own && slice.length) {
-        components.push(
-          new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-              .setCustomId(`watchlist:copy:${target.id}`)
-              .setPlaceholder('📋 Copy to my watchlist…')
-              .addOptions(
-                slice.map(i => ({
-                  label: `${i.title}${i.year ? ` (${i.year})` : ''}`.slice(
-                    0,
-                    100,
-                  ),
-                  value: i.key,
-                  emoji: emojiOf(i),
-                })),
-              ),
           ),
         );
-      }
-      return interaction.editReply({
-        embeds: [embed],
-        components,
-        allowedMentions: { parse: [] },
-      });
-    }
-
-    // ---------- seen ----------
-    if (sub === 'seen') {
-      await interaction.deferReply({ flags: 64 });
-      const value = o.getString('title');
-      const existing = wl.getItem(guildId, userId, value);
-      const fields = existing
-        ? (({ type, tmdbId, title, year, anime, poster, runtime, genres }) => ({
-            type,
-            tmdbId,
-            title,
-            year,
-            anime,
-            poster,
-            runtime,
-            genres,
-          }))(existing)
-        : await fieldsFor(value);
-      const rating = o.getInteger('rating');
-      const item = wl.markWatched(guildId, userId, fields, { rating });
-      if (item.type === 'tv' && item.status !== 'watched')
-        wl.editItem(guildId, userId, item.key, { status: 'watched' });
-      return interaction.editReply({
-        content:
-          `✅ **${label(item)}** marked as watched.` +
-          (rating ? ` ${stars(rating)}` : ' How was it?'),
-        components: rating ? [] : ratingButtons(item.key),
-      });
-    }
-
-    // ---------- rate ----------
-    if (sub === 'rate') {
-      const item = wl.rate(
-        guildId,
-        userId,
-        o.getString('title'),
-        o.getInteger('rating'),
+      await interaction.deferReply({ flags: own ? 64 : undefined });
+      return interaction.editReply(
+        await listView(interaction, target.id, f, 1),
       );
-      return interaction.reply(
-        ephemeral(
-          item
-            ? `${stars(item.rating)} Rated **${label(item)}**.`
-            : "❓ That's not on your watchlist.",
-        ),
-      );
-    }
-
-    // ---------- pending ----------
-    if (sub === 'pending') {
-      const pending = wl.getPending(guildId, userId);
-      if (!pending.length)
-        return interaction.reply(
-          ephemeral('✅ Nothing waiting. All movie nights are sorted.'),
-        );
-      const rows = pending.slice(0, 5).map(p =>
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`watchlist:confirm:${wl.encodeKey(p.key)}`)
-            .setLabel(`Watched: ${p.label || p.fields.title}`.slice(0, 80))
-            .setEmoji('✅')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId(`watchlist:dismiss:${wl.encodeKey(p.key)}`)
-            .setLabel('No')
-            .setEmoji('❌')
-            .setStyle(ButtonStyle.Secondary),
-        ),
-      );
-      return interaction.reply({
-        content:
-          `🍿 **${pending.length}** movie night${pending.length === 1 ? '' : 's'} waiting for your answer` +
-          (pending.length > 5 ? ' (showing 5)' : '') +
-          `. They expire after ${wl.PENDING_DAYS} days.`,
-        components: rows,
-        flags: 64,
-      });
     }
 
     // ---------- settings ----------
@@ -868,32 +988,6 @@ module.exports = {
         embeds: [embed],
         allowedMentions: { parse: [] },
       });
-    }
-
-    // ---------- random ----------
-    if (sub === 'random') {
-      await interaction.deferReply({ flags: 64 });
-      let entries = wl
-        .items(guildId, userId)
-        .filter(i => i.status !== 'watched');
-      const type = o.getString('type');
-      if (type === 'anime') entries = entries.filter(i => i.anime);
-      else if (type) entries = entries.filter(i => i.type === type && !i.anime);
-      if (o.getBoolean('available')) {
-        const profile = profileOf(guildId, userId, interaction.locale);
-        const keep = [];
-        for (const i of entries)
-          if (await onMyServices(i, profile)) keep.push(i);
-        entries = keep;
-      }
-      if (!entries.length)
-        return interaction.editReply(
-          '🎲 Nothing to pick from. Add something with `/watchlist add`!',
-        );
-      const pick = entries[Math.floor(Math.random() * entries.length)];
-      return interaction.editReply(
-        `🎲 How about **${label(pick)}**?${pick.note ? `\n↳ *${pick.note}*` : ''}`,
-      );
     }
   },
 };
