@@ -142,6 +142,8 @@ function menuEmbed(categoryFilter, guildId) {
 
 // ---------- Rounds ----------
 
+const lastMemberFetch = new Map(); // guildId → when the member list was last loaded
+
 const ROUND_SCOPES = {
   voice: '🎙️ everyone in my voice channel',
   online: '🟢 everyone online',
@@ -172,15 +174,22 @@ async function roundPeople(interaction, scope, includeMe) {
           '(Discord Developer Portal → Bot). Until then, use “everyone in my voice channel”.',
       };
     }
-    try {
-      const all = await interaction.guild.members.fetch({
-        withPresences: scope === 'online',
-      });
-      members = [...all.values()];
-    } catch (e) {
-      console.error('[Drinks] member fetch failed:', e.message);
+    // Discord allows loading the full member list only about every 30 s.
+    // Load it at most every 10 minutes; in between, the cache is kept up to
+    // date by Discord (Server Members + Presence intents).
+    const guild = interaction.guild;
+    if (Date.now() - (lastMemberFetch.get(guild.id) || 0) > 10 * 60000) {
+      try {
+        await guild.members.fetch({ withPresences: true });
+        lastMemberFetch.set(guild.id, Date.now());
+      } catch (e) {
+        console.error('[Drinks] member fetch failed:', e.message);
+      }
+    }
+    members = [...guild.members.cache.values()];
+    if (members.length <= 1) {
       return {
-        error: 'I couldn’t load the member list. Try again in a moment.',
+        error: 'I couldn’t load the member list. Try again in a minute.',
       };
     }
     if (scope === 'online') {
