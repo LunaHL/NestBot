@@ -89,6 +89,16 @@ async function search(query) {
 }
 
 /** Full details for one movie or series, in the format the bot uses. */
+const airedEpisode = e =>
+  e
+    ? {
+        season: e.season_number,
+        episode: e.episode_number,
+        title: e.name || null,
+        airDate: e.air_date || null,
+      }
+    : null;
+
 async function details(type, id) {
   const d = await get(`/${type}/${id}`, { language: 'en-US' });
   if (!d) return null;
@@ -113,8 +123,13 @@ async function details(type, id) {
             number: s.season_number,
             episodes: s.episode_count,
             name: s.name,
+            airDate: s.air_date || null,
           }))
       : null,
+    // Series: the last aired and the next upcoming episode (for new-episode alerts)
+    lastAired: tv ? airedEpisode(d.last_episode_to_air) : null,
+    nextToAir: tv ? airedEpisode(d.next_episode_to_air) : null,
+    status: d.status || null, // "Returning Series", "Ended", …
     collection:
       !tv && d.belongs_to_collection
         ? { id: d.belongs_to_collection.id, name: d.belongs_to_collection.name }

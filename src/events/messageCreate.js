@@ -12,6 +12,8 @@ module.exports = async function onMessage(message) {
 
     // Movie night rooms: keep the check-in / live clock at the bottom
     watch.onRoomMessage(message);
+    // Group channels: keep the group panel at the bottom
+    require('../services/groups').onGroupMessage(message);
 
     // 0. The Wordle app's daily results (posted by an app, so before the
     //    "ignore bots" check). Only in the channel set with /settings channels.

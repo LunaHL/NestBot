@@ -51,7 +51,7 @@ function listView(group, guildId) {
                   : ''),
             )
             .join('\n')
-        : 'Nothing on the list yet. Add something with ➕ **Add a title** in the pinned panel!') +
+        : 'Nothing on the list yet. Add something with ➕ **Add a title** in the panel!') +
         (done.length
           ? `\n\n✅ **Watched:** ${done
               .slice(0, 10)
@@ -121,7 +121,7 @@ function listView(group, guildId) {
   return { embeds: [embed], components };
 }
 
-// ---------- The pinned panel: buttons, menus and forms ----------
+// ---------- The group panel: buttons, menus and forms ----------
 
 function form(customId, title, fields) {
   return new ModalBuilder()
@@ -258,7 +258,7 @@ async function seriesPanel(guildId, group, item, note = '') {
   };
 }
 
-/** Tell the group channel where they are now, and refresh the pinned panel. */
+/** Tell the group channel where they are now, and refresh the panel. */
 async function announceProgress(guild, group, userId, item, text) {
   const ch = await guild.client.channels
     .fetch(group.channelId)
@@ -841,7 +841,7 @@ module.exports = {
           '❌ I couldn’t create the channel. Check that I may manage channels.',
         );
       return interaction.editReply(
-        `💞 Created **${r.group.name}**: <#${r.group.channelId}>. Everything else is in the pinned panel there.`,
+        `💞 Created **${r.group.name}**: <#${r.group.channelId}>. Everything else is in the panel there (it stays at the bottom).`,
       );
     }
 

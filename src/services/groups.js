@@ -165,7 +165,7 @@ async function createGroup(guild, owner, name, memberIds = []) {
           .setTitle(`💞 Welcome to “${group.name}”!`)
           .setDescription(
             'Your private watch room. Only you can see it (and server admins, technically).\n\n' +
-              'Everything is in the 📌 **pinned panel**: your shared watchlist, watching together, members.\n' +
+              'Everything is in the **panel** that stays at the bottom: your shared watchlist, watching together, members.\n' +
               '📺 Series continue where *this group* stopped last time.',
           ),
       ],
@@ -289,7 +289,7 @@ function upNext(group) {
   return listItems(group).find(i => i.status !== 'watched') || null;
 }
 
-// ---------- The pinned panel in the group channel ----------
+// ---------- The panel in the group channel (stays at the bottom) ----------
 
 const button = (customId, label, emoji, style = ButtonStyle.Secondary) =>
   new ButtonBuilder()
@@ -377,7 +377,7 @@ function panelMessage(group, guildId) {
   };
 }
 
-/** Post the panel in the group channel (or update it) and pin it. */
+/** Post the panel in the group channel (or update it). */
 async function postPanel(guild, id) {
   const group = getGroup(guild.id, id);
   if (!group) return null;
@@ -399,8 +399,74 @@ async function postPanel(guild, id) {
   update(guild.id, id, g => {
     g.panelMessageId = msg.id;
   });
-  await msg.pin?.().catch(() => {});
   return msg;
+}
+
+// ---------- Keep the panel at the bottom ----------
+// After people chat in the group channel, the panel is posted again at the
+// bottom and the old one deleted (bundled: after a quiet moment). During a
+// movie night the check-in / clock stays at the bottom instead.
+
+const PANEL_QUIET_MS = 8000;
+const PANEL_MAX_WAIT_MS = 30000;
+const panelTimers = new Map(); // channelId → { timer, since }
+
+function onGroupMessage(message) {
+  if (!message.guild) return;
+  // Only chat and plain notices, not NestBot's own button messages
+  if (
+    message.author.bot &&
+    (message.author.id !== message.client.user.id || message.components?.length)
+  )
+    return;
+  const group = groupByChannel(message.guild.id, message.channel.id);
+  if (!group) return;
+  const channelId = message.channel.id;
+  const pending = panelTimers.get(channelId);
+  if (pending) clearTimeout(pending.timer);
+  const since = pending?.since || Date.now();
+  const delay = Math.max(
+    0,
+    Math.min(PANEL_QUIET_MS, since + PANEL_MAX_WAIT_MS - Date.now()),
+  );
+  const timer = setTimeout(() => {
+    panelTimers.delete(channelId);
+    movePanelDown(message.guild, group.id).catch(e =>
+      console.error('[Groups] panel move failed:', e.message),
+    );
+  }, delay);
+  panelTimers.set(channelId, { timer, since });
+}
+
+async function movePanelDown(guild, id) {
+  const group = getGroup(guild.id, id);
+  if (!group) return false;
+  // A movie night is running here: its check-in / clock has the bottom
+  const watch = require('./watch');
+  const night = watch.nightByRoom(guild.id, group.channelId);
+  if (night && watch.stickyOf(night)) return false;
+  const channel = await guild.client.channels
+    .fetch(group.channelId)
+    .catch(() => null);
+  if (
+    !channel ||
+    (group.panelMessageId && channel.lastMessageId === group.panelMessageId)
+  )
+    return false;
+  const msg = await channel
+    .send(panelMessage(group, guild.id))
+    .catch(() => null);
+  if (!msg) return false;
+  update(guild.id, id, g => {
+    g.panelMessageId = msg.id;
+  });
+  if (group.panelMessageId) {
+    const old = await channel.messages
+      .fetch(group.panelMessageId)
+      .catch(() => null);
+    await old?.delete().catch(() => {});
+  }
+  return true;
 }
 
 /** On startup: every group gets its (updated) panel. */
@@ -433,4 +499,6 @@ module.exports = {
   panelMessage,
   postPanel,
   startGroups,
+  onGroupMessage,
+  movePanelDown,
 };

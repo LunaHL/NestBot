@@ -109,7 +109,7 @@ const CATEGORIES = [
       },
       {
         name: '💞 Groups',
-        text: 'Couples and fixed groups get their own private channel with `/group create`, a pinned panel with buttons for the shared watchlist (👍 votes) and 🍿 watching together, and their own series progress. Admins can technically see every channel; mute the group category if it pings you.',
+        text: 'Couples and fixed groups get their own private channel with `/group create`, a panel (always at the bottom) with buttons for the shared watchlist (👍 votes) and 🍿 watching together, and their own series progress. Admins can technically see every channel; mute the group category if it pings you.',
       },
       {
         name: '▶️ Watching in sync',
@@ -352,7 +352,7 @@ const COMMANDS = {
 
   group: {
     explain:
-      'Watch groups and couples: `/group create` gives you a permanent private channel with a **pinned panel**: 📝 shared watchlist (👍 vote, watch now, mark watched, remove), ➕ add a title, 🍿 watch now or plan, 👋 leave. Series continue where your group stopped: **📺 Where are we?** in the list shows it, lets you set it (⏭️ we watched the next one, ⏮️, 📺 set episode), start ▶️ the next episode right away, and shows 📋 all episodes with ✅ (or 📚 the movie series).',
+      'Watch groups and couples: `/group create` gives you a permanent private channel with a **panel that stays at the bottom**: 📝 shared watchlist (👍 vote, watch now, mark watched, remove), ➕ add a title, 🍿 watch now or plan, 👋 leave. Series continue where your group stopped: **📺 Where are we?** in the list shows it, lets you set it (⏭️ we watched the next one, ⏮️, 📺 set episode), start ▶️ the next episode right away, and shows 📋 all episodes with ✅ (or 📚 the movie series). NestBot posts in the channel when a series you watch gets a 📢 new season or a 🆕 new episode you haven’t seen.',
     tips: 'The owner 👑 invites, removes, renames, shows the group’s nights in the public calendar or deletes the group, all in the panel. `/group list` shows your groups.',
   },
 

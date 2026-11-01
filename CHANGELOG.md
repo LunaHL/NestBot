@@ -1,5 +1,11 @@
 # NestBot Changelog
 
+## V 1.17 (November 2026)
+
+**New**
+- 📢 Groups get a message when a series they watch gets a new season (with start date) or a 🆕 new episode is out and they're caught up (with ▶️ Watch it now and 📋 Episodes). Checked every 6 hours
+- ⬇️ The group panel moves back to the bottom after people chat (after 8 s of quiet, at most every 30 s); during a movie night the clock has the bottom. It's no longer pinned
+
 ## V 1.16 (November 2026)
 
 **New**

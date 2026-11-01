@@ -152,7 +152,151 @@ async function collectionOverview(item, isWatched) {
   );
 }
 
+// ---------- 📢 New seasons and episodes (groups) ----------
+// Every few hours: for every series a group is watching (or has watched),
+// compare TMDB with what we saw last time and tell the group channel when
+// a new season is announced or a new episode is out. The first check only
+// remembers the state, so nobody gets old news.
+//
+// Data: data.seriesAlerts[guildId][groupId][tvId] = { seasons, last, announced }
+
+const key = p => (p ? `S${p.season}E${p.episode}` : null);
+const parseKey = k => {
+  const m = /^S(\d+)E(\d+)$/.exec(k || '');
+  return m ? { season: Number(m[1]), episode: Number(m[2]) } : null;
+};
+const after = (a, b) =>
+  a.season > b.season || (a.season === b.season && a.episode > b.episode);
+const dateText = d =>
+  d ? `<t:${Math.floor(Date.parse(`${d}T12:00:00Z`) / 1000)}:D>` : 'soon';
+
+/**
+ * What changed since the last check? `progress` = the group's last watched
+ * episode, `watched` = the group finished the series. Returns
+ * { alerts: [{ text, watchButton }], state } (state = what to remember).
+ */
+function compare(snap, info, progress, watched) {
+  const alerts = [];
+  const seasons = (info.seasons || []).length;
+  const last = info.lastAired;
+  const next = info.nextToAir;
+  const state = {
+    seasons,
+    last: key(last),
+    announced: snap?.announced || null,
+  };
+  if (!snap) return { alerts, state }; // first look: just remember
+
+  // 📢 A new season: announced with a date, or it just showed up on TMDB
+  if (next && next.episode === 1 && key(next) !== snap.announced) {
+    alerts.push({
+      text: `📢 **${info.title}** Season ${next.season} starts ${dateText(next.airDate)}!`,
+    });
+    state.announced = key(next);
+  } else if (seasons > snap.seasons && `S${seasons}E1` !== snap.announced) {
+    alerts.push({
+      text: `📢 **${info.title}** got a new season: **Season ${seasons}**!`,
+    });
+    state.announced = `S${seasons}E1`;
+  }
+
+  // 🆕 A new episode is out, and the group had seen everything before it
+  const prevLast = parseKey(snap.last);
+  const caughtUp =
+    watched || (progress && prevLast && !after(prevLast, progress));
+  if (
+    last &&
+    key(last) !== snap.last &&
+    caughtUp &&
+    (!progress || after(last, progress))
+  ) {
+    alerts.push({
+      text: `🆕 **${info.title}** ${key(last)}${last.title ? ` “${last.title}”` : ''} is out! You're caught up, so it's next.`,
+      watchButton: true,
+    });
+  }
+  return { alerts, state };
+}
+
+async function checkGroupSeries(client) {
+  const groups = require('./groups');
+  const {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+  } = require('discord.js');
+  for (const guild of client.guilds.cache.values()) {
+    for (const group of groups.allGroups(guild.id)) {
+      const items = Object.values(group.watchlist || {}).filter(
+        i => i.type === 'tv' && i.tmdbId,
+      );
+      for (const item of items) {
+        const progress = groupProgress(guild.id, group.id, item.tmdbId);
+        const watched = item.status === 'watched';
+        if (!progress && !watched) continue; // only series the group actually watches
+        const info = await tmdb.details('tv', item.tmdbId).catch(() => null);
+        if (!info) continue;
+        const snap =
+          db.read(d => d.seriesAlerts?.[guild.id]?.[group.id]?.[item.tmdbId]) ||
+          null;
+        const { alerts, state } = compare(snap, info, progress, watched);
+        db.perform(d => {
+          d.seriesAlerts ||= {};
+          d.seriesAlerts[guild.id] ||= {};
+          d.seriesAlerts[guild.id][group.id] ||= {};
+          d.seriesAlerts[guild.id][group.id][item.tmdbId] = state;
+        });
+        if (!alerts.length) continue;
+        const channel = await client.channels
+          .fetch(group.channelId)
+          .catch(() => null);
+        if (!channel) continue;
+        const enc = require('./watchlist').encodeKey(item.key);
+        // A watched series with a new episode is "watching" again
+        if (watched && alerts.some(a => a.watchButton)) {
+          db.perform(d => {
+            const it =
+              d.groups?.[guild.id]?.groups?.[group.id]?.watchlist?.[item.key];
+            if (it) it.status = 'want';
+          });
+        }
+        await channel
+          .send({
+            content: alerts.map(a => a.text).join('\n'),
+            components: alerts.some(a => a.watchButton)
+              ? [
+                  new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                      .setCustomId(`group:epwatch:${group.id}:${enc}`)
+                      .setLabel('Watch it now')
+                      .setEmoji('▶️')
+                      .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                      .setCustomId(`group:eplist:${group.id}:${enc}`)
+                      .setLabel('Episodes')
+                      .setEmoji('📋')
+                      .setStyle(ButtonStyle.Secondary),
+                  ),
+                ]
+              : [],
+            allowedMentions: { parse: [] },
+          })
+          .catch(() => {});
+      }
+    }
+  }
+}
+
+function startSeriesAlerts(client) {
+  require('../utils/schedule').runEvery('Series alerts', 6 * 60, () =>
+    checkGroupSeries(client),
+  );
+}
+
 module.exports = {
+  compare,
+  checkGroupSeries,
+  startSeriesAlerts,
   label,
   infoOf,
   nextEpisode,
