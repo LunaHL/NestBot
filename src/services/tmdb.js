@@ -136,6 +136,13 @@ async function collection(id) {
   };
 }
 
+/** All episodes of a season: [{ episode, title }] or null. */
+async function season(tvId, number) {
+  const d = await get(`/tv/${tvId}/season/${number}`, { language: 'en-US' });
+  if (!d?.episodes) return null;
+  return d.episodes.map(e => ({ episode: e.episode_number, title: e.name }));
+}
+
 /** One episode: { season, episode, title, runtime } or null. */
 async function episode(tvId, season, ep) {
   const d = await get(`/tv/${tvId}/season/${season}/episode/${ep}`, {
@@ -202,6 +209,7 @@ module.exports = {
   search,
   details,
   episode,
+  season,
   collection,
   providers,
   regionFromLocale,

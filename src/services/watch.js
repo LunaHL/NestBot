@@ -1903,6 +1903,8 @@ async function endNight(guild, id, { by = null, auto = false } = {}) {
     if (x.session.phase !== 'finished') x.session.endPosition = position(x);
   });
   if (!n) return null;
+  // Group nights: the pinned panel shows the new series progress
+  if (n.groupId) groups.postPanel(guild, n.groupId).catch(() => {});
   await deleteEvent(guild, n);
 
   // Summary: #movies for public nights, the group channel for group nights

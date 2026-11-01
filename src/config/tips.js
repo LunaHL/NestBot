@@ -58,6 +58,7 @@ module.exports = {
   ],
   group: [
     'Inside your group channel, `/watch now` starts a movie night right there.',
+    'Watched an episode without the bot? 📝 Watchlist → **📺 Where are we?** → ⏭️.',
   ],
   ai: [
     'Tell @NestBot things to remember: “@NestBot remember that I love Earl Grey”.',

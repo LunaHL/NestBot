@@ -3,6 +3,8 @@
 ## V 1.16 (November 2026)
 
 **New**
+- 📺 Groups: **Where are we?** in the shared list: the group's series progress (also in the pinned panel), ⏭️ we watched the next one (also marked on your own list), ⏮️ back one, 📺 set episode, ▶️ watch the next episode right away, changes posted in the group channel
+- 📋 Episode overview with ✅ and episode names, 📚 movie series overview with ✅ for watched parts (in your watchlist and in groups)
 - 📺 Series in the watchlist: open one in `/watchlist show` → ⏭️ **next episode watched** (into the next season; after the last episode it's marked watched and asks for a rating), ⏮️ back one, 📺 **set episode** (season + episode, or one overall number for long anime). `/watchlist add` has `season:` and `episode:`
 
 ## V 1.15 (November 2026)

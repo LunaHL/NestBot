@@ -332,6 +332,9 @@ function itemPanel(
         '❗',
       ),
       btn(`watchlist:i:editform:${enc}`, 'Note', '✏️'),
+      ...(item.type === 'movie' && item.tmdbId
+        ? [btn(`watchlist:i:collection:${enc}`, 'Movie series', '📚')]
+        : []),
       btn(`watchlist:i:remove:${enc}`, 'Remove', '🗑️', ButtonStyle.Danger),
     ),
   ];
@@ -349,6 +352,8 @@ function itemPanel(
     series.addComponents(
       btn(`watchlist:i:epform:${enc}`, 'Set episode…', '📺'),
     );
+    if (item.tmdbId)
+      series.addComponents(btn(`watchlist:i:eplist:${enc}`, 'Episodes', '📋'));
     rows.push(series);
   }
   if (withRating) rows.push(...ratingButtons(item.key));
@@ -462,41 +467,21 @@ async function listAction(interaction, action, rest) {
   }
   // 📺 Series progress
   if (what === 'nextep' || what === 'prevep') {
+    const series = require('../services/series');
     const p = item.progress;
-    let next;
     if (what === 'prevep') {
       if (!p) return show(item);
-      next =
-        p.episode > 1 ? { season: p.season, episode: p.episode - 1 } : null;
-      if (!next && p.season > 1) {
-        const info = item.tmdbId
-          ? await tmdb.details('tv', item.tmdbId).catch(() => null)
-          : null;
-        const prev = (info?.seasons || [])
-          .filter(x => x.number > 0 && x.number < p.season)
-          .at(-1);
-        next = { season: p.season - 1, episode: prev?.episodes || 1 };
-      }
-      if (!next)
+      const back = await series.prevEpisode(item, p);
+      if (!back)
         return show(
           wl.editItem(guildId, userId, key, { progress: null, status: 'want' }),
           { note: '⏮️ Back to not started.' },
         );
-      return show(wl.editItem(guildId, userId, key, { progress: next }), {
-        note: `⏮️ Back to S${next.season}E${next.episode}.`,
+      return show(wl.editItem(guildId, userId, key, { progress: back }), {
+        note: `⏮️ Back to ${series.label(back)}.`,
       });
     }
-    if (!p) next = { season: 1, episode: 1 };
-    else {
-      const info = item.tmdbId
-        ? await tmdb.details('tv', item.tmdbId).catch(() => null)
-        : null;
-      next = require('../services/watch').episodeAfter(
-        info,
-        p.season,
-        p.episode,
-      );
-    }
+    const next = await series.nextEpisode(item, p);
     if (!next) {
       const done = wl.editItem(guildId, userId, key, { status: 'watched' });
       await show(done, {
@@ -510,8 +495,24 @@ async function listAction(interaction, action, rest) {
     const newSeason = p && next.season !== p.season;
     return show(wl.editItem(guildId, userId, key, changes), {
       note: newSeason
-        ? `🎬 Season ${next.season} begins! Watched S${next.season}E${next.episode}.`
-        : `⏭️ Watched S${next.season}E${next.episode}.`,
+        ? `🎬 Season ${next.season} begins! Watched ${series.label(next)}.`
+        : `⏭️ Watched ${series.label(next)}.`,
+    });
+  }
+  // 📋 Episode overview / 📚 movie series
+  if (what === 'eplist' || what === 'collection') {
+    const series = require('../services/series');
+    await interaction.deferReply({ flags: 64 });
+    const text =
+      what === 'eplist'
+        ? await series.episodeOverview(item, item.progress)
+        : await series.collectionOverview(
+            item,
+            id =>
+              wl.getItem(guildId, userId, `movie:${id}`)?.status === 'watched',
+          );
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR).setDescription(text)],
     });
   }
   if (what === 'epform') {
@@ -547,12 +548,10 @@ async function listAction(interaction, action, rest) {
     let progress = null;
     const absolute = num('absolute');
     if (absolute > 0) {
-      const info = item.tmdbId
-        ? await tmdb.details('tv', item.tmdbId).catch(() => null)
-        : null;
-      progress = info
-        ? require('../services/watch').fromAbsolute(info, absolute)
-        : null;
+      progress = await require('../services/series').fromAbsolute(
+        item,
+        absolute,
+      );
       if (!progress)
         return interaction.reply(
           ephemeral('❓ I couldn’t find that episode number for this series.'),

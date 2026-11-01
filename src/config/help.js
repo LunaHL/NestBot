@@ -346,13 +346,13 @@ const COMMANDS = {
 
   watchlist: {
     explain:
-      'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. `add` (with `watched:` / `rating:` for things you already saw, `season:` / `episode:` for a series you’re in the middle of), `show` (open entries to change them; series have ⏭️ next episode watched, ⏮️ back one and 📺 set episode, also as one number for long anime; 🎲 pick for me, 📬 movie nights waiting for your answer), `settings`, `match`. Public by default; make the whole list or single entries 🔒 private.',
+      'Your own watchlist for movies, series and anime: 📌 want to watch, ▶️ watching (with season/episode), ✅ watched with a ⭐ rating. `add` (with `watched:` / `rating:` for things you already saw, `season:` / `episode:` for a series you’re in the middle of), `show` (open entries to change them; series have ⏭️ next episode watched, ⏮️ back one, 📺 set episode (also as one number for long anime) and 📋 an episode overview with ✅; movies show 📚 their movie series; 🎲 pick for me, 📬 movie nights waiting for your answer), `settings`, `match`. Public by default; make the whole list or single entries 🔒 private.',
     tips: 'Movie nights ask you "mark as watched?" at the end; forgot? `/watchlist show` → 📬. Turn on `/watchlist settings notify:` to get a DM when something from your list is planned.',
   },
 
   group: {
     explain:
-      'Watch groups and couples: `/group create` gives you a permanent private channel with a **pinned panel**: 📝 shared watchlist (👍 vote, watch now, mark watched, remove), ➕ add a title, 🍿 watch now or plan, 👋 leave. Series continue where your group stopped.',
+      'Watch groups and couples: `/group create` gives you a permanent private channel with a **pinned panel**: 📝 shared watchlist (👍 vote, watch now, mark watched, remove), ➕ add a title, 🍿 watch now or plan, 👋 leave. Series continue where your group stopped: **📺 Where are we?** in the list shows it, lets you set it (⏭️ we watched the next one, ⏮️, 📺 set episode), start ▶️ the next episode right away, and shows 📋 all episodes with ✅ (or 📚 the movie series).',
     tips: 'The owner 👑 invites, removes, renames, shows the group’s nights in the public calendar or deletes the group, all in the panel. `/group list` shows your groups.',
   },
 

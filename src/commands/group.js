@@ -28,7 +28,12 @@ async function fieldsFor(value) {
   return wl.titleFields(info, String(value).slice(0, 100));
 }
 
-function listView(group) {
+function listView(group, guildId) {
+  const series = require('../services/series');
+  const progressOf = i =>
+    i.type === 'tv' && i.tmdbId
+      ? series.groupProgress(guildId, group.id, i.tmdbId)
+      : null;
   const items = groups.listItems(group);
   const open = items.filter(i => i.status !== 'watched');
   const done = items.filter(i => i.status === 'watched');
@@ -40,7 +45,10 @@ function listView(group) {
         ? open
             .map(
               (i, n) =>
-                `${n === 0 ? '⭐' : '▫️'} **${label(i)}** · 👍 ${i.votes.length}`,
+                `${n === 0 ? '⭐' : '▫️'} **${label(i)}** · 👍 ${i.votes.length}` +
+                (progressOf(i)
+                  ? ` · ▶️ at ${series.label(progressOf(i))}`
+                  : ''),
             )
             .join('\n')
         : 'Nothing on the list yet. Add something with ➕ **Add a title** in the pinned panel!') +
@@ -85,6 +93,28 @@ function listView(group) {
           .setCustomId(`group:remove:${group.id}`)
           .setPlaceholder('🗑️ Remove from the list…')
           .addOptions(options),
+      ),
+    );
+  }
+  // Series and movies: where you are, episode overview, movie series
+  const withInfo = items.filter(i => i.tmdbId).slice(0, 25);
+  if (withInfo.length) {
+    components.push(
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`group:series:${group.id}`)
+          .setPlaceholder('📺 Where are we? Episodes, movie series…')
+          .addOptions(
+            withInfo.map(i => ({
+              label:
+                `${i.title}${progressOf(i) ? ` · ${series.label(progressOf(i))}` : ''}`.slice(
+                  0,
+                  100,
+                ),
+              value: i.key,
+              emoji: tmdb.kindEmoji(i.type, i.anime),
+            })),
+          ),
       ),
     );
   }
@@ -150,8 +180,100 @@ async function startNight(interaction, group, ref, when) {
   );
 }
 
+// ---------- 📺 Series: where the group is ----------
+
+const titleFieldsOf = i => ({
+  type: i.type,
+  tmdbId: i.tmdbId,
+  title: i.title,
+  year: i.year,
+  anime: i.anime,
+  poster: i.poster,
+  runtime: i.runtime,
+  genres: i.genres || [],
+});
+
+const btn = (customId, text, emoji, style = ButtonStyle.Secondary) =>
+  new ButtonBuilder()
+    .setCustomId(customId)
+    .setLabel(text)
+    .setEmoji(emoji)
+    .setStyle(style);
+
+/** The panel for one series (or movie) of the shared list. */
+async function seriesPanel(guildId, group, item, note = '') {
+  const series = require('../services/series');
+  const enc = wl.encodeKey(item.key);
+  if (item.type !== 'tv') {
+    return {
+      content: `${note}🎬 **${label(item)}**`,
+      components: [
+        new ActionRowBuilder().addComponents(
+          btn(`group:eplist:${group.id}:${enc}`, 'Movie series', '📚'),
+        ),
+      ],
+      flags: 64,
+    };
+  }
+  const p = series.groupProgress(guildId, group.id, item.tmdbId);
+  const next = await series.nextEpisode(item, p);
+  const nextName = next ? await series.episodeTitle(item, next) : null;
+  const row = new ActionRowBuilder();
+  if (next)
+    row.addComponents(
+      btn(
+        `group:ep:${group.id}:${enc}:next`,
+        `We watched ${series.label(next)}`,
+        '⏭️',
+        ButtonStyle.Success,
+      ),
+    );
+  if (p)
+    row.addComponents(
+      btn(`group:ep:${group.id}:${enc}:prev`, 'Back one', '⏮️'),
+    );
+  row.addComponents(
+    btn(`group:epform:${group.id}:${enc}`, 'Set episode…', '📺'),
+  );
+  if (next)
+    row.addComponents(
+      btn(
+        `group:epwatch:${group.id}:${enc}`,
+        `Watch ${series.label(next)} now`,
+        '▶️',
+        ButtonStyle.Primary,
+      ),
+    );
+  row.addComponents(btn(`group:eplist:${group.id}:${enc}`, 'Episodes', '📋'));
+  return {
+    content:
+      `${note}📺 **${label(item)}**\n` +
+      `Last watched together: **${p ? series.label(p) : 'not started'}**\n` +
+      (next
+        ? `Next: **${series.label(next)}**${nextName ? ` “${nextName}”` : ''}`
+        : '🎉 You finished it!'),
+    components: [row],
+    flags: 64,
+    allowedMentions: { parse: [] },
+  };
+}
+
+/** Tell the group channel where they are now, and refresh the pinned panel. */
+async function announceProgress(guild, group, userId, item, text) {
+  const ch = await guild.client.channels
+    .fetch(group.channelId)
+    .catch(() => null);
+  await ch
+    ?.send({
+      content: `📺 <@${userId}>: **${item.title}** ${text}`,
+      allowedMentions: { parse: [] },
+    })
+    .catch(() => {});
+  await refresh(guild, group.id);
+}
+
 async function handleComponent(interaction) {
-  const [, action, idText, answer] = interaction.customId.split(':');
+  const [, action, idText, answer, extra] = interaction.customId.split(':');
   const guild = interaction.guild;
   const id = Number(idText);
   const group = groups.getGroup(guild.id, id);
@@ -211,7 +333,7 @@ async function handleComponent(interaction) {
   // 📝 Shared watchlist
   if (action === 'list')
     return interaction.reply({
-      ...listView(group),
+      ...listView(group, guild.id),
       flags: 64,
       allowedMentions: { parse: [] },
     });
@@ -225,7 +347,7 @@ async function handleComponent(interaction) {
     )?.result;
     if (!item) return interaction.reply(ephemeral('That title is gone.'));
     await interaction
-      .update(listView(groups.getGroup(guild.id, id)))
+      .update(listView(groups.getGroup(guild.id, id), guild.id))
       .catch(() => {});
     await refresh(guild, id);
     return interaction.followUp(
@@ -245,7 +367,7 @@ async function handleComponent(interaction) {
     const item = r?.result;
     if (!item) return interaction.reply(ephemeral('That title is gone.'));
     await interaction
-      .update(listView(groups.getGroup(guild.id, id)))
+      .update(listView(groups.getGroup(guild.id, id), guild.id))
       .catch(() => {});
     await refresh(guild, id);
     return interaction.followUp(
@@ -255,6 +377,177 @@ async function handleComponent(interaction) {
           : `🗑️ Removed **${label(item)}**.`,
       ),
     );
+  }
+
+  // 📺 Where are we? (series) / 📚 movie series
+  if (
+    ['series', 'ep', 'epform', 'epset', 'epwatch', 'eplist'].includes(action)
+  ) {
+    const series = require('../services/series');
+    const key =
+      action === 'series' ? interaction.values[0] : wl.decodeKey(answer);
+    const item = group.watchlist[key];
+    if (!item)
+      return interaction.reply(
+        ephemeral('That title isn’t on the list anymore.'),
+      );
+
+    if (action === 'series') {
+      await interaction.deferReply({ flags: 64 });
+      return interaction.editReply(await seriesPanel(guild.id, group, item));
+    }
+    if (action === 'eplist') {
+      await interaction.deferReply({ flags: 64 });
+      const watch = require('../services/watch');
+      const text =
+        item.type === 'tv'
+          ? await series.episodeOverview(
+              item,
+              series.groupProgress(guild.id, group.id, item.tmdbId),
+            )
+          : await series.collectionOverview(
+              item,
+              movieId =>
+                group.watchlist[`movie:${movieId}`]?.status === 'watched' ||
+                watch
+                  .pastNights(guild.id)
+                  .some(
+                    n =>
+                      n.groupId === group.id &&
+                      n.info?.type === 'movie' &&
+                      n.info?.id === movieId,
+                  ),
+            );
+      return interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xff69b4).setDescription(text)],
+      });
+    }
+    if (action === 'epwatch') {
+      await interaction.deferReply({ flags: 64 });
+      return startNight(interaction, group, `tv:${item.tmdbId}`, null);
+    }
+    if (action === 'epform') {
+      const p = series.groupProgress(guild.id, group.id, item.tmdbId);
+      return interaction.showModal(
+        form(`group:epset:${group.id}:${answer}`, item.title, [
+          {
+            id: 'season',
+            label: 'Season',
+            value: p?.season,
+            required: false,
+            max: 4,
+          },
+          {
+            id: 'episode',
+            label: 'Last episode you watched together',
+            value: p?.episode,
+            required: false,
+            max: 4,
+          },
+          {
+            id: 'absolute',
+            label: 'Or: episode number overall (long anime)',
+            required: false,
+            max: 5,
+          },
+        ]),
+      );
+    }
+    if (action === 'epset') {
+      const num = k => parseInt(interaction.fields.getTextInputValue(k), 10);
+      let p;
+      if (num('absolute') > 0) {
+        p = await series.fromAbsolute(item, num('absolute'));
+        if (!p)
+          return interaction.reply(
+            ephemeral(
+              '❓ I couldn’t find that episode number for this series.',
+            ),
+          );
+      } else if (num('season') > 0 || num('episode') > 0) {
+        const cur = series.groupProgress(guild.id, group.id, item.tmdbId);
+        p = {
+          season: num('season') > 0 ? num('season') : cur?.season || 1,
+          episode: num('episode') > 0 ? num('episode') : 1,
+        };
+      } else
+        return interaction.reply(
+          ephemeral('❓ Type a season and an episode, e.g. 2 and 5.'),
+        );
+      await interaction.deferReply({ flags: 64 });
+      series.setGroupProgress(guild.id, group.id, item.tmdbId, p);
+      await announceProgress(
+        guild,
+        group,
+        userId,
+        item,
+        `→ you're at **${series.label(p)}** now.`,
+      );
+      return interaction.editReply(
+        await seriesPanel(
+          guild.id,
+          groups.getGroup(guild.id, id),
+          item,
+          `✅ Saved: ${series.label(p)}.\n\n`,
+        ),
+      );
+    }
+    if (action === 'ep') {
+      await interaction.deferUpdate();
+      const p = series.groupProgress(guild.id, group.id, item.tmdbId);
+      let note;
+      if (extra === 'prev') {
+        const back = await series.prevEpisode(item, p);
+        series.setGroupProgress(guild.id, group.id, item.tmdbId, back);
+        note = `⏮️ Back to ${back ? series.label(back) : 'not started'}.`;
+        await announceProgress(
+          guild,
+          group,
+          userId,
+          item,
+          back
+            ? `→ back to **${series.label(back)}**.`
+            : '→ back to not started.',
+        );
+      } else {
+        const next = await series.nextEpisode(item, p);
+        if (!next) {
+          groups.markWatched(guild.id, id, key);
+          wl.markWatched(guild.id, userId, titleFieldsOf(item));
+          note =
+            '🎉 That was the last episode! (Also marked as watched on your own watchlist.)';
+          await announceProgress(
+            guild,
+            group,
+            userId,
+            item,
+            '🎉 is finished! Marked as watched.',
+          );
+        } else {
+          series.setGroupProgress(guild.id, group.id, item.tmdbId, next);
+          // The person who clicked gets the episode on their own watchlist too
+          wl.markWatched(guild.id, userId, titleFieldsOf(item), {
+            progress: next,
+          });
+          note = `⏭️ Watched ${series.label(next)}. (Also marked on your own watchlist.)`;
+          await announceProgress(
+            guild,
+            group,
+            userId,
+            item,
+            `→ watched **${series.label(next)}**.`,
+          );
+        }
+      }
+      return interaction.editReply(
+        await seriesPanel(
+          guild.id,
+          groups.getGroup(guild.id, id),
+          item,
+          `${note}\n\n`,
+        ),
+      );
+    }
   }
 
   if (action === 'watchnow') {

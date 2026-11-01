@@ -158,7 +158,7 @@ from the command files, so they're always current.
 
 | `group.js` | `/group create` | Your own permanent private channel for a couple or a fixed group (no size limit; `/settings watch max-groups` limits how many one person may own) |
 | | `/group list` | Your groups |
-| | **📌 Pinned panel** in the group channel | Members, ⭐ up next, list size. Everyone: 📝 Watchlist (👍 vote, 🎬 watch now, ✅ watched, 🗑️ remove), ➕ Add a title (form), 🍿 Watch now / plan (form: title, empty = up next; when, empty = now), 👋 Leave. Owner 👑: ➕ Invite, 👢 Remove someone, ✏️ Rename, 🗓️ show in the public calendar, 🗑️ Delete (asks first; admins too). If the owner leaves, the next member becomes owner. Panels are refreshed on startup |
+| | **📌 Pinned panel** in the group channel | Members, ⭐ up next, list size. Everyone: 📝 Watchlist (👍 vote, 🎬 watch now, ✅ watched, 🗑️ remove, 📺 **where are we?**: the group's series progress with ⏭️ we watched the next one (also marked on your own list), ⏮️ back one, 📺 set episode, ▶️ watch the next one now, 📋 episode overview with ✅; movies: 📚 the movie series; changes are posted in the channel), ➕ Add a title (form), 🍿 Watch now / plan (form: title, empty = up next; when, empty = now), 👋 Leave. Owner 👑: ➕ Invite, 👢 Remove someone, ✏️ Rename, 🗓️ show in the public calendar, 🗑️ Delete (asks first; admins too). If the owner leaves, the next member becomes owner. Panels are refreshed on startup |
 
 `/watch now` and `/watch plan` **inside a group channel** run the movie night
 right there (no temporary room, nothing in #movies), with the group's own
@@ -170,7 +170,7 @@ time**. After each episode: **⏭️ Next** (also into the next season) or
 **🛑 Stop here**. Everyone gets exactly the episodes they were there for marked
 on their watchlist. Movie series show "part 2 of 3" and the next part at the end.
 | `watchlist.js` | `/watchlist add` | Add a title (📌 want to watch). With `watched:` or `rating:` for something you already saw, `season:` + `episode:` for a series you're in the middle of; plus must-watch ❗, a note, 🌐/🔒 |
-| | `/watchlist show` | Your list (with private ones) or someone else's public list, with filters. Own list: pick an entry to set 📌/▶️/✅, ⭐ rate, 🔒/🌐, ❗, ✏️ note, 🗑️ remove. Series: ⏭️ next episode watched (moves to the next season, marks the series watched after the last episode), ⏮️ back one, 📺 set season + episode (or one overall number for long anime). Buttons: ◀️ ▶️ pages, 🎲 pick for me, 📬 movie nights waiting for your “✅ yes, I watched it” (7 days). Someone else's: 📋 copy to your list |
+| | `/watchlist show` | Your list (with private ones) or someone else's public list, with filters. Own list: pick an entry to set 📌/▶️/✅, ⭐ rate, 🔒/🌐, ❗, ✏️ note, 🗑️ remove. Series: ⏭️ next episode watched (moves to the next season, marks the series watched after the last episode), ⏮️ back one, 📺 set season + episode (or one overall number for long anime), 📋 all episodes with ✅ and episode names. Movies: 📚 the movie series with ✅ for the parts you watched. Buttons: ◀️ ▶️ pages, 🎲 pick for me, 📬 movie nights waiting for your “✅ yes, I watched it” (7 days). Someone else's: 📋 copy to your list |
 | | `/watchlist settings` | Public/private list, your country, your streaming services, DM when your titles get planned |
 | | `/watchlist match` | 🎯 what you all want to watch |
 

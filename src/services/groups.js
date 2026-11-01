@@ -298,7 +298,14 @@ const button = (customId, label, emoji, style = ButtonStyle.Secondary) =>
     .setEmoji(emoji)
     .setStyle(style);
 
-function panelMessage(group) {
+function panelMessage(group, guildId) {
+  // Series: where the group is ("▶️ at S2E5")
+  const atEpisode = item => {
+    if (item.type !== 'tv' || !item.tmdbId || !guildId) return '';
+    const series = require('./series');
+    const p = series.groupProgress(guildId, group.id, item.tmdbId);
+    return p ? `\n▶️ at ${series.label(p)}` : '';
+  };
   const next = upNext(group);
   const open = listItems(group).filter(i => i.status !== 'watched').length;
   const embed = new EmbedBuilder()
@@ -315,7 +322,8 @@ function panelMessage(group) {
       {
         name: '⭐ Up next',
         value: next
-          ? `**${next.title}**${next.year ? ` (${next.year})` : ''} · 👍 ${next.votes.length}`
+          ? `**${next.title}**${next.year ? ` (${next.year})` : ''} · 👍 ${next.votes.length}` +
+            atEpisode(next)
           : 'Nothing on the list yet',
         inline: true,
       },
@@ -381,10 +389,12 @@ async function postPanel(guild, id) {
     ? await channel.messages.fetch(group.panelMessageId).catch(() => null)
     : null;
   if (old) {
-    await old.edit(panelMessage(group)).catch(() => {});
+    await old.edit(panelMessage(group, guild.id)).catch(() => {});
     return old;
   }
-  const msg = await channel.send(panelMessage(group)).catch(() => null);
+  const msg = await channel
+    .send(panelMessage(group, guild.id))
+    .catch(() => null);
   if (!msg) return null;
   update(guild.id, id, g => {
     g.panelMessageId = msg.id;
