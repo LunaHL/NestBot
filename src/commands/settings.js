@@ -159,6 +159,46 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('hub')
+        .setDescription(
+          'Menu channel, weekly "Did you know?" and tips after commands. Empty = show',
+        )
+        .addChannelOption(o =>
+          o
+            .setName('channel')
+            .setDescription(
+              'Where the pinned NestBot menu and the weekly tip go',
+            )
+            .addChannelTypes(ChannelType.GuildText),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('weekly')
+            .setDescription(
+              'Weekly "💡 Did you know?" in that channel (default on)',
+            ),
+        )
+        .addStringOption(o =>
+          o
+            .setName('tips')
+            .setDescription(
+              'How often a short private tip comes after a command',
+            )
+            .addChoices(
+              { name: 'Off', value: 'off' },
+              { name: 'Rarely (about 1 in 10)', value: 'rare' },
+              { name: 'Sometimes (about 1 in 5)', value: 'sometimes' },
+              { name: 'Often (about 1 in 3)', value: 'often' },
+            ),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('post-now')
+            .setDescription('Post a "Did you know?" right now (to try it)'),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('blindfold')
         .setDescription(
           '🙈 Blindfolds: set up, give, take off. Empty = show status',
@@ -470,6 +510,66 @@ module.exports = {
           flags: 64,
         });
       }
+    }
+
+    if (sub === 'hub') {
+      const hub = require('../services/hub');
+      const { FREQUENCIES } = require('../services/guide');
+      const o = interaction.options;
+      const channel = o.getChannel('channel');
+      const notes = [];
+      await interaction.deferReply({ flags: 64 });
+      if (channel) {
+        setSetting(guildId, 'hubChannelId', channel.id);
+        setSetting(guildId, 'hubMessageId', null);
+        const msg = await hub.postMenu(interaction.guild).catch(e => {
+          notes.push(`⚠️ I couldn't post there: ${e.message}`);
+          return null;
+        });
+        if (msg) notes.push(`✅ The menu is pinned in <#${channel.id}>.`);
+      }
+      if (o.getBoolean('weekly') !== null)
+        setSetting(guildId, 'hubWeekly', o.getBoolean('weekly'));
+      if (o.getString('tips'))
+        setSetting(guildId, 'tipFrequency', o.getString('tips'));
+      if (o.getBoolean('post-now')) {
+        notes.push(
+          (await hub.postWeekly(interaction.client, guildId))
+            ? '💡 Posted a “Did you know?”.'
+            : '❌ Set a hub channel first.',
+        );
+      }
+      const hubId = getSetting(guildId, 'hubChannelId');
+      const embed = new EmbedBuilder()
+        .setTitle('🪺 Hub & tips')
+        .setColor(0x5865f2)
+        .addFields(
+          {
+            name: 'Menu channel',
+            value: hubId ? `<#${hubId}>` : '– not set',
+            inline: true,
+          },
+          {
+            name: 'Weekly “Did you know?”',
+            value:
+              getSetting(guildId, 'hubWeekly') === false
+                ? '❌ Off'
+                : '✅ Mondays, 18:00',
+            inline: true,
+          },
+          {
+            name: 'Tips after commands',
+            value:
+              FREQUENCIES[getSetting(guildId, 'tipFrequency')]?.label ||
+              'Rarely',
+            inline: true,
+          },
+        )
+        .setFooter({
+          text: 'Change with /settings hub channel: weekly: tips:',
+        });
+      if (notes.length) embed.setDescription(notes.join('\n'));
+      return interaction.editReply({ embeds: [embed] });
     }
 
     if (sub === 'blindfold') {

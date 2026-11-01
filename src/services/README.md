@@ -30,6 +30,8 @@ used. Members who already qualify get it the next time they do something.
 | `effects.js` | What shop items and wheel entries can do: 🔇 gag, 🙈 blindfold, 🏷️ nickname. Add a new effect here and it appears in the shop and the wheel |
 | `nickname.js` | Paid temporary nicknames: prices, renaming, giving the old name back when the time is up (job every minute), stats |
 | `blindfold.js` | 🙈 Blindfolds: setup/teardown (role, dark channel, overwrites), giving and stacking (max 3 h), counting what blindfolded people miss, whispers in the dark channel (mentions right away, busy channels every 3 min), the DM summary at the end (job every minute) |
+| `guide.js` | Helps people discover features: the feature guide NestBot's AI gets when someone asks how something works, the tips after commands (texts in `config/tips.js`), the weekly “Did you know?” items. All built from `config/help.js` |
+| `hub.js` | The hub channel: the pinned menu (buttons run the normal commands, answered privately) and the weekly “Did you know?” post (Mondays 18:00) |
 | `gag.js` | Gagging: who is gagged and until when, garbling text, and handling messages of gagged members (delete, repost garbled, double the gag on spam) |
 | `puzzle.js` | Puzzle of the Day: setting (with date/link checks), solving (tries limit, first-solver bonus), queue, leaderboard, the puzzle card and the daily announcement in the puzzle channel. Rewards and limits are at the top of the file |
 | `settings.js` | Server settings changed with `/settings` (streak mode, free mode), stored per server |

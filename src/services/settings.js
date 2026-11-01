@@ -5,6 +5,10 @@ const db = require('../utils/db');
 const DEFAULTS = {
   streakMode: 'capped', // see utils/streak.js
   freeMode: false, // true = everything you can buy is free (/settings free)
+  hubChannelId: null, // menu + weekly "Did you know?" (/settings hub)
+  hubMessageId: null,
+  hubWeekly: true,
+  tipFrequency: 'rare', // tips after commands: off | rare | sometimes | often
   blindfoldRoleId: null, // 🙈 Blindfolded role (/settings blindfold)
   blindfoldChannelId: null, // 🕶️ in-the-dark channel
   nicknamePranks: true, // paid temporary nicknames (/shop, /settings nicknames)

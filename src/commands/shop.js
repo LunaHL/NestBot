@@ -16,6 +16,7 @@ const {
 } = require('discord.js');
 const shop = require('../services/shop');
 const nickname = require('../services/nickname');
+const blindfold = require('../services/blindfold');
 const nestcoins = require('../services/nestcoins');
 const achievements = require('../services/achievements');
 const { EFFECT_CHOICES, describe } = require('../services/effects');
@@ -38,28 +39,51 @@ const NICK_PRICES = Object.entries(nickname.PRICES).map(([min, p]) => ({
 const nickRange = () => `${NICK_PRICES[0].price}–${NICK_PRICES.at(-1).price}`;
 
 /** NestBot's own items (not stored, shown while paid nicknames are on). */
+const BLIND_PRICES = [
+  { min: 5, price: 20 },
+  { min: 15, price: 50 },
+  { min: 30, price: 90 },
+  { min: 60, price: 150 },
+];
+const BLIND_CATEGORY = '🙈 Blindfolds';
+
 function specials(guildId) {
-  if (!nickname.enabled(guildId)) return [];
-  return [
-    {
-      id: 'nick',
-      emoji: '🏷️',
-      name: 'Rename someone',
-      category: SPECIALS_CATEGORY,
-      priceText: free(guildId) ? '**free**' : `💰 **${nickRange()}**`,
-      menuPrice: free(guildId) ? 'free' : `${nickRange()} coins`,
-      description: `Give someone a nickname for ${ui.duration(NICK_PRICES[0].min * 60)} up to ${ui.duration(NICK_PRICES.at(-1).min * 60)}. More coins, more time.`,
-    },
-    {
-      id: 'buyout',
-      emoji: '🔓',
-      name: 'Get your name back',
-      category: SPECIALS_CATEGORY,
-      priceText: 'what it cost',
-      menuPrice: 'same price',
-      description: 'Renamed? Buy yourself out early for the price it cost.',
-    },
-  ];
+  const list = [];
+  if (nickname.enabled(guildId)) {
+    list.push(
+      {
+        id: 'nick',
+        emoji: '🏷️',
+        name: 'Rename someone',
+        category: SPECIALS_CATEGORY,
+        priceText: free(guildId) ? '**free**' : `💰 **${nickRange()}**`,
+        menuPrice: free(guildId) ? 'free' : `${nickRange()} coins`,
+        description: `Give someone a nickname for ${ui.duration(NICK_PRICES[0].min * 60)} up to ${ui.duration(NICK_PRICES.at(-1).min * 60)}. More coins, more time.`,
+      },
+      {
+        id: 'buyout',
+        emoji: '🔓',
+        name: 'Get your name back',
+        category: SPECIALS_CATEGORY,
+        priceText: 'what it cost',
+        menuPrice: 'same price',
+        description: 'Renamed? Buy yourself out early for the price it cost.',
+      },
+    );
+  }
+  if (blindfold.isSetUp(guildId)) {
+    const range = `${BLIND_PRICES[0].price}–${BLIND_PRICES.at(-1).price}`;
+    list.push({
+      id: 'blind',
+      emoji: '🙈',
+      name: 'Blindfold someone',
+      category: BLIND_CATEGORY,
+      priceText: free(guildId) ? '**free**' : `💰 **${range}**`,
+      menuPrice: free(guildId) ? 'free' : `${range} coins`,
+      description: `Everything goes dark for them: ${BLIND_PRICES[0].min} min up to ${ui.duration(BLIND_PRICES.at(-1).min * 60)}. More coins, more time.`,
+    });
+  }
+  return list;
 }
 
 /** The shop card. `category` = only that category (null = all). */
@@ -348,6 +372,23 @@ async function handleComponent(interaction) {
         flags: 64,
       });
     }
+    if (value === 'blind') {
+      if (!blindfold.isSetUp(guildId))
+        return interaction.reply(
+          ui.fail('Blindfolds aren’t set up on this server.'),
+        );
+      return interaction.reply({
+        content: '🙈 Who gets blindfolded?',
+        components: [
+          new ActionRowBuilder().addComponents(
+            new UserSelectMenuBuilder()
+              .setCustomId('shop:blinduser')
+              .setPlaceholder('👤 Pick someone…'),
+          ),
+        ],
+        flags: 64,
+      });
+    }
     if (value === 'buyout') {
       const active = nickname.getActive(guildId, interaction.user.id);
       if (!active)
@@ -411,6 +452,90 @@ async function handleComponent(interaction) {
         ? null
         : await interaction.client.users.fetch(extra).catch(() => null);
     return purchase(interaction, idText, target, { viaButton: true });
+  }
+
+  if (action === 'blinduser') {
+    const targetId = interaction.values[0];
+    const user = await interaction.client.users
+      .fetch(targetId)
+      .catch(() => null);
+    if (!user || user.bot)
+      return interaction.update({
+        content: '❌ Bots can’t be blindfolded.',
+        components: [],
+      });
+    const active = blindfold.getActive(guildId, targetId);
+    return interaction.update({
+      content:
+        `🙈 How long should <@${targetId}> be in the dark?` +
+        (active
+          ? `\n(They already are, until <t:${Math.floor(active.until / 1000)}:t>. This adds time.)`
+          : ''),
+      components: [
+        new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId(`shop:blindtime:${targetId}`)
+            .setPlaceholder('⏱️ Pick a time…')
+            .addOptions(
+              BLIND_PRICES.map(d => ({
+                label: `${ui.duration(d.min * 60)} · ${priceShort(guildId, d.price)}`,
+                value: String(d.min),
+              })),
+            ),
+        ),
+      ],
+      allowedMentions: { parse: [] },
+    });
+  }
+
+  if (action === 'blindtime') {
+    const targetId = idText;
+    const tier = BLIND_PRICES.find(
+      d => d.min === Number(interaction.values[0]),
+    );
+    if (!tier)
+      return interaction.update({
+        content: '❌ Pick one of the times in the list.',
+        components: [],
+      });
+    const payment = nestcoins.pay(guildId, interaction.user.id, tier.price);
+    if (!payment.ok)
+      return interaction.update({
+        content: `❌ That costs ${tier.price} coins, you have ${payment.balance}.`,
+        components: [],
+      });
+    const r = await blindfold.apply(
+      interaction.guild,
+      targetId,
+      tier.min * 60,
+      interaction.user.id,
+    );
+    if (r.error) {
+      if (payment.paid)
+        nestcoins.addCoins(guildId, interaction.user.id, payment.paid); // refund
+      const why = {
+        off: 'Blindfolds aren’t set up on this server.',
+        admin: 'Admins see everything, even blindfolded. (Refunded.)',
+        bot: 'Bots can’t be blindfolded.',
+      };
+      return interaction.update({
+        content: `❌ ${why[r.error] || 'I couldn’t blindfold them. (Refunded.)'}`,
+        components: [],
+      });
+    }
+    await interaction.update({ content: '✅ Done!', components: [] });
+    await interaction.followUp({
+      embeds: [
+        ui.card({
+          title: '🙈 Lights out!',
+          text: `<@${interaction.user.id}> blindfolded <@${targetId}> until <t:${Math.floor(r.until / 1000)}:t>${r.stacked ? ' (stacked)' : ''}. Everything goes dark…`,
+          color: 0x2c2f33,
+          footer: payment.paid ? `Paid ${payment.paid} coins` : '🎉 Free',
+        }),
+      ],
+      allowedMentions: { users: [targetId] },
+    });
+    return achievements.announce(interaction, [interaction.user.id, targetId]);
   }
 
   if (action === 'nickuser') {
@@ -516,9 +641,7 @@ module.exports = {
 
   data: new SlashCommandBuilder()
     .setName('shop')
-    .setDescription(
-      'The Nest Shop: items, renaming someone, getting your name back',
-    )
+    .setDescription('The Nest Shop: items, renaming or blindfolding someone')
     .addSubcommand(s =>
       s
         .setName('browse')

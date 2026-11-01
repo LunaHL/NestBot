@@ -21,7 +21,7 @@ replies and embeds. The real work (coins, stats, saving) is in
 | | `/balance grant` 🔒 / `remove` 🔒 | Add or take coins |
 | `leaderboard.js` | `/leaderboard` | Every ranking in one place: 💰 coins, 🧩 puzzle, 🟩 Wordle app, 🍹 drinks, 🤺 duels, 📸 pictures this week, 🏅 achievements. Pick with `board:` or switch with the menu under the card |
 | `gamble.js` | `/gamble` | Bet 5 coins on the Nest Roulette |
-| `shop.js` | `/shop browse` | The shop as a card, grouped by category, with a category menu and a buy menu: pick an item → (items with an effect: pick the target) → confirm. NestBot's specials: 🏷️ Rename someone (pick person → time → type the name) and 🔓 Get your name back (same price it cost) |
+| `shop.js` | `/shop browse` | The shop as a card, grouped by category, with a category menu and a buy menu: pick an item → (items with an effect: pick the target) → confirm. NestBot's specials: 🏷️ Rename someone (pick person → time → type the name), 🔓 Get your name back (same price it cost), 🙈 Blindfold someone (pick person → time; 5 min = 20 … 1 h = 150 coins; only when blindfolds are set up) |
 | | `/shop buy` | Buy directly (`item` with search while typing, `target` for items with an effect) |
 | | `/shop nickname` | Rename someone for 10 min … 24 h (15 … 300 coins) directly. The old nickname comes back automatically |
 | | `/shop add` 🔒 / `edit` 🔒 / `remove` 🔒 | Manage items: name, price, emoji, `category` (reuse one while typing or type a new one), description and an optional effect (🔇 gag / 🏷️ nickname, `minutes`, `nickname`). Old items with `[effect:gag;…]` in the text are converted automatically |
@@ -141,6 +141,7 @@ from the command files, so they're always current.
 | | `/settings free` 🔒 | **Free mode** on/off: drinks and rounds, shop items, nicknames, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
 | | `/settings nicknames` 🔒 | `paid`: paid nicknames on/off (off resets all running ones). `self-change`: may everyone change their own nickname (edits the @everyone role; lists other roles that still allow it). `end-for`: end one person's paid nickname |
 | | `/settings blindfold` 🔒 | `enabled:true` creates the 🙈 Blindfolded role and the 🕶️ in-the-dark channel and hides every channel from the role (lists channels that other roles explicitly allow); `enabled:false` removes all of it. `give` + `minutes`: blindfold someone; `end-for`: take it off |
+| | `/settings hub` 🔒 | `channel`: posts and pins the NestBot menu (buttons for daily, profile, leaderboards, shop, drinks, puzzle, NestWord, movie nights, watchlist, help; answers are private). `weekly`: “💡 Did you know?” there every Monday 18:00. `tips`: how often a private tip follows a command (off / rarely / sometimes / often). `post-now`: try the weekly post |
 | | `/settings channels` 🔒 | All posting channels in one place: puzzle (+ `puzzle-ping` role), Wordle app, birthdays, pictures. Empty = show them |
 | | `/settings tools` 🔒 | One-off actions: pay missed Wordle results, reset this week's picture count, end all paid nicknames |
 

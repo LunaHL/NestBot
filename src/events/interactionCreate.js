@@ -1,6 +1,15 @@
 // Runs every slash command: finds the command by name and calls its execute().
 // Also answers "autocomplete" requests (suggestions while typing an option),
 // for commands that export an autocomplete() function, like /help.
+const guide = require('../services/guide');
+
+// Buttons that don't belong to a command ("hub:…" = the hub menu)
+const EXTRA_HANDLERS = {
+  get hub() {
+    return require('../services/hub');
+  },
+};
+
 module.exports = async function onInteraction(interaction) {
   if (interaction.isAutocomplete?.()) {
     const command = interaction.client.commands.get(interaction.commandName);
@@ -24,7 +33,8 @@ module.exports = async function onInteraction(interaction) {
     interaction.isModalSubmit?.()
   ) {
     const prefix = String(interaction.customId).split(':')[0];
-    const command = interaction.client.commands.get(prefix);
+    const command =
+      interaction.client.commands.get(prefix) || EXTRA_HANDLERS[prefix];
     if (!command?.handleComponent) return;
     try {
       await command.handleComponent(interaction);
@@ -48,6 +58,8 @@ module.exports = async function onInteraction(interaction) {
 
   try {
     await command.execute(interaction);
+    // Now and then a short private tip about a related feature
+    await guide.maybeTip(interaction);
   } catch (error) {
     console.error(`❌ /${interaction.commandName} failed:`, error);
     // If the command already replied, reply() would throw again

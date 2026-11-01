@@ -216,8 +216,22 @@ const CATEGORIES = [
     id: 'help',
     emoji: '❓',
     name: 'Help',
-    intro: 'This command.',
+    intro: 'Three ways to find your way around.',
     commands: ['help'],
+    features: [
+      {
+        name: '💬 Just ask NestBot',
+        text: 'Write **@NestBot** and ask, e.g. “@NestBot how do movie nights work?” or “what can I buy with coins?”. She knows every feature.',
+      },
+      {
+        name: '🪺 The menu',
+        text: 'A pinned menu in the hub channel: Daily coins, profile, shop, drinks, puzzle, movie nights… one click, no commands. Every Monday there’s a “💡 Did you know?” there too.',
+      },
+      {
+        name: '💡 Tips',
+        text: 'Now and then NestBot adds a short private tip after a command, about something related you might not know yet.',
+      },
+    ],
   },
 ];
 
@@ -237,7 +251,7 @@ const COMMANDS = {
   },
   shop: {
     explain:
-      'Look around with `/shop browse`: items are grouped in categories, buy from the menu. Items with an effect (🔇 gag, 🏷️ nickname) ask who it’s for, then you confirm. NestBot’s own specials: 🏷️ **Rename someone** (also `/shop nickname`) and 🔓 **Get your name back**.',
+      'Look around with `/shop browse`: items are grouped in categories, buy from the menu. Items with an effect (🔇 gag, 🏷️ nickname) ask who it’s for, then you confirm. NestBot’s own specials: 🏷️ **Rename someone** (also `/shop nickname`), 🔓 **Get your name back** and 🙈 **Blindfold someone** (5 min = 20 coins … 1 h = 150).',
     admin: ['add', 'edit', 'remove'],
     tips: 'Admins: `/shop add` has `category` (reuse one while typing, or type a new one), `emoji`, and `effect` / `minutes` / `nickname` options.',
   },
@@ -347,7 +361,7 @@ const COMMANDS = {
   // 🛠️ Admin
   settings: {
     explain:
-      'Server settings. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
+      'Server settings. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
     admin: ['*'],
   },
 

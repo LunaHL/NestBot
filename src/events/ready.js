@@ -10,6 +10,7 @@ const { startWordle } = require('../services/wordle');
 const { startWatch } = require('../services/watch');
 const { startNicknames } = require('../services/nickname');
 const { startBlindfolds } = require('../services/blindfold');
+const { startHub } = require('../services/hub');
 
 module.exports = function onReady(client) {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -21,6 +22,7 @@ module.exports = function onReady(client) {
   startWatch(client); // movie nights: reminders, rooms, live clocks
   startNicknames(client); // gives paid nicknames back when their time is up
   startBlindfolds(client); // ends blindfolds, whispers what blindfolded people miss
+  startHub(client); // refreshes the hub menu, weekly "Did you know?"
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)

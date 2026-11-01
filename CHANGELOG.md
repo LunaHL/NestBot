@@ -1,5 +1,14 @@
 # NestBot Changelog
 
+## V 1.13 (November 2026)
+
+**New**
+- 💬 Ask NestBot: “@NestBot how do movie nights work?”. When a message looks like a question about the bot, she gets a guide to every feature (built from `/help`) and answers with the right command
+- 💡 Tips: now and then a short private tip after a command about a related feature. `/settings hub tips:` off / rarely (default) / sometimes / often; at most one per person every 15 min
+- 🪺 Hub menu: `/settings hub channel:` posts and pins a menu with buttons (daily, profile, leaderboards, shop, drinks, puzzle, NestWord, movie nights, watchlist, help). Answers are private, no commands needed
+- 📅 Weekly “💡 Did you know?” in the hub channel every Monday at 18:00, going through all features
+- 🙈 **Blindfold someone** in `/shop`: pick a person and a time (5 min = 20 coins … 1 h = 150), stacks, refunded if it doesn't work
+
 ## V 1.12 (November 2026)
 
 Movie nights got simpler: buttons instead of commands. `/watch` 11 → 2 subcommands, `/watchlist` 10 → 4.

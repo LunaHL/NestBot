@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.13 | 💬 Ask NestBot, 💡 tips, 🪺 hub menu, weekly “Did you know?”, 🙈 blindfold in the shop |
 | V 1.12 | 🍿 Simpler movie nights: `when:`, ⚙️ Manage and 🔄 buttons, interactive watchlist |
 | V 1.11 | 🙈 Blindfolds, step 1: dark channel, whispers, summary, shop/wheel effect |
 | V 1.10 | 🧹 Fewer commands: stats in `/profile` tabs, all rankings in `/leaderboard`, channels in `/settings channels`, nicknames in `/shop`, shop categories |
