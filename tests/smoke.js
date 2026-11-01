@@ -145,6 +145,10 @@ function fakeInteraction(commandName, sub, options = [], group = null) {
     client,
     commandName,
     user: fakeUser('u1'),
+    // Right-click entries (Apps → …) get the clicked member
+    targetUser: fakeUser('u2'),
+    targetMember: { id: 'u2', displayName: 'U2', roles: { cache: new Map() } },
+    showModal: async () => {},
     member: {
       id: 'u1',
       displayName: 'U1',

@@ -7,7 +7,7 @@ A command file handles the **Discord side**: options, permission checks,
 replies and embeds. The real work (coins, stats, saving) is in
 [`../services/`](../services/README.md).
 
-🔒 = admin only (Discord "Administrator" permission)
+🔒 = admin only (Discord "Administrator" permission). Admin-only commands are hidden from regular members; the admin parts of normal commands are under **`/admin`** (see below)
 
 ---
 
@@ -18,13 +18,13 @@ replies and embeds. The real work (coins, stats, saving) is in
 | `daily.js` | `/daily` | Claim free coins once per day (`DAILY_AMOUNT`) |
 | `balance.js` | `/balance view` | Show your or someone's NestCoins |
 | | `/balance transfer` | Give coins to someone |
-| | `/balance grant` 🔒 / `remove` 🔒 | Add or take coins |
+| | `/admin coins grant` 🔒 / `remove` 🔒 | Add or take coins |
 | `leaderboard.js` | `/leaderboard` | Every ranking in one place: 💰 coins, 🧩 puzzle, 🟩 Wordle app, 🍹 drinks, 🤺 duels, 📸 pictures this week, 🏅 achievements. Pick with `board:` or switch with the menu under the card |
 | `gamble.js` | `/gamble` | Bet 5 coins on the Nest Roulette |
 | `shop.js` | `/shop browse` | The shop as a card, grouped by category, with a category menu and a buy menu: pick an item → (items with an effect: pick the target) → confirm. NestBot's specials: 🏷️ Rename someone (pick person → time → type the name), 🔓 Get your name back (same price it cost), 🙈 Blindfold someone (pick person → time; 5 min = 20 … 1 h = 150 coins; only when blindfolds are set up) |
 | | `/shop buy` | Buy directly (`item` with search while typing, `target` for items with an effect) |
 | | `/shop nickname` | Rename someone for 10 min … 24 h (15 … 300 coins) directly. The old nickname comes back automatically |
-| | `/shop add` 🔒 / `edit` 🔒 / `remove` 🔒 | Manage items: name, price, emoji, `category` (reuse one while typing or type a new one), description and an optional effect (🔇 gag / 🏷️ nickname, `minutes`, `nickname`). Old items with `[effect:gag;…]` in the text are converted automatically |
+| | `/admin shop add` 🔒 / `edit` 🔒 / `remove` 🔒 | Manage items: name, price, emoji, `category` (reuse one while typing or type a new one), description and an optional effect (🔇 gag / 🏷️ nickname, `minutes`, `nickname`). Old items with `[effect:gag;…]` in the text are converted automatically |
 | `lootdrop.js` | `/drop status` 🔒 | Loot drop status. Drops themselves happen automatically 3–8 times a day |
 | | `/drop blacklist` 🔒 | Turn drops off/on for a channel |
 
@@ -34,13 +34,13 @@ replies and embeds. The real work (coins, stats, saving) is in
 |---|---|---|
 | `nestword.js` | `/nestword guess` | Guess today's word (Wordle-style, 3–7 letters) |
 | | `/nestword info` | Today's length, attempts and reward |
-| | `/nestword set` 🔒 | Set the word for a date |
-| | `/nestword pool-bulkadd` 🔒 / `pool-remove` 🔒 / `pool-list` 🔒 / `pool-clear` 🔒 | Manage the word pools (stored in `data/wordlist.json`) |
-| `puzzle.js` | `/puzzle solve` | Enter today's code (10 tries per day). The first three get a bonus: 🥇 +15, 🥈 +10, 🥉 +5 |
+| | `/admin nestword set` 🔒 | Set the word for a date |
+| | `/admin nestword pool-bulkadd` 🔒 / `pool-remove` 🔒 / `pool-list` 🔒 / `pool-clear` 🔒 | Manage the word pools (stored in `data/wordlist.json`) |
+| `puzzle.js` | **🔑 Enter code** button | On every puzzle card (announcement, `/puzzle info`, the hub menu): opens a form for today's code (10 tries per day). The first three get a bonus: 🥇 +15, 🥈 +10, 🥉 +5 |
 | | `/puzzle info` | Today's puzzle card with "Open puzzle" button, your position and streak |
 | | `/puzzle history` | Past puzzles, optionally which ones a user solved |
-| | `/puzzle set` 🔒 | Set a puzzle for a date (or `append` = next free day). Setting the same day again replaces it but keeps its solvers |
-| | `/puzzle queue` 🔒 / `remove` 🔒 | Today's and upcoming puzzles with their codes; remove one |
+| | `/admin puzzle set` 🔒 | Set a puzzle for a date (or `append` = next free day). Setting the same day again replaces it but keeps its solvers |
+| | `/admin puzzle queue` 🔒 / `remove` 🔒 | Today's and upcoming puzzles with their codes; remove one |
 
 **Wordle app** (the Wordle activity in Discord): no command. NestBot reads the
 app's daily results in the Wordle channel (`/settings channels wordle:`) and
@@ -75,9 +75,9 @@ Pictures: `assets/drink-art/`.
 |---|---|---|
 | `event.js` | `/event list` / `join` / `leave` | See and join tournaments |
 | | `/event bracket` / `standings` | Current state (bracket or Swiss table) |
-| | `/event create` 🔒 | New tournament: single elimination or Swiss, with prize pool |
-| | `/event pairings` 🔒 / `win` 🔒 | Make the next round, enter match winners. Prizes are paid when it ends |
-| | `/event add-user` 🔒 / `finish` 🔒 | Add someone manually, end an event and pay a winner by hand |
+| | `/admin event create` 🔒 | New tournament: single elimination or Swiss, with prize pool |
+| | `/admin event pairings` 🔒 / `win` 🔒 | Make the next round, enter match winners. Prizes are paid when it ends |
+| | `/admin event add-user` 🔒 / `finish` 🔒 | Add someone manually, end an event and pay a winner by hand |
 | `duel.js` | `/duel` | Rock-paper-scissors with a bet (0–500), winner takes both. Your record is in `/profile` |
 
 ## 🏅 Profile and achievements
@@ -95,7 +95,7 @@ The achievements themselves are defined in `services/achievements.js`.
 | `ai.js` | `/ai status` | AI health, request counts, today's mood |
 | | `/ai roast` / `compliment` / `poem` | Paid AI texts about someone (coins refunded if the AI fails) |
 | | `/ai mood` | Paid personality for the rest of the day (one per day) |
-| `memory.js` | `/memory add` / `list` / `forget` | Facts NestBot remembers about you (max 10) |
+| (no command) | “@NestBot remember that …” / “forget …” / “what do you know about me?” | Facts NestBot remembers about you (max 10), handled in `services/ai.js` + `services/memory.js` without asking Gemini. The list has a 🗑️ menu to forget one |
 
 Chatting with `@NestBot` isn't a command; it's handled in
 `events/messageCreate.js` → `services/ai.js`.
@@ -106,7 +106,7 @@ Chatting with `@NestBot` isn't a command; it's handled in
 |---|---|---|
 | `wheel.js` | `/wheel spin` | Shows the wheel, then a 🎡 Spin button with a short animation (on someone else: costs coins). Only whoever opened it can spin |
 | | `/wheel list` | All entries |
-| | `/wheel add` 🔒 / `remove` 🔒 | Manage entries, with an optional effect (🔇 gag / 🏷️ nickname). The wheel is now per server; the old shared list moves into the first server that uses it |
+| | `/admin wheel add` 🔒 / `remove` 🔒 | Manage entries, with an optional effect (🔇 gag / 🏷️ nickname). The wheel is now per server; the old shared list moves into the first server that uses it |
 | `ungag.js` | `/ungag` 🔒 | Remove someone's gag |
 
 ## 🎂 Social
@@ -114,7 +114,7 @@ Chatting with `@NestBot` isn't a command; it's handled in
 | File | Command | What it does |
 |---|---|---|
 | `birthday.js` | `/birthday list` / `add` / `remove` | Birthdays (you can manage your own; admins all) |
-| | `/birthday announce` 🔒 | Announce now. Announcements happen automatically with 200 coins (channel: `/settings channels birthdays:`) |
+| | `/admin birthday announce` 🔒 | Announce now. Announcements happen automatically with 200 coins (channel: `/settings channels birthdays:`) |
 
 📸 **Picture leaderboard** (no command): pictures in the picture channel are
 counted, the weekly leaderboard is posted every Monday with coins. Live:
@@ -136,6 +136,8 @@ from the command files, so they're always current.
 
 | File | Command | What it does |
 |---|---|---|
+| `admin.js` | `/admin <tool> <action>` 🔒 | All admin parts of other commands, grouped: `shop`, `wheel`, `puzzle`, `nestword`, `coins`, `birthday`, `event`. Only admins see it. The subcommands still live in their own files and are moved here with `utils/adminSplit.js` |
+| `userMenu.js` | Right-click a member → **Apps** | 👤 View profile · 🍹 Gift a drink (menu section → drink) · 🤺 Challenge to a duel (bet in a form) · 🏷️ Rename · 🙈 Blindfold. Discord allows at most 5 |
 | `settings.js` | `/settings streak` 🔒 | Switch how Puzzle and NestWord streaks are rewarded: **new** (+10% per day, max +50%, milestones) or **old** (reward × streak days, no limit). Without `mode` it shows the current one and a comparison table |
 | | `/settings watch` 🔒 | Movie nights: #movies channel, room category, mod role, who may plan, when rooms open, auto-close, checkpoints, check-in coins, reminders |
 | | `/settings free` 🔒 | **Free mode** on/off: drinks and rounds, shop items, nicknames, AI extras and targeted wheel spins cost nothing; coins can still be earned. Gamble and duel bets and transfers are not affected |
@@ -219,3 +221,9 @@ Useful building blocks:
 - **Background job:** export `schedule(client)` from the command file and use
   `runEvery` from `utils/schedule.js`; it starts automatically with the bot
 - **Only visible to the user:** add `flags: 64` to the reply
+
+## Small extras
+
+- **🙋 Me too** under every served drink: orders the same drink for whoever clicks
+- **🎲 Again** under `/gamble`: play another round
+- **Seasonal commands:** `/trickortreat` only shows up in Discord on October 31 (`season()` in the command file; `deploy-commands.js` re-registers when a season starts or ends)

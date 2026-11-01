@@ -122,7 +122,7 @@ function desiredLength(data, wl) {
 
   if (available.length === 0) {
     throw new Error(
-      'No words available in any pool (3–7). Please add some with /nestword pool-bulkadd.',
+      'No words available in any pool (3–7). Please add some with /admin nestword pool-bulkadd.',
     );
   }
 
@@ -618,3 +618,15 @@ module.exports = {
     });
   },
 };
+
+// Admin-only subcommands live under /admin (see utils/adminSplit.js)
+Object.assign(
+  module.exports,
+  require('../utils/adminSplit').splitAdmin(module.exports.data, [
+    'set',
+    'pool-bulkadd',
+    'pool-remove',
+    'pool-list',
+    'pool-clear',
+  ]),
+);

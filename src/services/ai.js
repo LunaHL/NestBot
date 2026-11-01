@@ -215,7 +215,7 @@ async function fetchContext(message) {
   return contextLog;
 }
 
-// Facts the user asked NestBot to remember (/memory add)
+// Facts the user asked NestBot to remember ("@NestBot remember that …")
 function memoryLines(message, nickname) {
   const facts = memory.getMemories(message.guild.id, message.author.id);
   if (!facts.length) return '';
@@ -300,10 +300,81 @@ Style rules:
 }
 
 // ==========================================
+// 📝 MEMORIES BY CHAT
+// ==========================================
+
+/** Handles "remember / forget / what do you know about me". Returns a reply or null. */
+function handleMemoryChat(message, prompt) {
+  const memory = require('./memory');
+  const cmd = memory.chatCommand(prompt);
+  if (!cmd) return null;
+  const guildId = message.guild.id;
+  const userId = message.author.id;
+  const list = memory.getMemories(guildId, userId);
+
+  if (cmd.type === 'add') {
+    const r = memory.addMemory(guildId, userId, cmd.text);
+    if (r.error === 'full')
+      return `My notebook for you is full (${memory.MAX_MEMORIES}). Ask me “what do you know about me?” and drop something first.`;
+    if (r.error) return 'Remember… what exactly?';
+    return {
+      content: `📝 Noted: “${r.text}”. (${list.length + 1}/${memory.MAX_MEMORIES})`,
+      allowedMentions: { repliedUser: false },
+    };
+  }
+  if (cmd.type === 'forget') {
+    const removed = memory.forgetMatching(guildId, userId, cmd.text);
+    return removed
+      ? `🗑️ Forgotten: “${removed}”.`
+      : 'I don’t have anything like that about you. Ask me “what do you know about me?”.';
+  }
+  if (cmd.type === 'forgetAll') {
+    memory.clearMemories(guildId, userId);
+    return list.length
+      ? `🧽 Done, I forgot all ${list.length} things about you.`
+      : 'There was nothing to forget.';
+  }
+  // list
+  if (!list.length)
+    return 'I don’t know anything about you yet. Tell me: “@NestBot remember that I love Earl Grey”.';
+  const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+  return {
+    content:
+      `📝 What I know about you (${list.length}/${memory.MAX_MEMORIES}):\n` +
+      list.map((m, i) => `${i + 1}. ${m.text}`).join('\n') +
+      '\n\nForget one with the menu, or say “forget …”.',
+    components: [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`ai:forget:${userId}`)
+          .setPlaceholder('🗑️ Forget…')
+          .addOptions(
+            list.map((m, i) => ({
+              label: m.text.slice(0, 100),
+              value: String(i + 1),
+            })),
+          ),
+      ),
+    ],
+    allowedMentions: { repliedUser: false },
+  };
+}
+
+// ==========================================
 // 🤖 MAIN HANDLER
 // ==========================================
 
 async function handleMessage(message, client) {
+  // "remember that…", "forget…", "what do you know about me?" (no AI needed)
+  const said = message.content
+    .replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '')
+    .trim();
+  const memoryReply = handleMemoryChat(message, said);
+  if (memoryReply) {
+    await message.reply(memoryReply).catch(() => {});
+    return;
+  }
+
   if (!process.env.GEMINI_API_KEY) {
     console.warn('[AI] Ping received but GEMINI_API_KEY is missing.');
     return;

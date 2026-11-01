@@ -1,6 +1,11 @@
 // /gamble: the Nest Roulette. Costs 5 coins (a bet, so free mode doesn't
 // apply). If the Punishment Roulette hits, the wheel spins for you.
-const { SlashCommandBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
 const nestcoins = require('../services/nestcoins');
 const wheel = require('../services/wheel');
 const ui = require('../utils/ui');
@@ -65,7 +70,22 @@ module.exports = {
           footer: `Bet ${BET} · Balance ${nestcoins.getBalance(guildId, userId)} coins`,
         }),
       ],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('gamble:again')
+            .setLabel('Again')
+            .setEmoji('🎲')
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
       allowedMentions: { parse: [] },
     });
+  },
+
+  /** 🎲 Again: anyone who clicks plays a round themselves. */
+  async handleComponent(interaction) {
+    const { runAs } = require('../utils/runAs');
+    return runAs(interaction, ['gamble'], { private: false });
   },
 };

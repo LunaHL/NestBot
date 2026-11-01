@@ -12,6 +12,7 @@ const { startNicknames } = require('../services/nickname');
 const { startBlindfolds } = require('../services/blindfold');
 const { startHub } = require('../services/hub');
 const { startGroups } = require('../services/groups');
+const { startSeasons } = require('../deploy-commands');
 
 module.exports = function onReady(client) {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -25,6 +26,7 @@ module.exports = function onReady(client) {
   startBlindfolds(client); // ends blindfolds, whispers what blindfolded people miss
   startHub(client); // refreshes the hub menu, weekly "Did you know?"
   startGroups(client).catch(() => {}); // pinned panel in every group channel
+  startSeasons(); // seasonal commands (/trickortreat) appear and disappear
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)

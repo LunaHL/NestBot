@@ -398,12 +398,10 @@ async function handleComponent(interaction) {
             .setCustomId(`group:kick:${group.id}`)
             .setPlaceholder('👤 Pick someone…')
             .addOptions(
-              others
-                .slice(0, 25)
-                .map((u, i) => ({
-                  label: String(names[i]).slice(0, 100),
-                  value: u,
-                })),
+              others.slice(0, 25).map((u, i) => ({
+                label: String(names[i]).slice(0, 100),
+                value: u,
+              })),
             ),
         ),
       ],

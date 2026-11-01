@@ -4,6 +4,9 @@ const achievements = require('../services/achievements');
 const { daysUntilHalloween } = require('../utils/time');
 
 module.exports = {
+  // Only shown in Discord on Halloween (see deploy-commands.js)
+  season: () => require('../utils/time').isHalloween(),
+
   data: new SlashCommandBuilder()
     .setName('trickortreat')
     .setDescription('🎃 Trick or treat! (Halloween only)'),

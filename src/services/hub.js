@@ -41,7 +41,8 @@ function menuMessage() {
         title: '🪺 NestBot',
         text:
           'Hi! Press a button, no commands needed. Only you see the answer.\n\n' +
-          '💬 Questions? Just ask **@NestBot**, e.g. *“@NestBot how do movie nights work?”*',
+          '💬 Questions? Just ask **@NestBot**, e.g. *“@NestBot how do movie nights work?”*\n' +
+          '🖱️ Right-click someone → **Apps**: profile, gift a drink, duel, rename, blindfold',
         color: ui.COLORS.primary,
         footer: 'Every Monday there’s a “💡 Did you know?” here',
       }),
@@ -75,44 +76,7 @@ async function postMenu(guild) {
   return msg;
 }
 
-/**
- * Run a command as if it was typed, but answer privately. Used by the menu
- * buttons. `interaction` is the button click.
- */
-async function runAs(interaction, [commandName, sub = null, opts = {}]) {
-  const command = interaction.client.commands.get(commandName);
-  if (!command)
-    return interaction.reply({
-      content: '❌ That isn’t available.',
-      flags: 64,
-    });
-  const priv = p => ({
-    ...(typeof p === 'string' ? { content: p } : p),
-    flags: 64,
-  });
-  const shim = Object.create(interaction);
-  Object.assign(shim, {
-    commandName,
-    options: {
-      getSubcommand: () => sub,
-      getSubcommandGroup: () => null,
-      getString: k => opts[k] ?? null,
-      getInteger: k => opts[k] ?? null,
-      getBoolean: k => opts[k] ?? null,
-      getUser: () => null,
-      getMember: () => null,
-      getChannel: () => null,
-      getRole: () => null,
-      getFocused: () => '',
-    },
-    inGuild: () => true,
-    reply: p => interaction.reply(priv(p)),
-    deferReply: p => interaction.deferReply({ ...(p || {}), flags: 64 }),
-    editReply: p => interaction.editReply(p),
-    followUp: p => interaction.followUp(priv(p)),
-  });
-  return command.execute(shim);
-}
+const { runAs } = require('../utils/runAs');
 
 async function handleComponent(interaction) {
   const id = interaction.customId.split(':')[1];

@@ -273,8 +273,25 @@ function roundPreview(interaction, key, scope, includeMe, ids) {
   };
 }
 
+/** "🙋 Me too" under a served drink: order the same one for yourself. */
+const meTooRow = key => [
+  new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`drinks:metoo:${key}`)
+      .setLabel('Me too')
+      .setEmoji('🙋')
+      .setStyle(ButtonStyle.Secondary),
+  ),
+];
+
 async function handleComponent(interaction) {
   const [, action, key, scope, inc] = interaction.customId.split(':');
+  if (action === 'metoo') {
+    const { runAs } = require('../utils/runAs');
+    return runAs(interaction, ['drinks', 'order', { drink: key }], {
+      private: false,
+    });
+  }
   if (action === 'cancel')
     return interaction.update({
       content: '👍 No round then.',
@@ -474,7 +491,13 @@ module.exports = {
           text: `Drink #${result.stats.todayCups} today · ${result.stats.total} all time`,
         })
         .setColor(colorFor(drink));
-      await replyWithPicture(interaction, {}, embed, key, art);
+      await replyWithPicture(
+        interaction,
+        { components: meTooRow(key) },
+        embed,
+        key,
+        art,
+      );
       return achievements.announce(interaction, [userId]);
     }
 
@@ -521,7 +544,11 @@ module.exports = {
         .setColor(colorFor(drink));
       await replyWithPicture(
         interaction,
-        { content: `${target}`, allowedMentions: { users: [target.id] } },
+        {
+          content: `${target}`,
+          allowedMentions: { users: [target.id] },
+          components: meTooRow(key),
+        },
         embed,
         key,
         art,

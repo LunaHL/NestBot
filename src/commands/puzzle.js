@@ -1,6 +1,12 @@
 // /puzzle: the Puzzle of the Day. Only the Discord side lives here.
 // Logic, rewards and the daily announcement: src/services/puzzle.js.
-const { SlashCommandBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+} = require('discord.js');
 const achievements = require('../services/achievements');
 const history = require('../services/history');
 const puzzles = require('../services/puzzle');
@@ -10,24 +16,90 @@ const { localDate } = require('../utils/time');
 const HISTORY_PAGE_SIZE = 10;
 const { DIFFICULTIES, MEDALS } = puzzles;
 
+// ---------- 🔑 Enter code (button → form) ----------
+
+/** Check a code and answer (privately), plus the public "X solved it" notice. */
+async function solveWith(interaction, code) {
+  const guildId = interaction.guildId;
+  const userId = interaction.user.id;
+  const result = puzzles.solve(guildId, userId, code);
+
+  const errors = {
+    none: '❌ No puzzle today.',
+    solved: `✅ You already solved today's puzzle (#${result.position}).`,
+    locked: `🔒 That's ${puzzles.MAX_WRONG_PER_DAY} wrong codes. No more tries today. See you tomorrow!`,
+    wrong: `❌ Wrong code. **${result.triesLeft}** ${result.triesLeft === 1 ? 'try' : 'tries'} left today.`,
+  };
+  if (result.error)
+    return interaction.reply({ content: errors[result.error], flags: 64 });
+
+  const medal = MEDALS[result.position - 1];
+  await interaction.reply({
+    content:
+      `🎉 Correct! You earned **${result.reward}** coins!` +
+      (medal
+        ? `\n${medal} You were **#${result.position}** today (+${result.bonus} bonus)!`
+        : '') +
+      (result.streakMsg ? `\n${result.streakMsg}` : ''),
+    flags: 64,
+  });
+
+  // Public notice without the code: puzzle channel, or here if none is set
+  const name = interaction.member?.displayName || interaction.user.username;
+  const posted = await puzzles.postSolveNotice(
+    interaction.client,
+    guildId,
+    name,
+    result.position,
+  );
+  if (!posted) {
+    await interaction
+      .followUp({
+        content: `🧩 **${name}** solved today's puzzle! ${medal || '✅'} (#${result.position})`,
+        allowedMentions: { parse: [] },
+      })
+      .catch(() => {});
+  }
+  return achievements.announce(interaction, [userId]);
+}
+
+async function handleComponent(interaction) {
+  const action = interaction.customId.split(':')[1];
+  if (action === 'code') {
+    return interaction.showModal(
+      new ModalBuilder()
+        .setCustomId('puzzle:solve')
+        .setTitle("Today's puzzle")
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('code')
+              .setLabel('The code you found')
+              .setStyle(TextInputStyle.Short)
+              .setMaxLength(100)
+              .setRequired(true),
+          ),
+        ),
+    );
+  }
+  if (action === 'solve')
+    return solveWith(interaction, interaction.fields.getTextInputValue('code'));
+  return interaction.reply({ content: '🤔 Unknown button.', flags: 64 });
+}
+
 module.exports = {
+  handleComponent,
   data: new SlashCommandBuilder()
     .setName('puzzle')
     .setDescription('Daily Puzzle of the Day!')
     .addSubcommand(sub =>
       sub
         .setName('info')
-        .setDescription("Today's puzzle and your progress")
+        .setDescription(
+          "Today's puzzle: open it, enter the code, see your progress",
+        )
         .addUserOption(opt =>
           opt.setName('user').setDescription('User to check'),
-        ),
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('solve')
-        .setDescription('Solve today’s puzzle')
-        .addStringOption(opt =>
-          opt.setName('code').setDescription('Solve code').setRequired(true),
         ),
     )
     .addSubcommand(sub =>
@@ -132,54 +204,6 @@ module.exports = {
       });
     }
 
-    // ==== /puzzle solve ====
-    if (sub === 'solve') {
-      const userId = interaction.user.id;
-      const result = puzzles.solve(
-        guildId,
-        userId,
-        interaction.options.getString('code'),
-      );
-
-      const errors = {
-        none: '❌ No puzzle today.',
-        solved: `✅ You already solved today's puzzle (#${result.position}).`,
-        locked: `🔒 That's ${puzzles.MAX_WRONG_PER_DAY} wrong codes. No more tries today. See you tomorrow!`,
-        wrong: `❌ Wrong code. **${result.triesLeft}** ${result.triesLeft === 1 ? 'try' : 'tries'} left today.`,
-      };
-      if (result.error)
-        return interaction.reply({ content: errors[result.error], flags: 64 });
-
-      const medal = MEDALS[result.position - 1];
-      await interaction.reply({
-        content:
-          `🎉 Correct! You earned **${result.reward}** coins!` +
-          (medal
-            ? `\n${medal} You were **#${result.position}** today (+${result.bonus} bonus)!`
-            : '') +
-          (result.streakMsg ? `\n${result.streakMsg}` : ''),
-        flags: 64,
-      });
-
-      // Public notice without the code: puzzle channel, or here if none is set
-      const name = interaction.member?.displayName || interaction.user.username;
-      const posted = await puzzles.postSolveNotice(
-        interaction.client,
-        guildId,
-        name,
-        result.position,
-      );
-      if (!posted) {
-        await interaction
-          .followUp({
-            content: `🧩 **${name}** solved today's puzzle! ${medal || '✅'} (#${result.position})`,
-            allowedMentions: { parse: [] },
-          })
-          .catch(() => {});
-      }
-      return achievements.announce(interaction, [userId]);
-    }
-
     // ==== /puzzle history ====
     if (sub === 'history') {
       const user = interaction.options.getUser('user');
@@ -269,7 +293,7 @@ module.exports = {
       const queue = puzzles.getQueue();
       if (!queue.length) {
         return interaction.reply({
-          content: '📭 No puzzles scheduled. Add one with `/puzzle set`.',
+          content: '📭 No puzzles scheduled. Add one with `/admin puzzle set`.',
           flags: 64,
         });
       }
@@ -302,9 +326,19 @@ module.exports = {
       return interaction.reply({
         content: removed
           ? `🗑️ Removed the puzzle for **${date}** (code \`${removed.code}\`).`
-          : `❓ There's no puzzle on **${date}**. See \`/puzzle queue\`.`,
+          : `❓ There's no puzzle on **${date}**. See \`/admin puzzle queue\`.`,
         flags: 64,
       });
     }
   },
 };
+
+// Admin-only subcommands live under /admin (see utils/adminSplit.js)
+Object.assign(
+  module.exports,
+  require('../utils/adminSplit').splitAdmin(module.exports.data, [
+    'set',
+    'queue',
+    'remove',
+  ]),
+);

@@ -27,7 +27,7 @@ function listCard(guildId, title = '🎡 The Punishment Wheel') {
     color: ui.COLORS.wheel,
     text: entries.length
       ? entries.map(entryLine).join('\n').slice(0, 4000)
-      : 'The wheel is empty. Admins add entries with `/wheel add`.',
+      : 'The wheel is empty. Admins add entries with `/admin wheel add`.',
     footer: entries.length
       ? `${entries.length} entries · 🔇 gag · 🏷️ nickname`
       : null,
@@ -261,3 +261,12 @@ module.exports = {
     }
   },
 };
+
+// Admin-only subcommands live under /admin (see utils/adminSplit.js)
+Object.assign(
+  module.exports,
+  require('../utils/adminSplit').splitAdmin(module.exports.data, [
+    'add',
+    'remove',
+  ]),
+);

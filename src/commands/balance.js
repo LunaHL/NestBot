@@ -130,3 +130,12 @@ module.exports = {
     }
   },
 };
+
+// Admin-only subcommands live under /admin (see utils/adminSplit.js)
+Object.assign(
+  module.exports,
+  require('../utils/adminSplit').splitAdmin(module.exports.data, [
+    'grant',
+    'remove',
+  ]),
+);

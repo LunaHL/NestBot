@@ -145,11 +145,15 @@ const CATEGORIES = [
     name: 'NestBot AI',
     intro:
       "NestBot is the Nest's caretaker: dry, witty, a little sassy, but helpful.",
-    commands: ['ai', 'memory'],
+    commands: ['ai'],
     features: [
       {
         name: '💬 Chatting',
         text: 'Type **@NestBot** with your message to talk to her. She sees the last few messages in the channel. Replying to her messages without the @ does nothing.',
+      },
+      {
+        name: '📝 She remembers things',
+        text: 'Tell her: “@NestBot remember that I love Earl Grey” (up to 10 things). “@NestBot what do you know about me?” shows them with a menu to forget one; “@NestBot forget Earl Grey” or “forget everything” works too. Nothing is saved unless you ask.',
       },
     ],
   },
@@ -196,7 +200,7 @@ const CATEGORIES = [
     id: 'halloween',
     emoji: '🎃',
     name: 'Halloween',
-    intro: 'Only on October 31.',
+    intro: 'Only on October 31 (the command only shows up then).',
     commands: ['trickortreat'],
     features: [
       {
@@ -209,8 +213,9 @@ const CATEGORIES = [
     id: 'admin',
     emoji: '🛠️',
     name: 'Admin',
-    intro: 'Settings for server admins.',
-    commands: ['settings'],
+    intro:
+      'For server admins. Regular members don’t see these commands at all.',
+    commands: ['settings', 'admin'],
   },
   {
     id: 'help',
@@ -222,6 +227,10 @@ const CATEGORIES = [
       {
         name: '💬 Just ask NestBot',
         text: 'Write **@NestBot** and ask, e.g. “@NestBot how do movie nights work?” or “what can I buy with coins?”. She knows every feature.',
+      },
+      {
+        name: '🖱️ Right-click someone',
+        text: 'Right-click a member (on phones: tap their name) → **Apps**: 👤 View profile, 🍹 Gift a drink, 🤺 Challenge to a duel, 🏷️ Rename, 🙈 Blindfold. No commands, no typing names.',
       },
       {
         name: '🪺 The menu',
@@ -243,7 +252,6 @@ const COMMANDS = {
   balance: {
     explain:
       "Check your coins or someone else's, and send coins to other members.",
-    admin: ['grant', 'remove'],
   },
   leaderboard: {
     explain:
@@ -252,8 +260,7 @@ const COMMANDS = {
   shop: {
     explain:
       'Look around with `/shop browse`: items are grouped in categories, buy from the menu. Items with an effect (🔇 gag, 🏷️ nickname) ask who it’s for, then you confirm. NestBot’s own specials: 🏷️ **Rename someone** (also `/shop nickname`), 🔓 **Get your name back** and 🙈 **Blindfold someone** (5 min = 20 coins … 1 h = 150).',
-    admin: ['add', 'edit', 'remove'],
-    tips: 'Admins: `/shop add` has `category` (reuse one while typing, or type a new one), `emoji`, and `effect` / `minutes` / `nickname` options.',
+    tips: 'Admins: `/admin shop add` has `category` (reuse one while typing, or type a new one), `emoji`, and `effect` / `minutes` / `nickname` options.',
   },
   gamble: {
     explain: 'Bet 5 coins on the Nest Roulette. Feeling lucky?',
@@ -268,13 +275,11 @@ const COMMANDS = {
   nestword: {
     explain:
       'A Wordle-style word game. Every day there is a new word with 3–7 letters. 🟩 = right letter, right spot; 🟨 = right letter, wrong spot. Fewer letters means more attempts.',
-    admin: ['set', 'pool-bulkadd', 'pool-remove', 'pool-list', 'pool-clear'],
     tips: 'Ask @NestBot for a hint if you’re stuck.',
   },
   puzzle: {
     explain:
-      'A new puzzle every day, announced in the puzzle channel. Open it, find the code and enter it with `/puzzle solve`. Harder puzzles pay more, and the first three solvers get a bonus (🥇 +15, 🥈 +10, 🥉 +5). You have 10 tries per day.',
-    admin: ['set', 'queue', 'remove'],
+      'A new puzzle every day, announced in the puzzle channel. Open it, find the code, then press **🔑 Enter code** on the puzzle card (or get the card with `/puzzle info`). Harder puzzles pay more, and the first three solvers get a bonus (🥇 +15, 🥈 +10, 🥉 +5). You have 10 tries per day.',
     tips: 'Use `/puzzle history` to replay old puzzles and `/leaderboard board:Puzzle` to see the best solvers. Admins: the puzzle channel is set with `/settings channels`; setting a puzzle again for the same day replaces it but keeps its solvers.',
   },
 
@@ -289,7 +294,6 @@ const COMMANDS = {
   event: {
     explain:
       'Tournaments with a coin prize pool, either single elimination or Swiss system. Admins create the event and enter results; everyone can join and follow the bracket. The top 3 get paid automatically.',
-    admin: ['create', 'finish', 'add-user', 'pairings', 'win'],
   },
   duel: {
     explain:
@@ -309,16 +313,11 @@ const COMMANDS = {
     explain:
       'Extras with NestBot’s AI: check her status, or pay coins for a roast, a compliment or a poem about someone (refunded if she fails), or change her mood for the rest of the day.',
   },
-  memory: {
-    explain:
-      'Tell NestBot things about you to remember (up to 10), like your favorite drink or your pet’s name. She uses them when you chat. Nothing is saved unless you add it yourself.',
-  },
 
   // 🔇 Fun
   wheel: {
     explain:
       'Spin the punishment wheel. Spinning for yourself is free; spinning for someone else costs coins. Some entries gag (🔇) or rename (🏷️) the target.',
-    admin: ['add', 'remove'],
   },
   ungag: {
     explain: 'Remove a gag early.',
@@ -329,7 +328,6 @@ const COMMANDS = {
   birthday: {
     explain:
       'Save your birthday. On the day NestBot congratulates you and gives you coins.',
-    admin: ['announce'],
     tips: 'Admins can also add and remove birthdays for others. The birthday channel is set with `/settings channels`.',
   },
 
@@ -359,6 +357,11 @@ const COMMANDS = {
   },
 
   // 🛠️ Admin
+  admin: {
+    explain:
+      'All admin tools in one place, grouped: `/admin shop` (add, edit, remove items), `/admin wheel` (entries), `/admin puzzle` (set, queue, remove), `/admin nestword` (set a word, word pools), `/admin coins` (grant, remove), `/admin birthday announce`, `/admin event` (create, pairings, results, finish). Only admins see it.',
+    admin: ['*'],
+  },
   settings: {
     explain:
       'Server settings. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',

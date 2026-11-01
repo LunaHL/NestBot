@@ -349,3 +349,4 @@ module.exports = {
     return startDuel(interaction);
   },
 };
+module.exports.MAX_BET = MAX_BET;

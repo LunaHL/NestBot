@@ -16,14 +16,17 @@ module.exports = {
   ],
   shop: [
     'Renamed? 🔓 **Get your name back** in `/shop` costs what it cost them.',
+    'Right-click someone → **Apps → Rename** or **Blindfold**, without opening the shop.',
   ],
   drinks: [
     'Buy everyone in voice a drink with `/drinks round`. Bigger rounds are cheaper!',
     'Gift a drink with a note on the cup: `/drinks gift`.',
     'Your drink stats: `/profile tab:Drinks`.',
+    'Faster: right-click someone → **Apps → Gift a drink**.',
   ],
   'drinks round': ['Who bought the most rounds? `/leaderboard board:Drinks`.'],
   puzzle: [
+    'Found the code? Press **🔑 Enter code** on the puzzle card.',
     'Your puzzle stats and streak: `/profile tab:Games`.',
     'Best solvers: `/leaderboard board:Puzzle`.',
   ],
@@ -33,10 +36,14 @@ module.exports = {
   ],
   profile: [
     'Switch tabs with the menu under your profile: games, drinks, movies, achievements…',
+    'Someone else’s profile: right-click them → **Apps → View profile**.',
   ],
   leaderboard: ['Switch boards with the menu under the card.'],
   wheel: ['Wheel entries can gag 🔇, blindfold 🙈 or rename 🏷️ automatically.'],
-  duel: ['Your duel record: `/profile tab:Duels & fun`.'],
+  duel: [
+    'Your duel record: `/profile tab:Duels & fun`.',
+    'Faster: right-click someone → **Apps → Challenge to a duel**.',
+  ],
   watch: [
     'Plan with words: `/watch plan when:tomorrow 20:00`.',
     'Changed your mind? ⚙️ on the movie card changes the time, starts a vote or cancels.',
@@ -52,9 +59,8 @@ module.exports = {
     'Inside your group channel, `/watch now` starts a movie night right there.',
   ],
   ai: [
-    'You can also just talk to @NestBot, she remembers what you tell her with `/memory`.',
+    'Tell @NestBot things to remember: “@NestBot remember that I love Earl Grey”.',
   ],
-  memory: ['NestBot uses your memories when you chat with her. Try @NestBot!'],
   birthday: [
     'On your birthday NestBot congratulates you and gives you coins 🎂.',
   ],

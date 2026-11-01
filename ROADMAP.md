@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.15 | 🛠️ `/admin`, 🖱️ right-click menu, 🔑 puzzle button, 📝 memories by chat, seasonal commands, 🙋/🎲 quick buttons |
 | V 1.14 | 📌 Group panel, check-in and clock stay at the bottom |
 | V 1.13 | 💬 Ask NestBot, 💡 tips, 🪺 hub menu, weekly “Did you know?”, 🙈 blindfold in the shop |
 | V 1.12 | 🍿 Simpler movie nights: `when:`, ⚙️ Manage and 🔄 buttons, interactive watchlist |
@@ -240,10 +241,7 @@ A cute Easter outfit you can wear yourself or put on a friend.
 ## 💡 Quality-of-life ideas
 
 **Fewer commands**
-- `/coins`: `/daily`, `/gamble` and `/balance` as one command
-  (`/coins daily`, `/coins gamble`, `/coins send`)
-- Seasonal commands (`/trickortreat`, later `/advent`, `/snowball`) only
-  visible during their season
+- `/coins` (or similar): `/daily`, `/gamble` and `/balance` as one command, or daily as a button in the profile and the hub menu. *Not yet: keep in mind*
 - `/ungag` → a ✅ button for admins under the gag message
 
 **Economy**

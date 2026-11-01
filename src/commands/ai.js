@@ -24,7 +24,35 @@ const targetOption = (sub, what) =>
       .setRequired(true),
   );
 
+/** The "🗑️ Forget…" menu under "what do you know about me?". */
+async function handleComponent(interaction) {
+  const [, action, ownerId] = interaction.customId.split(':');
+  if (action !== 'forget')
+    return interaction.reply({ content: '🤔 Unknown button.', flags: 64 });
+  if (interaction.user.id !== ownerId)
+    return interaction.reply({
+      content: '❌ That’s someone else’s list.',
+      flags: 64,
+    });
+  const memory = require('../services/memory');
+  const removed = memory.removeMemory(
+    interaction.guildId,
+    ownerId,
+    Number(interaction.values[0]),
+  );
+  const left = memory.getMemories(interaction.guildId, ownerId);
+  return interaction.update({
+    content:
+      (removed ? `🗑️ Forgotten: “${removed}”.\n\n` : '') +
+      (left.length
+        ? `Still know ${left.length} thing${left.length === 1 ? '' : 's'} about you.`
+        : 'I don’t know anything about you anymore.'),
+    components: [],
+  });
+}
+
 module.exports = {
+  handleComponent,
   data: new SlashCommandBuilder()
     .setName('ai')
     .setDescription('AI commands')

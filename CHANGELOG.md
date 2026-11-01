@@ -1,5 +1,18 @@
 # NestBot Changelog
 
+## V 1.15 (November 2026)
+
+Simpler for members: they only see what they can use.
+
+**New**
+- 🛠️ `/admin`: all admin parts in one command that only admins see (`shop`, `wheel`, `puzzle`, `nestword`, `coins`, `birthday`, `event`). `/shop`, `/wheel`, `/puzzle`, `/nestword`, `/balance`, `/birthday`, `/event` only show what everyone can use
+- 🖱️ Right-click a member → Apps: View profile, Gift a drink, Challenge to a duel, Rename, Blindfold
+- 🔑 **Enter code** button on every puzzle card (replaces `/puzzle solve`)
+- 📝 “@NestBot remember that …”, “forget …”, “what do you know about me?” (with a 🗑️ menu). Works without Gemini. Replaces `/memory`
+- 🎃 Seasonal commands: `/trickortreat` only shows up on Halloween
+- 🙋 **Me too** under drinks, 🎲 **Again** under `/gamble`
+- Explained in `/help`, the hub menu and the tips
+
 ## V 1.14 (November 2026)
 
 **New**

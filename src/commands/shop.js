@@ -119,7 +119,7 @@ function browseView(guildId, category = null) {
       ? free(guildId)
         ? '🎉 **Free mode:** everything costs nothing right now!'
         : null
-      : 'The shop is empty right now. Admins add items with `/shop add`.',
+      : 'The shop is empty right now. Admins add items with `/admin shop add`.',
     fields: all.length ? fields.slice(0, 25) : [],
     footer: 'Pick something below. Drinks: /drinks',
   });
@@ -340,6 +340,32 @@ async function buyout(interaction, { viaButton }) {
   return interaction.reply(card);
 }
 
+/** "How long?" menu for blindfolding someone. */
+function blindMenu(guildId, targetId) {
+  const active = blindfold.getActive(guildId, targetId);
+  return {
+    content:
+      `🙈 How long should <@${targetId}> be in the dark?` +
+      (active
+        ? `\n(They already are, until <t:${Math.floor(active.until / 1000)}:t>. This adds time.)`
+        : ''),
+    components: [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`shop:blindtime:${targetId}`)
+          .setPlaceholder('⏱️ Pick a time…')
+          .addOptions(
+            BLIND_PRICES.map(d => ({
+              label: `${ui.duration(d.min * 60)} · ${priceShort(guildId, d.price)}`,
+              value: String(d.min),
+            })),
+          ),
+      ),
+    ],
+    allowedMentions: { parse: [] },
+  };
+}
+
 // ---------- Menus, buttons, forms ----------
 
 async function handleComponent(interaction) {
@@ -464,28 +490,7 @@ async function handleComponent(interaction) {
         content: '❌ Bots can’t be blindfolded.',
         components: [],
       });
-    const active = blindfold.getActive(guildId, targetId);
-    return interaction.update({
-      content:
-        `🙈 How long should <@${targetId}> be in the dark?` +
-        (active
-          ? `\n(They already are, until <t:${Math.floor(active.until / 1000)}:t>. This adds time.)`
-          : ''),
-      components: [
-        new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId(`shop:blindtime:${targetId}`)
-            .setPlaceholder('⏱️ Pick a time…')
-            .addOptions(
-              BLIND_PRICES.map(d => ({
-                label: `${ui.duration(d.min * 60)} · ${priceShort(guildId, d.price)}`,
-                value: String(d.min),
-              })),
-            ),
-        ),
-      ],
-      allowedMentions: { parse: [] },
-    });
+    return interaction.update(blindMenu(guildId, targetId));
   }
 
   if (action === 'blindtime') {
@@ -847,3 +852,16 @@ module.exports = {
     }
   },
 };
+
+// Admin-only subcommands live under /admin (see utils/adminSplit.js)
+Object.assign(
+  module.exports,
+  require('../utils/adminSplit').splitAdmin(module.exports.data, [
+    'add',
+    'edit',
+    'remove',
+  ]),
+);
+
+// Used by the right-click menu (commands/userMenu.js)
+Object.assign(module.exports, { nickProblem, timeMenu, blindMenu });

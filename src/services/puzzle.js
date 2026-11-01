@@ -257,7 +257,7 @@ function puzzleEmbed(date, puzzle, { recap = false, guildId } = {}) {
     .setTitle('🧩 Puzzle of the Day')
     .setDescription(
       `**${prettyDate(date)}**\n\n` +
-        'A new puzzle is waiting for you! Open it, find the code and enter it with `/puzzle solve`.',
+        'A new puzzle is waiting for you! Open it, find the code, then press **🔑 Enter code** below.',
     )
     .addFields(
       {
@@ -306,17 +306,27 @@ function puzzleEmbed(date, puzzle, { recap = false, guildId } = {}) {
 }
 
 /** The "Open puzzle" button. */
+/** Buttons under a puzzle card: 🧩 open it, 🔑 enter the code (a form). */
 function linkButton(puzzle) {
-  if (!isValidLink(puzzle.link)) return [];
-  return [
-    new ActionRowBuilder().addComponents(
+  if (!puzzle) return [];
+  const row = new ActionRowBuilder();
+  if (isValidLink(puzzle.link)) {
+    row.addComponents(
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
         .setLabel('Open puzzle')
         .setEmoji('🧩')
         .setURL(puzzle.link),
-    ),
-  ];
+    );
+  }
+  row.addComponents(
+    new ButtonBuilder()
+      .setCustomId('puzzle:code')
+      .setLabel('Enter code')
+      .setEmoji('🔑')
+      .setStyle(ButtonStyle.Success),
+  );
+  return [row];
 }
 
 // ---------- Puzzle channel ----------

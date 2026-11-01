@@ -8,6 +8,9 @@ const EXTRA_HANDLERS = {
   get hub() {
     return require('../services/hub');
   },
+  get usermenu() {
+    return require('../commands/userMenu');
+  },
 };
 
 module.exports = async function onInteraction(interaction) {
@@ -50,7 +53,12 @@ module.exports = async function onInteraction(interaction) {
     }
     return;
   }
-  if (!interaction.isChatInputCommand()) return;
+  // Slash commands and right-click entries (Apps → …)
+  if (
+    !interaction.isChatInputCommand() &&
+    !interaction.isUserContextMenuCommand?.()
+  )
+    return;
 
   const command = interaction.client.commands.get(interaction.commandName);
   if (!command)

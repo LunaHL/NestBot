@@ -431,7 +431,7 @@ module.exports = {
         // Check if previous round is finished
         if (event.matches && event.matches.some(m => !m.winner)) {
           errorMsg =
-            '⚠️ The current round is not finished yet. Determine all winners first with `/event win`.';
+            '⚠️ The current round is not finished yet. Determine all winners first with `/admin event win`.';
           return;
         }
 
@@ -557,7 +557,7 @@ module.exports = {
         }
         if (!event.matches || event.matches.length === 0) {
           result =
-            '⚠️ There are no active matches. Start a round first with `/event pairings`.';
+            '⚠️ There are no active matches. Start a round first with `/admin event pairings`.';
           return;
         }
 
@@ -656,7 +656,7 @@ module.exports = {
             result += `\n🎉 **Tournament Complete!** Winners announced in <#${announcement.channelId}>.`;
           } else {
             result +=
-              '\n🏁 **Round ended!** Use `/event pairings` for the next round.';
+              '\n🏁 **Round ended!** Use `/admin event pairings` for the next round.';
           }
         }
       });
@@ -725,7 +725,7 @@ module.exports = {
 
         if (!event.matches || event.matches.length === 0) {
           errorMsg =
-            '⚠️ There are no active matches. Start a round first with `/event pairings`.';
+            '⚠️ There are no active matches. Start a round first with `/admin event pairings`.';
           return;
         }
 
@@ -794,3 +794,15 @@ module.exports = {
     }
   },
 };
+
+// Admin-only subcommands live under /admin (see utils/adminSplit.js)
+Object.assign(
+  module.exports,
+  require('../utils/adminSplit').splitAdmin(module.exports.data, [
+    'create',
+    'finish',
+    'add-user',
+    'pairings',
+    'win',
+  ]),
+);

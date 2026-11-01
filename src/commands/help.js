@@ -18,6 +18,7 @@ function allCommands(client) {
   const map = new Map();
   for (const cmd of client.commands?.values() || []) {
     const json = cmd.data.toJSON();
+    if (json.type && json.type !== 1) continue; // right-click entries aren't slash commands
     map.set(json.name, json);
   }
   return map;
