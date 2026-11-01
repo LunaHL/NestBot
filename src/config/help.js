@@ -109,11 +109,11 @@ const CATEGORIES = [
       },
       {
         name: '💞 Groups',
-        text: 'Couples and fixed groups get their own private channel with `/group create`, a shared watchlist with 👍 votes, and their own series progress. `/watch now` or `/watch plan` inside the group channel runs the movie night right there. Admins can technically see every channel; mute the group category if it pings you.',
+        text: 'Couples and fixed groups get their own private channel with `/group create`, a pinned panel with buttons for the shared watchlist (👍 votes) and 🍿 watching together, and their own series progress. Admins can technically see every channel; mute the group category if it pings you.',
       },
       {
         name: '▶️ Watching in sync',
-        text: 'Pause your movie at 0:00 and press **✅ Ready**, then 3… 2… 1… ▶️. The live clock shows where everyone should be, **🔄 I’m at…** tells you if you’re ahead or behind, and anyone can press **⏸️ Pause**.',
+        text: 'Pause your movie at 0:00 and press **✅ Ready**, then 3… 2… 1… ▶️. The check-in and the clock always move back to the bottom of the room when people chat. The live clock shows where everyone should be, **🔄 I’m at…** tells you if you’re ahead or behind, and anyone can press **⏸️ Pause**.',
       },
     ],
   },
@@ -354,8 +354,8 @@ const COMMANDS = {
 
   group: {
     explain:
-      'Watch groups and couples: your own permanent private channel, a shared watchlist with 👍 votes ("up next"), and series that continue where your group stopped. Use `/watch now` or `/watch plan` inside the group channel.',
-    tips: 'The owner adds and removes people; anyone can leave. Group movie nights stay private unless the owner turns on `/group calendar`.',
+      'Watch groups and couples: `/group create` gives you a permanent private channel with a **pinned panel**: 📝 shared watchlist (👍 vote, watch now, mark watched, remove), ➕ add a title, 🍿 watch now or plan, 👋 leave. Series continue where your group stopped.',
+    tips: 'The owner 👑 invites, removes, renames, shows the group’s nights in the public calendar or deletes the group, all in the panel. `/group list` shows your groups.',
   },
 
   // 🛠️ Admin

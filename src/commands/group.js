@@ -8,6 +8,10 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  UserSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 const groups = require('../services/groups');
 const wl = require('../services/watchlist');
@@ -17,19 +21,6 @@ const ephemeral = content => ({ content, flags: 64 });
 const label = i =>
   `${tmdb.kindEmoji(i.type, i.anime)} ${i.title}${i.year ? ` (${i.year})` : ''}`;
 const MEMBER_OPTIONS = ['member1', 'member2', 'member3', 'member4', 'member5'];
-
-/** The group this command is about: the `group` option, or the channel it's used in. */
-function resolveGroup(interaction) {
-  const id = interaction.options.getString?.('group');
-  if (id) return groups.getGroup(interaction.guildId, Number(id));
-  return groups.groupByChannel(interaction.guildId, interaction.channelId);
-}
-
-const groupOption = o =>
-  o
-    .setName('group')
-    .setDescription('Which group (default: the group channel you are in)')
-    .setAutocomplete(true);
 
 async function fieldsFor(value) {
   const m = /^(movie|tv):(\d+)$/.exec(String(value || ''));
@@ -52,7 +43,7 @@ function listView(group) {
                 `${n === 0 ? '⭐' : '▫️'} **${label(i)}** · 👍 ${i.votes.length}`,
             )
             .join('\n')
-        : 'Nothing on the list yet. Add something with `/group watchlist add`!') +
+        : 'Nothing on the list yet. Add something with ➕ **Add a title** in the pinned panel!') +
         (done.length
           ? `\n\n✅ **Watched:** ${done
               .slice(0, 10)
@@ -83,12 +74,81 @@ function listView(group) {
           .setPlaceholder('🎬 Watch this now…')
           .addOptions(options),
       ),
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`group:seen:${group.id}`)
+          .setPlaceholder('✅ We watched it already…')
+          .addOptions(options),
+      ),
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`group:remove:${group.id}`)
+          .setPlaceholder('🗑️ Remove from the list…')
+          .addOptions(options),
+      ),
     );
   }
   return { embeds: [embed], components };
 }
 
-// ---------- Buttons and menus ----------
+// ---------- The pinned panel: buttons, menus and forms ----------
+
+function form(customId, title, fields) {
+  return new ModalBuilder()
+    .setCustomId(customId)
+    .setTitle(title.slice(0, 45))
+    .addComponents(
+      fields.map(f => {
+        const input = new TextInputBuilder()
+          .setCustomId(f.id)
+          .setLabel(f.label.slice(0, 45))
+          .setStyle(TextInputStyle.Short)
+          .setRequired(f.required !== false)
+          .setMaxLength(f.max || 100);
+        if (f.value) input.setValue(String(f.value));
+        if (f.placeholder)
+          input.setPlaceholder(String(f.placeholder).slice(0, 100));
+        return new ActionRowBuilder().addComponents(input);
+      }),
+    );
+}
+
+const refresh = (guild, id) => groups.postPanel(guild, id).catch(() => {});
+
+/** Start a movie night in the group channel (now, or at `when`). */
+async function startNight(interaction, group, ref, when) {
+  const watchCmd = require('./watch');
+  const watch = require('../services/watch');
+  const guild = interaction.guild;
+  let startAt = Date.now();
+  if (when) {
+    const w = watchCmd.parseWhen(when);
+    if (!w)
+      return interaction.editReply(
+        '❌ I didn’t understand when. Try `tomorrow 20:00`, `friday` or leave it empty for now.',
+      );
+    startAt = require('../utils/time').zonedToUtc(w.date, w.time);
+    if (startAt < Date.now() - 60000)
+      return interaction.editReply('❌ That time is in the past.');
+  }
+  const details = await watch.resolveTitle(ref, {
+    guildId: guild.id,
+    scope: group.id,
+  });
+  const n = await watch.createNight(
+    guild,
+    interaction.member,
+    details,
+    startAt,
+    { now: !when, groupId: group.id },
+  );
+  const { discordTime } = require('../utils/time');
+  return interaction.editReply(
+    when
+      ? `🗓️ Planned **${watch.fullTitle(n)}** for ${discordTime(n.startAt, 'F')}. You'll get a ping here before it starts.`
+      : `🍿 **${watch.fullTitle(n)}** starts now! Check in below.`,
+  );
+}
 
 async function handleComponent(interaction) {
   const [, action, idText, answer] = interaction.customId.split(':');
@@ -98,12 +158,32 @@ async function handleComponent(interaction) {
   if (!group) return interaction.reply(ephemeral('This group is gone.'));
   const userId = interaction.user.id;
   const isMember = group.members.includes(userId);
+  const owner = groups.isOwner(group, userId);
 
   if (action === 'delete') {
     if (!groups.canManage(group, interaction.member))
       return interaction.reply(
         ephemeral('❌ Only the owner or an admin can delete this group.'),
       );
+    if (answer === 'ask') {
+      return interaction.reply({
+        content: `⚠️ Really delete **${group.name}**? The channel and the shared watchlist will be gone for everyone.`,
+        components: [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`group:delete:${group.id}:yes`)
+              .setLabel('Yes, delete')
+              .setEmoji('🗑️')
+              .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+              .setCustomId(`group:delete:${group.id}:no`)
+              .setLabel('Cancel')
+              .setStyle(ButtonStyle.Secondary),
+          ),
+        ],
+        flags: 64,
+      });
+    }
     if (answer !== 'yes')
       return interaction.update({ content: '👍 Not deleted.', components: [] });
     await interaction.update({
@@ -116,6 +196,25 @@ async function handleComponent(interaction) {
 
   if (!isMember)
     return interaction.reply(ephemeral('❌ You are not in this group.'));
+  const ownerOnly = [
+    'invite',
+    'invitepick',
+    'kickpick',
+    'kick',
+    'renameform',
+    'rename',
+    'caltoggle',
+  ];
+  if (ownerOnly.includes(action) && !owner)
+    return interaction.reply(ephemeral('❌ Only the owner 👑 can do that.'));
+
+  // 📝 Shared watchlist
+  if (action === 'list')
+    return interaction.reply({
+      ...listView(group),
+      flags: 64,
+      allowedMentions: { parse: [] },
+    });
 
   if (action === 'vote') {
     const item = groups.toggleVote(
@@ -128,6 +227,7 @@ async function handleComponent(interaction) {
     await interaction
       .update(listView(groups.getGroup(guild.id, id)))
       .catch(() => {});
+    await refresh(guild, id);
     return interaction.followUp(
       ephemeral(
         item.votes.includes(userId)
@@ -137,25 +237,261 @@ async function handleComponent(interaction) {
     );
   }
 
+  if (action === 'seen' || action === 'remove') {
+    const r =
+      action === 'seen'
+        ? groups.markWatched(guild.id, id, interaction.values[0])
+        : groups.removeItem(guild.id, id, interaction.values[0]);
+    const item = r?.result;
+    if (!item) return interaction.reply(ephemeral('That title is gone.'));
+    await interaction
+      .update(listView(groups.getGroup(guild.id, id)))
+      .catch(() => {});
+    await refresh(guild, id);
+    return interaction.followUp(
+      ephemeral(
+        action === 'seen'
+          ? `✅ **${label(item)}** is marked as watched.`
+          : `🗑️ Removed **${label(item)}**.`,
+      ),
+    );
+  }
+
   if (action === 'watchnow') {
     const item = group.watchlist[interaction.values[0]];
     if (!item) return interaction.reply(ephemeral('That title is gone.'));
     await interaction.deferReply({ flags: 64 });
-    const watch = require('../services/watch');
-    const ref = item.tmdbId ? `${item.type}:${item.tmdbId}` : item.title;
-    const details = await watch.resolveTitle(ref, {
-      guildId: guild.id,
-      scope: group.id,
-    });
-    const n = await watch.createNight(
-      guild,
-      interaction.member,
-      details,
-      Date.now(),
-      { now: true, groupId: group.id },
+    return startNight(
+      interaction,
+      group,
+      item.tmdbId ? `${item.type}:${item.tmdbId}` : item.title,
+      null,
     );
-    return interaction.editReply(
-      `🍿 **${watch.fullTitle(n)}** starts now! Check in above.`,
+  }
+
+  if (action === 'addform') {
+    return interaction.showModal(
+      form(`group:add:${group.id}`, 'Add to the shared watchlist', [
+        {
+          id: 'title',
+          label: 'Movie, series or anime',
+          placeholder: 'e.g. Inception, or Dune 2021',
+        },
+      ]),
+    );
+  }
+  if (action === 'add') {
+    await interaction.deferReply();
+    const ref = await require('./watch').bestMatch(
+      interaction.fields.getTextInputValue('title'),
+    );
+    const r = groups.addItem(guild.id, id, userId, await fieldsFor(ref)).result;
+    await refresh(guild, id);
+    return interaction.editReply({
+      content: r.existed
+        ? `📌 **${label(r.item)}** is already on the list.`
+        : `📌 <@${userId}> added **${label(r.item)}** to the shared list.`,
+      allowedMentions: { parse: [] },
+    });
+  }
+
+  if (action === 'planform') {
+    const next = groups.upNext(group);
+    return interaction.showModal(
+      form(`group:plan:${group.id}`, 'Watch together', [
+        {
+          id: 'title',
+          label: 'What? (empty = up next from your list)',
+          required: false,
+          placeholder: next ? next.title : 'e.g. Inception',
+        },
+        {
+          id: 'when',
+          label: 'When? (empty = right now)',
+          required: false,
+          placeholder: 'e.g. tomorrow 20:00, friday 21:00',
+        },
+      ]),
+    );
+  }
+  if (action === 'plan') {
+    await interaction.deferReply({ flags: 64 });
+    const typed = interaction.fields.getTextInputValue('title')?.trim();
+    const next = groups.upNext(group);
+    if (!typed && !next)
+      return interaction.editReply(
+        '📝 Your list is empty. Type a title, or add one with ➕ **Add a title**.',
+      );
+    const ref = typed
+      ? await require('./watch').bestMatch(typed)
+      : next.tmdbId
+        ? `${next.type}:${next.tmdbId}`
+        : next.title;
+    return startNight(
+      interaction,
+      group,
+      ref,
+      interaction.fields.getTextInputValue('when')?.trim() || null,
+    );
+  }
+
+  // 👥 Members
+  if (action === 'invite') {
+    return interaction.reply({
+      content: '➕ Who should join?',
+      components: [
+        new ActionRowBuilder().addComponents(
+          new UserSelectMenuBuilder()
+            .setCustomId(`group:invitepick:${group.id}`)
+            .setPlaceholder('👤 Pick someone…'),
+        ),
+      ],
+      flags: 64,
+    });
+  }
+  if (action === 'invitepick') {
+    const targetId = interaction.values[0];
+    const user = await interaction.client.users
+      .fetch(targetId)
+      .catch(() => null);
+    if (!user || user.bot)
+      return interaction.update({
+        content: '🤖 Bots can’t join.',
+        components: [],
+      });
+    const r = await groups.addMember(guild, id, targetId);
+    if (r?.result === 'already')
+      return interaction.update({
+        content: 'They are already in the group.',
+        components: [],
+      });
+    await interaction.update({ content: '✅ Added!', components: [] });
+    await refresh(guild, id);
+    const ch = await interaction.client.channels
+      .fetch(group.channelId)
+      .catch(() => null);
+    await ch
+      ?.send({
+        content: `👋 Welcome <@${targetId}> to **${group.name}**!`,
+        allowedMentions: { users: [targetId] },
+      })
+      .catch(() => {});
+    return;
+  }
+  if (action === 'kickpick') {
+    const others = group.members.filter(u => u !== userId);
+    if (!others.length)
+      return interaction.reply(ephemeral('You are the only one here.'));
+    const names = await Promise.all(
+      others.map(u =>
+        guild.members
+          .fetch(u)
+          .then(m => m.displayName)
+          .catch(() => u),
+      ),
+    );
+    return interaction.reply({
+      content: '👢 Who should leave the group?',
+      components: [
+        new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId(`group:kick:${group.id}`)
+            .setPlaceholder('👤 Pick someone…')
+            .addOptions(
+              others
+                .slice(0, 25)
+                .map((u, i) => ({
+                  label: String(names[i]).slice(0, 100),
+                  value: u,
+                })),
+            ),
+        ),
+      ],
+      flags: 64,
+    });
+  }
+  if (action === 'kick') {
+    const targetId = interaction.values[0];
+    const r = await groups.removeMember(guild, id, targetId);
+    await refresh(guild, id);
+    return interaction.update({
+      content:
+        r?.result === 'not-member'
+          ? 'They are not in the group.'
+          : `👋 Removed <@${targetId}>.`,
+      components: [],
+      allowedMentions: { parse: [] },
+    });
+  }
+  if (action === 'leaveask') {
+    return interaction.reply({
+      content: `👋 Really leave **${group.name}**?${owner && group.members.length > 1 ? ' Someone else becomes the owner.' : owner ? ' You are the last one, so the group gets deleted.' : ''}`,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`group:leave:${group.id}`)
+            .setLabel('Yes, leave')
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId(`group:cancel:${group.id}`)
+            .setLabel('Stay')
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
+      flags: 64,
+    });
+  }
+  if (action === 'cancel')
+    return interaction.update({ content: '👍 Okay.', components: [] });
+  if (action === 'leave') {
+    await interaction.update({
+      content: `👋 You left **${group.name}**.`,
+      components: [],
+    });
+    const r = await groups.removeMember(guild, id, userId);
+    if (r?.group?.members.length) {
+      await refresh(guild, id);
+      if (owner) {
+        const ch = await interaction.client.channels
+          .fetch(group.channelId)
+          .catch(() => null);
+        await ch
+          ?.send({
+            content: `👑 <@${r.group.ownerId}> is the new owner.`,
+            allowedMentions: { users: [r.group.ownerId] },
+          })
+          .catch(() => {});
+      }
+    }
+    return;
+  }
+
+  // ✏️ Rename, 🗓️ calendar
+  if (action === 'renameform') {
+    return interaction.showModal(
+      form(`group:rename:${group.id}`, 'Rename the group', [
+        { id: 'name', label: 'New name', value: group.name, max: 50 },
+      ]),
+    );
+  }
+  if (action === 'rename') {
+    const g = groups.rename(
+      guild.id,
+      id,
+      interaction.fields.getTextInputValue('name'),
+    );
+    await refresh(guild, id);
+    return interaction.reply(`✏️ The group is now called **${g.name}**.`);
+  }
+  if (action === 'caltoggle') {
+    const g = groups.setShowInCalendar(guild.id, id, !group.showInCalendar);
+    await refresh(guild, id);
+    return interaction.reply(
+      ephemeral(
+        g.showInCalendar
+          ? '🗓️ This group’s movie nights now show in the public calendar (only members can join).'
+          : '🔒 This group’s movie nights stay private.',
+      ),
     );
   }
 
@@ -186,184 +522,15 @@ module.exports = {
         s.addUserOption(o => o.setName(k).setDescription('Member'));
       return s;
     })
-    .addSubcommand(s =>
-      s
-        .setName('add')
-        .setDescription('Add someone (owner)')
-        .addUserOption(o =>
-          o.setName('member').setDescription('Who').setRequired(true),
-        )
-        .addStringOption(o => groupOption(o)),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('kick')
-        .setDescription('Remove someone (owner)')
-        .addUserOption(o =>
-          o.setName('member').setDescription('Who').setRequired(true),
-        )
-        .addStringOption(o => groupOption(o)),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('leave')
-        .setDescription('Leave a group')
-        .addStringOption(o => groupOption(o)),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('delete')
-        .setDescription('Delete a group and its channel (owner or admins)')
-        .addStringOption(o => groupOption(o)),
-    )
-    .addSubcommand(s => s.setName('list').setDescription('Your groups'))
-    .addSubcommand(s =>
-      s
-        .setName('rename')
-        .setDescription('Rename a group (owner)')
-        .addStringOption(o =>
-          o
-            .setName('name')
-            .setDescription('New name')
-            .setRequired(true)
-            .setMaxLength(50),
-        )
-        .addStringOption(o => groupOption(o)),
-    )
-    .addSubcommand(s =>
-      s
-        .setName('calendar')
-        .setDescription(
-          'Show this group’s movie nights in the public calendar (owner)',
-        )
-        .addBooleanOption(o =>
-          o
-            .setName('show')
-            .setDescription('true = public, false = private')
-            .setRequired(true),
-        )
-        .addStringOption(o => groupOption(o)),
-    )
-    .addSubcommandGroup(g =>
-      g
-        .setName('watchlist')
-        .setDescription('The group’s shared watchlist')
-        .addSubcommand(s =>
-          s
-            .setName('add')
-            .setDescription('Add a title to the shared list')
-            .addStringOption(o =>
-              o
-                .setName('title')
-                .setDescription('Movie, series or anime (start typing)')
-                .setRequired(true)
-                .setAutocomplete(true),
-            )
-            .addStringOption(o => groupOption(o)),
-        )
-        .addSubcommand(s =>
-          s
-            .setName('remove')
-            .setDescription('Remove a title')
-            .addStringOption(o =>
-              o
-                .setName('title')
-                .setDescription('From the shared list (start typing)')
-                .setRequired(true)
-                .setAutocomplete(true),
-            )
-            .addStringOption(o => groupOption(o)),
-        )
-        .addSubcommand(s =>
-          s
-            .setName('show')
-            .setDescription('Show the shared list, vote 👍 and start watching')
-            .addStringOption(o => groupOption(o)),
-        )
-        .addSubcommand(s =>
-          s
-            .setName('seen')
-            .setDescription('Mark a title as watched by the group')
-            .addStringOption(o =>
-              o
-                .setName('title')
-                .setDescription('From the shared list (start typing)')
-                .setRequired(true)
-                .setAutocomplete(true),
-            )
-            .addStringOption(o => groupOption(o)),
-        )
-        .addSubcommand(s =>
-          s
-            .setName('next')
-            .setDescription('What’s up next (most 👍)?')
-            .addStringOption(o => groupOption(o)),
-        ),
-    ),
-
-  async autocomplete(interaction) {
-    const focused = interaction.options.getFocused(true);
-    const q = String(focused.value || '').toLowerCase();
-    const userId = interaction.user.id;
-
-    if (focused.name === 'group') {
-      return interaction.respond(
-        groups
-          .groupsOf(interaction.guildId, userId)
-          .filter(g => !q || g.name.toLowerCase().includes(q))
-          .slice(0, 25)
-          .map(g => ({
-            name: `💞 ${g.name} (${g.members.length})`,
-            value: String(g.id),
-          })),
-      );
-    }
-
-    // title: from the shared list (remove/seen) or TMDB (add)
-    const sub = interaction.options.getSubcommand();
-    const group =
-      resolveGroup(interaction) ||
-      groups.groupsOf(interaction.guildId, userId)[0];
-    if (sub !== 'add') {
-      const items = group ? groups.listItems(group) : [];
-      return interaction.respond(
-        items
-          .filter(i => !q || i.title.toLowerCase().includes(q))
-          .slice(0, 25)
-          .map(i => ({
-            name: `${i.status === 'watched' ? '✅' : '📌'} ${label(i)}`.slice(
-              0,
-              100,
-            ),
-            value: i.key,
-          })),
-      );
-    }
-    const found = tmdb.isEnabled() ? await tmdb.search(q) : [];
-    const choices = found.map(r => ({
-      name: `${tmdb.kindEmoji(r.type, r.anime)} ${r.title}${r.year ? ` (${r.year})` : ''}`.slice(
-        0,
-        100,
-      ),
-      value: `${r.type}:${r.id}`,
-    }));
-    if (q && choices.length < 25)
-      choices.push({
-        name: `✏️ Use “${focused.value}”`.slice(0, 100),
-        value: String(focused.value).slice(0, 100),
-      });
-    return interaction.respond(choices.slice(0, 25));
-  },
+    .addSubcommand(s => s.setName('list').setDescription('Your groups')),
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
-    const subGroup = interaction.options.getSubcommandGroup?.(false);
     const guild = interaction.guild;
     const userId = interaction.user.id;
     const o = interaction.options;
 
-    // ---------- create ----------
-    if (sub === 'create' && !subGroup) {
+    if (sub === 'create') {
       const members = MEMBER_OPTIONS.map(k => o.getUser(k))
         .filter(u => u && !u.bot)
         .map(u => u.id);
@@ -383,12 +550,11 @@ module.exports = {
           '❌ I couldn’t create the channel. Check that I may manage channels.',
         );
       return interaction.editReply(
-        `💞 Created **${r.group.name}**: <#${r.group.channelId}>`,
+        `💞 Created **${r.group.name}**: <#${r.group.channelId}>. Everything else is in the pinned panel there.`,
       );
     }
 
-    // ---------- list ----------
-    if (sub === 'list' && !subGroup) {
+    if (sub === 'list') {
       const mine = groups.groupsOf(interaction.guildId, userId);
       return interaction.reply(
         ephemeral(
@@ -400,184 +566,6 @@ module.exports = {
                 )
                 .join('\n')
             : 'You are not in any group yet. Create one with `/group create`!',
-        ),
-      );
-    }
-
-    const group = resolveGroup(interaction);
-    if (!group)
-      return interaction.reply(
-        ephemeral('❌ Pick a group, or use this inside a group channel.'),
-      );
-    const member = group.members.includes(userId);
-    const owner = groups.isOwner(group, userId);
-
-    // ---------- shared watchlist ----------
-    if (subGroup === 'watchlist') {
-      if (!member)
-        return interaction.reply(ephemeral('❌ You are not in this group.'));
-      if (sub === 'add') {
-        await interaction.deferReply();
-        const fields = await fieldsFor(o.getString('title'));
-        const r = groups.addItem(
-          interaction.guildId,
-          group.id,
-          userId,
-          fields,
-        ).result;
-        return interaction.editReply(
-          r.existed
-            ? `📌 **${label(r.item)}** is already on the list.`
-            : `📌 <@${userId}> added **${label(r.item)}** to the shared list.`,
-        );
-      }
-      if (sub === 'remove') {
-        const item = groups.removeItem(
-          interaction.guildId,
-          group.id,
-          o.getString('title'),
-        ).result;
-        return interaction.reply(
-          item
-            ? `🗑️ Removed **${label(item)}** from the shared list.`
-            : ephemeral("❓ That's not on the list."),
-        );
-      }
-      if (sub === 'seen') {
-        const item = groups.markWatched(
-          interaction.guildId,
-          group.id,
-          o.getString('title'),
-        )?.result;
-        return interaction.reply(
-          item
-            ? `✅ **${label(item)}** is marked as watched by the group.`
-            : ephemeral("❓ That's not on the list."),
-        );
-      }
-      if (sub === 'next') {
-        const next = groups.upNext(group);
-        return interaction.reply(
-          next
-            ? `⭐ Up next for **${group.name}**: **${label(next)}** (👍 ${next.votes.length})`
-            : ephemeral(
-                'The list is empty. Add something with `/group watchlist add`!',
-              ),
-        );
-      }
-      if (sub === 'show')
-        return interaction.reply({
-          ...listView(group),
-          allowedMentions: { parse: [] },
-        });
-    }
-
-    // ---------- members ----------
-    if (sub === 'add') {
-      if (!owner)
-        return interaction.reply(
-          ephemeral('❌ Only the owner can add people.'),
-        );
-      const target = o.getUser('member');
-      if (target.bot)
-        return interaction.reply(ephemeral('🤖 Bots can’t join.'));
-      const r = await groups.addMember(guild, group.id, target.id);
-      return interaction.reply(
-        r.result === 'already'
-          ? ephemeral('They are already in the group.')
-          : {
-              content: `👋 Welcome <@${target.id}> to **${group.name}**!`,
-              allowedMentions: { users: [target.id] },
-            },
-      );
-    }
-    if (sub === 'kick') {
-      if (!owner)
-        return interaction.reply(
-          ephemeral('❌ Only the owner can remove people.'),
-        );
-      const target = o.getUser('member');
-      if (target.id === userId)
-        return interaction.reply(
-          ephemeral('Use `/group leave` to leave (or `/group delete`).'),
-        );
-      const r = await groups.removeMember(guild, group.id, target.id);
-      return interaction.reply(
-        ephemeral(
-          r?.result === 'not-member'
-            ? 'They are not in the group.'
-            : `👋 Removed <@${target.id}>.`,
-        ),
-      );
-    }
-    if (sub === 'leave') {
-      if (!member)
-        return interaction.reply(ephemeral('You are not in this group.'));
-      await interaction.reply(ephemeral(`👋 You left **${group.name}**.`));
-      const r = await groups.removeMember(guild, group.id, userId);
-      if (r?.group && owner && r.group.members.length) {
-        const ch = await guild.client.channels
-          .fetch(group.channelId)
-          .catch(() => null);
-        await ch
-          ?.send({
-            content: `👑 <@${r.group.ownerId}> is the new owner.`,
-            allowedMentions: { users: [r.group.ownerId] },
-          })
-          .catch(() => {});
-      }
-      return;
-    }
-    if (sub === 'delete') {
-      if (!groups.canManage(group, interaction.member))
-        return interaction.reply(
-          ephemeral('❌ Only the owner or an admin can delete this group.'),
-        );
-      return interaction.reply({
-        content: `⚠️ Really delete **${group.name}**? The channel and the shared watchlist will be gone for everyone.`,
-        components: [
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`group:delete:${group.id}:yes`)
-              .setLabel('Yes, delete')
-              .setEmoji('🗑️')
-              .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-              .setCustomId(`group:delete:${group.id}:no`)
-              .setLabel('Cancel')
-              .setStyle(ButtonStyle.Secondary),
-          ),
-        ],
-        flags: 64,
-      });
-    }
-    if (sub === 'rename') {
-      if (!owner)
-        return interaction.reply(
-          ephemeral('❌ Only the owner can rename the group.'),
-        );
-      const g = groups.rename(
-        interaction.guildId,
-        group.id,
-        o.getString('name'),
-      );
-      return interaction.reply(`✏️ The group is now called **${g.name}**.`);
-    }
-    if (sub === 'calendar') {
-      if (!owner)
-        return interaction.reply(
-          ephemeral('❌ Only the owner can change this.'),
-        );
-      const g = groups.setShowInCalendar(
-        interaction.guildId,
-        group.id,
-        o.getBoolean('show'),
-      );
-      return interaction.reply(
-        ephemeral(
-          g.showInCalendar
-            ? '🗓️ This group’s movie nights now show in the public calendar (only members can join).'
-            : '🔒 This group’s movie nights stay private.',
         ),
       );
     }

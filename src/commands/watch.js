@@ -1022,3 +1022,4 @@ module.exports = {
 module.exports.parseTime = parseTime;
 module.exports.zonedParts = zonedParts;
 module.exports.parseWhen = parseWhen;
+module.exports.bestMatch = bestMatch;

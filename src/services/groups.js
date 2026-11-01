@@ -3,13 +3,16 @@
 //
 // Data: data.groups[guildId] = { nextId, groups: { id: group } }
 // group = { id, name, ownerId, members: [userIds incl. owner], channelId,
-//           createdAt, showInCalendar,
+//           createdAt, showInCalendar, panelMessageId,
 //           watchlist: { key: { …title fields, key, addedBy, addedAt, votes: [],
 //                                status: 'want'|'watched', watchedAt } } }
 const {
   ChannelType,
   PermissionFlagsBits,
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 const db = require('../utils/db');
 const watchlist = require('./watchlist');
@@ -162,15 +165,14 @@ async function createGroup(guild, owner, name, memberIds = []) {
           .setTitle(`💞 Welcome to “${group.name}”!`)
           .setDescription(
             'Your private watch room. Only you can see it (and server admins, technically).\n\n' +
-              '🍿 `/watch now` or `/watch plan` **right here** to watch together\n' +
-              '📝 `/group watchlist add` for your shared watchlist, 👍 to vote what’s next\n' +
-              '📺 Series continue where *this group* stopped last time\n' +
-              '👥 `/group add` / `/group kick` (owner) · `/group leave` · `/group delete`',
+              'Everything is in the 📌 **pinned panel**: your shared watchlist, watching together, members.\n' +
+              '📺 Series continue where *this group* stopped last time.',
           ),
       ],
       allowedMentions: { users: members },
     })
     .catch(() => {});
+  await postPanel(guild, group.id);
   return { group };
 }
 
@@ -287,6 +289,118 @@ function upNext(group) {
   return listItems(group).find(i => i.status !== 'watched') || null;
 }
 
+// ---------- The pinned panel in the group channel ----------
+
+const button = (customId, label, emoji, style = ButtonStyle.Secondary) =>
+  new ButtonBuilder()
+    .setCustomId(customId)
+    .setLabel(label)
+    .setEmoji(emoji)
+    .setStyle(style);
+
+function panelMessage(group) {
+  const next = upNext(group);
+  const open = listItems(group).filter(i => i.status !== 'watched').length;
+  const embed = new EmbedBuilder()
+    .setColor(0xff69b4)
+    .setTitle(`💞 ${group.name}`)
+    .addFields(
+      {
+        name: '👥 Members',
+        value:
+          group.members
+            .map(u => `<@${u}>${u === group.ownerId ? ' 👑' : ''}`)
+            .join(' ') || '–',
+      },
+      {
+        name: '⭐ Up next',
+        value: next
+          ? `**${next.title}**${next.year ? ` (${next.year})` : ''} · 👍 ${next.votes.length}`
+          : 'Nothing on the list yet',
+        inline: true,
+      },
+      { name: '📝 Shared watchlist', value: `${open} to watch`, inline: true },
+      {
+        name: '🗓️ Public calendar',
+        value: group.showInCalendar ? 'Shown' : 'Private',
+        inline: true,
+      },
+    )
+    .setFooter({
+      text: '👑 = owner: invite, remove, rename, calendar, delete',
+    });
+  return {
+    embeds: [embed],
+    components: [
+      new ActionRowBuilder().addComponents(
+        button(
+          `group:list:${group.id}`,
+          'Watchlist',
+          '📝',
+          ButtonStyle.Primary,
+        ),
+        button(`group:addform:${group.id}`, 'Add a title', '➕'),
+        button(
+          `group:planform:${group.id}`,
+          'Watch now / plan',
+          '🍿',
+          ButtonStyle.Success,
+        ),
+        button(`group:leaveask:${group.id}`, 'Leave', '👋'),
+      ),
+      new ActionRowBuilder().addComponents(
+        button(`group:invite:${group.id}`, 'Invite', '➕'),
+        button(`group:kickpick:${group.id}`, 'Remove someone', '👢'),
+        button(`group:renameform:${group.id}`, 'Rename', '✏️'),
+        button(
+          `group:caltoggle:${group.id}`,
+          group.showInCalendar ? 'Make private' : 'Show in calendar',
+          '🗓️',
+        ),
+        button(
+          `group:delete:${group.id}:ask`,
+          'Delete',
+          '🗑️',
+          ButtonStyle.Danger,
+        ),
+      ),
+    ],
+    allowedMentions: { parse: [] },
+  };
+}
+
+/** Post the panel in the group channel (or update it) and pin it. */
+async function postPanel(guild, id) {
+  const group = getGroup(guild.id, id);
+  if (!group) return null;
+  const channel = await guild.client.channels
+    .fetch(group.channelId)
+    .catch(() => null);
+  if (!channel) return null;
+  const old = group.panelMessageId
+    ? await channel.messages.fetch(group.panelMessageId).catch(() => null)
+    : null;
+  if (old) {
+    await old.edit(panelMessage(group)).catch(() => {});
+    return old;
+  }
+  const msg = await channel.send(panelMessage(group)).catch(() => null);
+  if (!msg) return null;
+  update(guild.id, id, g => {
+    g.panelMessageId = msg.id;
+  });
+  await msg.pin?.().catch(() => {});
+  return msg;
+}
+
+/** On startup: every group gets its (updated) panel. */
+async function startGroups(client) {
+  for (const guild of client.guilds.cache.values()) {
+    for (const g of allGroups(guild.id))
+      await postPanel(guild, g.id).catch(() => {});
+  }
+}
+
 module.exports = {
   allGroups,
   getGroup,
@@ -306,4 +420,7 @@ module.exports = {
   toggleVote,
   markWatched,
   upNext,
+  panelMessage,
+  postPanel,
+  startGroups,
 };

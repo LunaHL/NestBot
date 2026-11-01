@@ -11,6 +11,7 @@ const { startWatch } = require('../services/watch');
 const { startNicknames } = require('../services/nickname');
 const { startBlindfolds } = require('../services/blindfold');
 const { startHub } = require('../services/hub');
+const { startGroups } = require('../services/groups');
 
 module.exports = function onReady(client) {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -23,6 +24,7 @@ module.exports = function onReady(client) {
   startNicknames(client); // gives paid nicknames back when their time is up
   startBlindfolds(client); // ends blindfolds, whispers what blindfolded people miss
   startHub(client); // refreshes the hub menu, weekly "Did you know?"
+  startGroups(client).catch(() => {}); // pinned panel in every group channel
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)

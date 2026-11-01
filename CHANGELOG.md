@@ -1,5 +1,14 @@
 # NestBot Changelog
 
+## V 1.14 (November 2026)
+
+**New**
+- 📌 Pinned panel in every group channel: members, up next, shared watchlist (👍 vote, watch now, ✅ watched, 🗑️ remove), ➕ add a title, 🍿 watch now or plan (a form), 👋 leave; owner: invite, remove someone, rename, public calendar, delete. Existing groups get it on the next start
+- ⬇️ The check-in and the live clock move back to the bottom of the room when people chat (bundled: after 4 s of quiet, at most every 15 s)
+
+**Changed**
+- `/group` is just `create` and `list`; everything else is in the panel
+
 ## V 1.13 (November 2026)
 
 **New**

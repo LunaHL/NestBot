@@ -2251,7 +2251,84 @@ function startWatch(client) {
   }
 }
 
+// ---------- Keep the check-in / clock at the bottom ----------
+// When people chat in the room, the check-in or the live clock scrolls up and
+// people lose it. After a message NestBot posts it again at the bottom and
+// deletes the old one, bundled: it waits until the chat is quiet for a few
+// seconds (but never longer than STICKY_MAX_WAIT_MS).
+
+const STICKY_QUIET_MS = 4000;
+const STICKY_MAX_WAIT_MS = 15000;
+const stickyTimers = new Map(); // roomId → { timer, since }
+
+/** The message that should stay at the bottom right now: { key, payload } or null. */
+function stickyOf(n) {
+  const phase = n.session?.phase;
+  if (phase === 'checkin' && n.session.checkinMessageId)
+    return {
+      key: 'checkinMessageId',
+      payload: { embeds: [checkinEmbed(n)], components: checkinButtons(n) },
+    };
+  if ((phase === 'playing' || phase === 'paused') && n.session.clockMessageId)
+    return {
+      key: 'clockMessageId',
+      payload: { embeds: [clockEmbed(n)], components: clockButtons(n) },
+    };
+  return null;
+}
+
+/** messageCreate: someone wrote in a room → move the check-in/clock down soon. */
+function onRoomMessage(message) {
+  if (!message.guild) return;
+  // Only chat and plain notices count, not NestBot's own button messages
+  if (
+    message.author.bot &&
+    (message.author.id !== message.client.user.id || message.components?.length)
+  )
+    return;
+  const n = nightByRoom(message.guild.id, message.channel.id);
+  if (!n || !stickyOf(n)) return;
+  const roomId = message.channel.id;
+  const pending = stickyTimers.get(roomId);
+  if (pending) clearTimeout(pending.timer);
+  const since = pending?.since || Date.now();
+  const delay = Math.max(
+    0,
+    Math.min(STICKY_QUIET_MS, since + STICKY_MAX_WAIT_MS - Date.now()),
+  );
+  const timer = setTimeout(() => {
+    stickyTimers.delete(roomId);
+    moveToBottom(message.client, message.guild.id, n.id).catch(e =>
+      console.error('[Watch] sticky failed:', e.message),
+    );
+  }, delay);
+  stickyTimers.set(roomId, { timer, since });
+}
+
+/** Post the check-in/clock again at the bottom of the room and delete the old one. */
+async function moveToBottom(client, guildId, id) {
+  const n = getNight(guildId, id);
+  const sticky = n && stickyOf(n);
+  if (!sticky) return false;
+  const room = await fetchChannel(client, n.roomId);
+  if (!room) return false;
+  const oldId = n.session[sticky.key];
+  if (room.lastMessageId === oldId) return false; // already at the bottom
+  const msg = await room.send(sticky.payload).catch(() => null);
+  if (!msg) return false;
+  updateNight(guildId, id, x => {
+    x.session[sticky.key] = msg.id;
+    if (sticky.key === 'clockMessageId') x.session.lastClockEdit = Date.now();
+  });
+  const old = await room.messages.fetch(oldId).catch(() => null);
+  await old?.delete().catch(() => {});
+  return true;
+}
+
 module.exports = {
+  onRoomMessage,
+  moveToBottom,
+  stickyOf,
   cardButtons,
   clockButtons,
   fmtPos,

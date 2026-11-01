@@ -2,12 +2,16 @@
 const ai = require('../services/ai');
 const gag = require('../services/gag');
 const blindfold = require('../services/blindfold');
+const watch = require('../services/watch');
 const { countImages } = require('../services/pictracker');
 const wordle = require('../services/wordle');
 
 module.exports = async function onMessage(message) {
   try {
     if (!message.guild) return;
+
+    // Movie night rooms: keep the check-in / live clock at the bottom
+    watch.onRoomMessage(message);
 
     // 0. The Wordle app's daily results (posted by an app, so before the
     //    "ignore bots" check). Only in the channel set with /settings channels.

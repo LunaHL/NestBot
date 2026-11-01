@@ -155,9 +155,8 @@ from the command files, so they're always current.
 | | `/watch plan` without a title, or ⚙️ → 🗳️ | Vote on what to watch: the room opens right away, options come from the watchlists of everyone signed up, the winner is set automatically (ties: the wheel). Duration: 1 h … 7 days or until the start |
 
 | `group.js` | `/group create` | Your own permanent private channel for a couple or a fixed group (no size limit; `/settings watch max-groups` limits how many one person may own) |
-| | `/group add` / `kick` (owner) · `leave` · `delete` (owner or admins, asks first) · `rename` · `list` | Manage it. If the owner leaves, the next member becomes owner |
-| | `/group watchlist add` / `remove` / `show` / `seen` / `next` | Shared watchlist with 👍 votes; "up next" = most 👍; start watching straight from the list |
-| | `/group calendar` | Show the group's movie nights in the public calendar (only members can join) |
+| | `/group list` | Your groups |
+| | **📌 Pinned panel** in the group channel | Members, ⭐ up next, list size. Everyone: 📝 Watchlist (👍 vote, 🎬 watch now, ✅ watched, 🗑️ remove), ➕ Add a title (form), 🍿 Watch now / plan (form: title, empty = up next; when, empty = now), 👋 Leave. Owner 👑: ➕ Invite, 👢 Remove someone, ✏️ Rename, 🗓️ show in the public calendar, 🗑️ Delete (asks first; admins too). If the owner leaves, the next member becomes owner. Panels are refreshed on startup |
 
 `/watch now` and `/watch plan` **inside a group channel** run the movie night
 right there (no temporary room, nothing in #movies), with the group's own
@@ -176,7 +175,7 @@ on their watchlist. Movie series show "part 2 of 3" and the next part at the end
 How a night works: sign up in the calendar → 1 hour before, a private room
 opens (anyone can still **🚪 Enter room**) → at the start everyone pauses at
 0:00 and presses **✅ Ready** → 3… 2… 1… ▶️ → shared live clock with
-**⏸️ Pause** (anyone), **🕐 Where should I be?** and **🔄 I’m at…** → **⚙️ → 🏁 End** posts a
+**⏸️ Pause** (anyone), **🕐 Where should I be?** and **🔄 I’m at…** (the check-in and the clock move back to the bottom when people chat) → **⚙️ → 🏁 End** posts a
 summary in #movies and deletes the room (or it closes itself after 24 h).
 Admins set it up with `/settings watch`.
 
