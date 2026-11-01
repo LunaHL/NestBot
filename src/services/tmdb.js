@@ -151,6 +151,38 @@ async function collection(id) {
   };
 }
 
+/**
+ * Alternative episode orders of a series ("episode groups"), e.g. the
+ * Japanese seasons of an anime: [{ id, name, type, groups, episodes }].
+ * Types: 1 air date, 2 absolute, 3 DVD, 4 digital, 5 story arc, 6 production, 7 TV.
+ */
+async function episodeGroups(tvId) {
+  const d = await get(`/tv/${tvId}/episode_groups`);
+  return (d?.results || []).map(g => ({
+    id: g.id,
+    name: g.name,
+    type: g.type,
+    groups: g.group_count,
+    episodes: g.episode_count,
+  }));
+}
+
+/** One episode group: [{ name, order, episodes: [{ season, episode, order, title }] }] */
+async function episodeGroup(id) {
+  const d = await get(`/tv/episode_group/${id}`, { language: 'en-US' });
+  if (!d?.groups) return null;
+  return d.groups.map(g => ({
+    name: g.name,
+    order: g.order,
+    episodes: (g.episodes || []).map(e => ({
+      season: e.season_number,
+      episode: e.episode_number,
+      order: e.order,
+      title: e.name || null,
+    })),
+  }));
+}
+
 /** All episodes of a season: [{ episode, title }] or null. */
 async function season(tvId, number) {
   const d = await get(`/tv/${tvId}/season/${number}`, { language: 'en-US' });
@@ -225,6 +257,8 @@ module.exports = {
   details,
   episode,
   season,
+  episodeGroups,
+  episodeGroup,
   collection,
   providers,
   regionFromLocale,

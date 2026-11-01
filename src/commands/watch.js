@@ -974,6 +974,7 @@ module.exports = {
             ...seriesValues(o),
             guildId: interaction.guildId,
             scope: group ? group.id : 'server',
+            userId: interaction.user.id,
           })
         : {
             title: watch.VOTE_TITLE,
@@ -1005,7 +1006,16 @@ module.exports = {
         );
       }
       return interaction.editReply(
-        (details.continued ? `▶️ Continuing where you left off.\n` : '') +
+        (details.continuedFrom === 'watchlist'
+          ? `▶️ Continuing from **your watchlist**.\n`
+          : details.continued
+            ? `▶️ Continuing where you left off${group ? ' as a group' : ''}.\n`
+            : details.kind === 'tv' &&
+                !o.getInteger('season') &&
+                !o.getInteger('episode') &&
+                !o.getInteger('absolute')
+              ? `📺 Starting at the first episode. Somewhere else? Plan again with \`season:\` and \`episode:\`.\n`
+              : '') +
           `✅ Planned ${watch.emojiOf(n)} **${watch.fullTitle(n)}** for ${discordTime(n.startAt, 'F')}.\n` +
           (group
             ? `It runs right here in the group channel; you'll get a ping ${s.opensMin} minutes before.`

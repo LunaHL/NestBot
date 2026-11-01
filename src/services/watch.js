@@ -19,6 +19,7 @@ const db = require('../utils/db');
 const tmdb = require('./tmdb');
 const watchlist = require('./watchlist');
 const groups = require('./groups');
+const numbering = require('./numbering');
 const nestcoins = require('./nestcoins');
 const { getSetting } = require('./settings');
 const { discordTime } = require('../utils/time');
@@ -223,6 +224,7 @@ async function resolveTitle(
     absolute,
     guildId,
     scope = 'server',
+    userId = null, // who plans: their watchlist progress is used if nobody watched it here yet
   } = {},
 ) {
   const m = /^(movie|tv):(\d+)$/.exec(String(value || ''));
@@ -232,7 +234,14 @@ async function resolveTitle(
 
   let ep = null;
   let continued = false;
+  let continuedFrom = null; // 'here' (server/group progress) or 'watchlist'
   if (kind === 'tv') {
+    // Season/episode typed by people: their numbering → TMDB's (services/numbering.js)
+    if (info) await numbering.load(info.id);
+    if (info && (season || episode) && !absolute) {
+      const t = numbering.fromDisplay(info.id, season || 1, episode || 1);
+      if (t) ({ season, episode } = t);
+    }
     if (absolute && info) {
       const pos = fromAbsolute(info, absolute);
       if (pos) ({ season, episode } = pos);
@@ -243,7 +252,26 @@ async function resolveTitle(
       if (next) {
         ({ season, episode } = next);
         continued = true;
+        continuedFrom = 'here';
       }
+    }
+    // Nobody watched it here yet: continue from the planner's own watchlist
+    if (!season && !episode && info && guildId && userId) {
+      const mine = watchlist.getItem(
+        guildId,
+        userId,
+        `tv:${info.id}`,
+      )?.progress;
+      const next = mine && episodeAfter(info, mine.season, mine.episode);
+      if (next) {
+        ({ season, episode } = next);
+        continued = true;
+        continuedFrom = 'watchlist';
+      }
+    }
+    if (!season && !episode && info) {
+      const first = numbering.fromDisplay(info.id, 1, 1);
+      if (first) ({ season, episode } = first);
     }
     season = season || 1;
     episode = episode || 1;
@@ -282,13 +310,17 @@ async function resolveTitle(
     lengthMin,
     collection,
     continued,
+    continuedFrom,
   };
 }
 
 /** "Breaking Bad · S2E4 “Cornered”" */
 function fullTitle(n) {
   if (n.kind !== 'tv') return n.title;
-  const ep = `S${n.season}E${n.episode}`;
+  const ep = numbering.label(n.info?.id, {
+    season: n.season,
+    episode: n.episode,
+  });
   return `${n.title} · ${ep}${n.episodeTitle ? ` “${n.episodeTitle}”` : ''}`;
 }
 
@@ -340,7 +372,7 @@ function cardEmbed(n) {
     fields.push({
       name: '📺 Episode',
       value:
-        `S${n.season}E${n.episode}${n.episodeTitle ? ` “${n.episodeTitle}”` : ''}` +
+        `${numbering.label(n.info?.id, { season: n.season, episode: n.episode })}${n.episodeTitle ? ` “${n.episodeTitle}”` : ''}` +
         (n.episodes > 1 ? `\n+ ${n.episodes - 1} more` : ''),
       inline: true,
     });
@@ -1695,7 +1727,7 @@ async function episodeOverMessage(n) {
       new ButtonBuilder()
         .setCustomId(`watch:next:${n.id}:${marker}`)
         .setLabel(
-          `${done >= planned ? 'One more' : 'Next'}: S${next.season}E${next.episode}${next.title ? ` “${next.title}”` : ''} (${next.runtime} min)`.slice(
+          `${done >= planned ? 'One more' : 'Next'}: ${numbering.label(n.info?.id, next)}${next.title ? ` “${next.title}”` : ''} (${next.runtime} min)`.slice(
             0,
             80,
           ),
@@ -1830,7 +1862,7 @@ function labelFor(n, userId) {
   if (n.kind !== 'tv') return fullTitle(n);
   const eps = episodesOf(n, userId);
   if (!eps.length) return n.title;
-  const f = e => `S${e.season}E${e.episode}`;
+  const f = e => numbering.label(n.info?.id, e);
   return `${n.title} · ${f(eps[0])}${eps.length > 1 ? `–${f(eps[eps.length - 1])}` : ''}`;
 }
 

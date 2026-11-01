@@ -7,6 +7,7 @@
 // group id as scope), so the next group movie night continues there.
 const tmdb = require('./tmdb');
 const db = require('../utils/db');
+const numbering = require('./numbering');
 
 const watch = () => require('./watch'); // lazy: watch.js loads groups.js, which loads this
 
@@ -14,11 +15,26 @@ const infoOf = item =>
   item?.tmdbId
     ? tmdb.details(item.type, item.tmdbId).catch(() => null)
     : Promise.resolve(null);
-const label = p => (p ? `S${p.season}E${p.episode}` : '–');
+/** "S2E1" as people know it (see services/numbering.js). */
+const label = (p, tvId) => numbering.label(tvId, p);
+
+/** People's "season 2, episode 3" → TMDB's episode (null if it doesn't exist). */
+async function fromDisplay(item, season, episode) {
+  await numbering.load(item?.tmdbId);
+  return numbering.fromDisplay(item?.tmdbId, season, episode);
+}
+
+/** TMDB's episode → people's numbering. */
+const toDisplay = (item, p) =>
+  p ? numbering.toDisplay(item?.tmdbId, p.season, p.episode) : null;
 
 /** The episode after `progress` ({1,1} if not started), or null when the series is over. */
 async function nextEpisode(item, progress, info) {
-  if (!progress) return { season: 1, episode: 1 };
+  await numbering.load(item?.tmdbId); // so labels can show people's numbering
+  if (!progress)
+    return (
+      numbering.fromDisplay(item?.tmdbId, 1, 1) || { season: 1, episode: 1 }
+    );
   info ??= await infoOf(item);
   return watch().episodeAfter(info, progress.season, progress.episode);
 }
@@ -76,23 +92,34 @@ const EPISODE_LIST_MAX = 30; // longer seasons show a window around the next epi
  */
 async function episodeOverview(item, progress) {
   const info = await infoOf(item);
-  const seasons = info?.seasons || [];
+  await numbering.load(item.tmdbId);
+  const custom = numbering.displaySeasons(item.tmdbId);
+  // Seasons as people know them; for TMDB's own numbering, build the lists
+  const seasons =
+    custom ||
+    (info?.seasons || []).map(x => ({
+      number: x.number,
+      episodes: x.episodes,
+      list: null,
+    }));
   if (!seasons.length) {
-    return `📺 **${item.title}**\nLast watched: **${label(progress)}**\n\n*(No season data from TMDB for this title.)*`;
+    return `📺 **${item.title}**\nLast watched: **${label(progress, item.tmdbId)}**\n\n*(No season data from TMDB for this title.)*`;
   }
   const next = await nextEpisode(item, progress, info);
-  const current = next?.season ?? seasons.at(-1).number;
+  const at = toDisplay(item, progress); // last watched, people's numbering
+  const nextD = toDisplay(item, next);
+  const current = nextD?.season ?? seasons.at(-1).number;
   const lines = [];
   let watchedTotal = 0;
   let total = 0;
   for (const s of seasons) {
     total += s.episodes;
-    const done = !progress
+    const done = !at
       ? 0
-      : s.number < progress.season
+      : s.number < at.season
         ? s.episodes
-        : s.number === progress.season
-          ? Math.min(progress.episode, s.episodes)
+        : s.number === at.season
+          ? Math.min(at.episode, s.episodes)
           : 0;
     watchedTotal += done;
     if (s.number !== current) {
@@ -101,28 +128,36 @@ async function episodeOverview(item, progress) {
       continue;
     }
     lines.push(`📂 **Season ${s.number}** · ${done}/${s.episodes}`);
-    const names = await tmdb.season(item.tmdbId, s.number).catch(() => null);
-    const nameOf = n => names?.find(e => e.episode === n)?.title;
+    let nameOf;
+    if (s.list) nameOf = n => s.list[n - 1]?.title;
+    else {
+      const names = await tmdb.season(item.tmdbId, s.number).catch(() => null);
+      nameOf = n => names?.find(e => e.episode === n)?.title;
+    }
     let from = 1;
     let to = s.episodes;
     if (s.episodes > EPISODE_LIST_MAX) {
-      const at = next ? next.episode : s.episodes;
-      from = Math.max(1, at - 5);
+      const pos = nextD ? nextD.episode : s.episodes;
+      from = Math.max(1, pos - 5);
       to = Math.min(s.episodes, from + EPISODE_LIST_MAX - 10);
     }
     if (from > 1) lines.push(`　✅ E1–E${from - 1}`);
     for (let n = from; n <= to; n++) {
-      const icon = n <= done ? '✅' : next && n === next.episode ? '▶️' : '⬜';
+      const isNext = nextD && n === nextD.episode;
+      const icon = n <= done ? '✅' : isNext ? '▶️' : '⬜';
       const name = nameOf(n);
       lines.push(
-        `　${icon} E${n}${name ? ` · ${name}` : ''}${next && n === next.episode ? ' **← next**' : ''}`,
+        `　${icon} E${n}${name ? ` · ${name}` : ''}${isNext ? ' **← next**' : ''}`,
       );
     }
     if (to < s.episodes) lines.push(`　⬜ E${to + 1}–E${s.episodes}`);
   }
   const head =
     `📺 **${item.title}** · ${watchedTotal}/${total} episodes` +
-    (next ? ` · next: **${label(next)}**` : ' · 🎉 finished');
+    (next ? ` · next: **${label(next, item.tmdbId)}**` : ' · 🎉 finished') +
+    (custom
+      ? `\n*Seasons as in TMDB's “${db.read(d => d.numbering?.[item.tmdbId]?.name)}” order*`
+      : '');
   return `${head}\n\n${lines.join('\n')}`.slice(0, 4000);
 }
 
@@ -234,12 +269,30 @@ async function checkGroupSeries(client) {
         const progress = groupProgress(guild.id, group.id, item.tmdbId);
         const watched = item.status === 'watched';
         if (!progress && !watched) continue; // only series the group actually watches
-        const info = await tmdb.details('tv', item.tmdbId).catch(() => null);
-        if (!info) continue;
+        const raw = await tmdb.details('tv', item.tmdbId).catch(() => null);
+        if (!raw) continue;
+        // Compare in people's numbering (Frieren: "Season 2", not "S1E29")
+        await numbering.load(item.tmdbId, { fresh: true });
+        const shown = p =>
+          p
+            ? { ...p, ...numbering.toDisplay(item.tmdbId, p.season, p.episode) }
+            : null;
+        const info = {
+          ...raw,
+          seasons: numbering.displaySeasons(item.tmdbId) || raw.seasons,
+          lastAired: shown(raw.lastAired),
+          nextToAir: shown(raw.nextToAir),
+        };
         const snap =
           db.read(d => d.seriesAlerts?.[guild.id]?.[group.id]?.[item.tmdbId]) ||
           null;
-        const { alerts, state } = compare(snap, info, progress, watched);
+        const { alerts, state } = compare(
+          snap,
+          info,
+          progress &&
+            numbering.toDisplay(item.tmdbId, progress.season, progress.episode),
+          watched,
+        );
         db.perform(d => {
           d.seriesAlerts ||= {};
           d.seriesAlerts[guild.id] ||= {};
@@ -294,6 +347,8 @@ function startSeriesAlerts(client) {
 }
 
 module.exports = {
+  fromDisplay,
+  toDisplay,
   compare,
   checkGroupSeries,
   startSeriesAlerts,

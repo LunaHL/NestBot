@@ -47,7 +47,7 @@ function listView(group, guildId) {
               (i, n) =>
                 `${n === 0 ? '⭐' : '▫️'} **${label(i)}** · 👍 ${i.votes.length}` +
                 (progressOf(i)
-                  ? ` · ▶️ at ${series.label(progressOf(i))}`
+                  ? ` · ▶️ at ${series.label(progressOf(i), i.tmdbId)}`
                   : ''),
             )
             .join('\n')
@@ -107,7 +107,7 @@ function listView(group, guildId) {
           .addOptions(
             withInfo.map(i => ({
               label:
-                `${i.title}${progressOf(i) ? ` · ${series.label(progressOf(i))}` : ''}`.slice(
+                `${i.title}${progressOf(i) ? ` · ${series.label(progressOf(i), i.tmdbId)}` : ''}`.slice(
                   0,
                   100,
                 ),
@@ -164,6 +164,7 @@ async function startNight(interaction, group, ref, when) {
   const details = await watch.resolveTitle(ref, {
     guildId: guild.id,
     scope: group.id,
+    userId: interaction.user.id,
   });
   const n = await watch.createNight(
     guild,
@@ -223,7 +224,7 @@ async function seriesPanel(guildId, group, item, note = '') {
     row.addComponents(
       btn(
         `group:ep:${group.id}:${enc}:next`,
-        `We watched ${series.label(next)}`,
+        `We watched ${series.label(next, item.tmdbId)}`,
         '⏭️',
         ButtonStyle.Success,
       ),
@@ -239,7 +240,7 @@ async function seriesPanel(guildId, group, item, note = '') {
     row.addComponents(
       btn(
         `group:epwatch:${group.id}:${enc}`,
-        `Watch ${series.label(next)} now`,
+        `Watch ${series.label(next, item.tmdbId)} now`,
         '▶️',
         ButtonStyle.Primary,
       ),
@@ -248,9 +249,9 @@ async function seriesPanel(guildId, group, item, note = '') {
   return {
     content:
       `${note}📺 **${label(item)}**\n` +
-      `Last watched together: **${p ? series.label(p) : 'not started'}**\n` +
+      `Last watched together: **${p ? series.label(p, item.tmdbId) : 'not started'}**\n` +
       (next
-        ? `Next: **${series.label(next)}**${nextName ? ` “${nextName}”` : ''}`
+        ? `Next: **${series.label(next, item.tmdbId)}**${nextName ? ` “${nextName}”` : ''}`
         : '🎉 You finished it!'),
     components: [row],
     flags: 64,
@@ -427,7 +428,11 @@ async function handleComponent(interaction) {
       return startNight(interaction, group, `tv:${item.tmdbId}`, null);
     }
     if (action === 'epform') {
-      const p = series.groupProgress(guild.id, group.id, item.tmdbId);
+      await require('../services/numbering').load(item.tmdbId);
+      const p = series.toDisplay(
+        item,
+        series.groupProgress(guild.id, group.id, item.tmdbId),
+      );
       return interaction.showModal(
         form(`group:epset:${group.id}:${answer}`, item.title, [
           {
@@ -465,11 +470,19 @@ async function handleComponent(interaction) {
             ),
           );
       } else if (num('season') > 0 || num('episode') > 0) {
-        const cur = series.groupProgress(guild.id, group.id, item.tmdbId);
-        p = {
-          season: num('season') > 0 ? num('season') : cur?.season || 1,
-          episode: num('episode') > 0 ? num('episode') : 1,
-        };
+        const cur = series.toDisplay(
+          item,
+          series.groupProgress(guild.id, group.id, item.tmdbId),
+        );
+        p = await series.fromDisplay(
+          item,
+          num('season') > 0 ? num('season') : cur?.season || 1,
+          num('episode') > 0 ? num('episode') : 1,
+        );
+        if (!p)
+          return interaction.reply(
+            ephemeral('❓ That episode doesn’t exist for this series.'),
+          );
       } else
         return interaction.reply(
           ephemeral('❓ Type a season and an episode, e.g. 2 and 5.'),
@@ -481,14 +494,14 @@ async function handleComponent(interaction) {
         group,
         userId,
         item,
-        `→ you're at **${series.label(p)}** now.`,
+        `→ you're at **${series.label(p, item.tmdbId)}** now.`,
       );
       return interaction.editReply(
         await seriesPanel(
           guild.id,
           groups.getGroup(guild.id, id),
           item,
-          `✅ Saved: ${series.label(p)}.\n\n`,
+          `✅ Saved: ${series.label(p, item.tmdbId)}.\n\n`,
         ),
       );
     }
@@ -499,14 +512,14 @@ async function handleComponent(interaction) {
       if (extra === 'prev') {
         const back = await series.prevEpisode(item, p);
         series.setGroupProgress(guild.id, group.id, item.tmdbId, back);
-        note = `⏮️ Back to ${back ? series.label(back) : 'not started'}.`;
+        note = `⏮️ Back to ${back ? series.label(back, item.tmdbId) : 'not started'}.`;
         await announceProgress(
           guild,
           group,
           userId,
           item,
           back
-            ? `→ back to **${series.label(back)}**.`
+            ? `→ back to **${series.label(back, item.tmdbId)}**.`
             : '→ back to not started.',
         );
       } else {
@@ -529,13 +542,13 @@ async function handleComponent(interaction) {
           wl.markWatched(guild.id, userId, titleFieldsOf(item), {
             progress: next,
           });
-          note = `⏭️ Watched ${series.label(next)}. (Also marked on your own watchlist.)`;
+          note = `⏭️ Watched ${series.label(next, item.tmdbId)}. (Also marked on your own watchlist.)`;
           await announceProgress(
             guild,
             group,
             userId,
             item,
-            `→ watched **${series.label(next)}**.`,
+            `→ watched **${series.label(next, item.tmdbId)}**.`,
           );
         }
       }

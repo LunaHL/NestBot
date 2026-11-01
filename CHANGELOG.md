@@ -1,5 +1,11 @@
 # NestBot Changelog
 
+## V 1.18 (November 2026)
+
+**Fixed**
+- 📺 Anime that TMDB puts into one long “Season 1” (e.g. Frieren: its 2nd season is S1E29–S1E38 there) are shown and entered with their real seasons (“S2E1”), using TMDB's episode groups. Everywhere: movie night cards, the clock, watchlists, groups, overviews and alerts. Saved progress keeps working
+- 🗓️ Planning a series that nobody has watched here yet continues from **your own watchlist** (“▶️ Continuing from your watchlist”); otherwise it says it starts at the first episode and how to change it
+
 ## V 1.17 (November 2026)
 
 **New**

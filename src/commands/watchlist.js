@@ -133,7 +133,7 @@ function listEmbed(
     const lock = showPrivacy && !wl.isPublic(i, settings) ? ' 🔒' : '';
     const progress =
       i.type === 'tv' && i.progress
-        ? ` · S${i.progress.season}E${i.progress.episode}`
+        ? ` · ${require('../services/numbering').label(i.tmdbId, i.progress)}`
         : '';
     const rating = i.rating ? ` · ${stars(i.rating)}` : '';
     const must = i.must ? ' ❗' : '';
@@ -301,7 +301,7 @@ function itemPanel(
   if (item.type === 'tv') {
     lines.push(
       item.progress
-        ? `📺 Last watched: **S${item.progress.season}E${item.progress.episode}**`
+        ? `📺 Last watched: **${require('../services/numbering').label(item.tmdbId, item.progress)}**`
         : '📺 Not started yet. Press ⏭️ after the first episode, or 📺 to set where you are.',
     );
   }
@@ -398,7 +398,12 @@ async function listAction(interaction, action, rest) {
   if (action === 'pick') {
     const item = wl.getItem(guildId, userId, interaction.values?.[0]);
     if (!item) return interaction.reply(ephemeral('That entry is gone.'));
-    return interaction.reply(itemPanel(guildId, userId, item));
+    if (item.type !== 'tv')
+      return interaction.reply(itemPanel(guildId, userId, item));
+    // Series: load people's season numbering first (TMDB can take a moment)
+    await interaction.deferReply({ flags: 64 });
+    await require('../services/numbering').load(item.tmdbId);
+    return interaction.editReply(itemPanel(guildId, userId, item));
   }
 
   const [what, enc] = rest;
@@ -478,7 +483,7 @@ async function listAction(interaction, action, rest) {
           { note: '⏮️ Back to not started.' },
         );
       return show(wl.editItem(guildId, userId, key, { progress: back }), {
-        note: `⏮️ Back to ${series.label(back)}.`,
+        note: `⏮️ Back to ${series.label(back, item.tmdbId)}.`,
       });
     }
     const next = await series.nextEpisode(item, p);
@@ -492,11 +497,13 @@ async function listAction(interaction, action, rest) {
     }
     const changes = { progress: next };
     if (item.status !== 'watching') changes.status = 'watching';
-    const newSeason = p && next.season !== p.season;
+    const shownNext = series.toDisplay(item, next);
+    const newSeason =
+      p && shownNext.season !== series.toDisplay(item, p).season;
     return show(wl.editItem(guildId, userId, key, changes), {
       note: newSeason
-        ? `🎬 Season ${next.season} begins! Watched ${series.label(next)}.`
-        : `⏭️ Watched ${series.label(next)}.`,
+        ? `🎬 Season ${shownNext.season} begins! Watched ${series.label(next, item.tmdbId)}.`
+        : `⏭️ Watched ${series.label(next, item.tmdbId)}.`,
     });
   }
   // 📋 Episode overview / 📚 movie series
@@ -516,6 +523,7 @@ async function listAction(interaction, action, rest) {
     });
   }
   if (what === 'epform') {
+    const shown = require('../services/series').toDisplay(item, item.progress);
     const field = (id, label, value, max = 4) => {
       const input = new TextInputBuilder()
         .setCustomId(id)
@@ -531,8 +539,8 @@ async function listAction(interaction, action, rest) {
         .setCustomId(`watchlist:i:ep:${enc}`)
         .setTitle(item.title.slice(0, 45))
         .addComponents(
-          field('season', 'Season', item.progress?.season),
-          field('episode', 'Last episode you watched', item.progress?.episode),
+          field('season', 'Season', shown?.season),
+          field('episode', 'Last episode you watched', shown?.episode),
           field('absolute', 'Or: episode number overall (long anime)', null, 5),
         ),
     );
@@ -563,15 +571,22 @@ async function listAction(interaction, action, rest) {
         return interaction.reply(
           ephemeral('❓ Type a season and an episode, e.g. 2 and 5.'),
         );
-      progress = {
-        season: season > 0 ? season : item.progress?.season || 1,
-        episode: episode > 0 ? episode : 1,
-      };
+      const series = require('../services/series');
+      const cur = series.toDisplay(item, item.progress);
+      progress = await series.fromDisplay(
+        item,
+        season > 0 ? season : cur?.season || 1,
+        episode > 0 ? episode : 1,
+      );
+      if (!progress)
+        return interaction.reply(
+          ephemeral('❓ That episode doesn’t exist for this series.'),
+        );
     }
     const changes = { progress };
     if (item.status !== 'watching') changes.status = 'watching';
     return show(wl.editItem(guildId, userId, key, changes), {
-      note: `📺 Saved: S${progress.season}E${progress.episode}.`,
+      note: `📺 Saved: ${require('../services/numbering').label(item.tmdbId, progress)}.`,
     });
   }
   if (what === 'edit') {
@@ -988,10 +1003,16 @@ module.exports = {
       const season = o.getInteger('season');
       const episode = o.getInteger('episode');
       if (r.item.type === 'tv' && (season || episode)) {
-        r.item = wl.editItem(guildId, userId, r.item.key, {
-          progress: { season: season || 1, episode: episode || 1 },
-          status: 'watching',
-        });
+        const progress = await require('../services/series').fromDisplay(
+          r.item,
+          season || 1,
+          episode || 1,
+        );
+        if (progress)
+          r.item = wl.editItem(guildId, userId, r.item.key, {
+            progress,
+            status: 'watching',
+          });
       }
       const others =
         wl.wantCount(guildId, r.item.key) -
@@ -1001,7 +1022,7 @@ module.exports = {
           ? `📌 **${label(r.item)}** was already on your watchlist (updated).`
           : `📌 Added **${label(r.item)}** to your watchlist.`) +
           (r.item.progress
-            ? ` ▶️ At S${r.item.progress.season}E${r.item.progress.episode}.`
+            ? ` ▶️ At ${require('../services/numbering').label(r.item.tmdbId, r.item.progress)}.`
             : '') +
           (wl.isPublic(r.item, wl.getList(guildId, userId).settings)
             ? ''

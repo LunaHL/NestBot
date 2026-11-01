@@ -341,7 +341,7 @@ const COMMANDS = {
   watch: {
     explain:
       'Movie nights for movies, series and anime: plan one (`when:` understands “tomorrow 20:00”, “friday”, “fr 21:00”) or start right away, sign up in the #movies calendar, get a private room, check in, and watch in sync with the live clock. Titles come with poster, length and where to stream them. Changing, voting, cancelling, ending and syncing are buttons on the card and in the room.',
-    tips: 'Pick the title from the list while typing to get all the info. Only the planner and admins can edit, cancel or end a movie night. Rooms close automatically after a day.',
+    tips: 'Pick the title from the list while typing to get all the info. Series continue where you left off here, or from your own watchlist; `season:` / `episode:` use the seasons as people know them (also for anime that TMDB lists as one long season). Only the planner and admins can edit, cancel or end a movie night. Rooms close automatically after a day.',
   },
 
   watchlist: {

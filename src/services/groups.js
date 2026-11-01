@@ -304,7 +304,7 @@ function panelMessage(group, guildId) {
     if (item.type !== 'tv' || !item.tmdbId || !guildId) return '';
     const series = require('./series');
     const p = series.groupProgress(guildId, group.id, item.tmdbId);
-    return p ? `\n▶️ at ${series.label(p)}` : '';
+    return p ? `\n▶️ at ${series.label(p, item.tmdbId)}` : '';
   };
   const next = upNext(group);
   const open = listItems(group).filter(i => i.status !== 'watched').length;
