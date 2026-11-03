@@ -27,7 +27,9 @@ module.exports = function onReady(client) {
   startHub(client); // refreshes the hub menu, weekly "Did you know?"
   startGroups(client).catch(() => {}); // the panel in every group channel
   require('../services/series').startSeriesAlerts(client); // new seasons / episodes → group channels
-  startSeasons(); // seasonal commands (/trickortreat) appear and disappear
+  startSeasons(); // seasonal commands (/trickortreat, /christmas, /easter) appear and disappear
+  require('../services/christmas').startChristmas(client); // Secret Santa draw/reveal, tree, New Year
+  require('../services/easter').startEaster(client); // bunny outfits end, Easter results
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)

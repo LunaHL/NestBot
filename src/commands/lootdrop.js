@@ -30,17 +30,26 @@ async function spawnLootInGuild(guildId, guild) {
 
   const channel = channels[Math.floor(Math.random() * channels.length)];
   const spooky = isHalloween();
-  const coins = Math.floor(Math.random() * 4) + 1 + (spooky ? 2 : 0);
+  const snowy = !spooky && require('../services/seasons').active('christmas');
+  const coins = Math.floor(Math.random() * 4) + 1 + (spooky || snowy ? 2 : 0);
   const button = new ButtonBuilder()
     .setCustomId('claim_loot')
-    .setLabel(spooky ? '🎃 Grab it… if you dare' : '💰 Claim Loot')
+    .setLabel(
+      spooky
+        ? '🎃 Grab it… if you dare'
+        : snowy
+          ? '🎁 Unwrap it'
+          : '💰 Claim Loot',
+    )
     .setStyle(ButtonStyle.Success);
   const row = new ActionRowBuilder().addComponents(button);
 
   const msg = await channel.send({
     content: spooky
       ? `🎃 **Haunted Loot!** A cursed pumpkin with **${coins} NestCoins** inside rolled into the room… First to grab it keeps it! 👻`
-      : `💰 **Loot Drop!** A pouch with **${coins} NestCoins** has appeared! First to claim gets it!`,
+      : snowy
+        ? `🎁 **A present appeared!** Wrapped in snowflakes, with **${coins} NestCoins** inside. First to unwrap it keeps it! ❄️`
+        : `💰 **Loot Drop!** A pouch with **${coins} NestCoins** has appeared! First to claim gets it!`,
     components: [row],
   });
 
@@ -92,9 +101,16 @@ async function spawnLoot(client) {
 
 //* Schedules the next loot drop to drop
 function schedule(client) {
-  // 3–8 per day, twice as many on Halloween
-  const dropsPerDay =
-    (Math.floor(Math.random() * 6) + 3) * (isHalloween() ? 2 : 1);
+  // 3–8 per day; twice as many on Halloween and after the 🌟 Christmas tree
+  // goal, 1.5× during Christmas
+  const christmas = require('../services/christmas');
+  const seasons = require('../services/seasons');
+  const boosted = [...(client.guilds?.cache?.values() || [])].some(g =>
+    christmas.lootBoost(g.id),
+  );
+  const factor =
+    isHalloween() || boosted ? 2 : seasons.active('christmas') ? 1.5 : 1;
+  const dropsPerDay = (Math.floor(Math.random() * 6) + 3) * factor;
   const interval = !process.env.DEBUG
     ? (24 * 60 * 60 * 1000) / dropsPerDay
     : (4 * 60 * 1000) / dropsPerDay;

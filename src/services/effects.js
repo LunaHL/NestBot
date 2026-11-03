@@ -45,6 +45,22 @@ const EFFECTS = {
       };
     },
   },
+  bunny: {
+    emoji: '🐰',
+    label: 'Bunny Girl outfit',
+    describe: () => 'Puts the 🐰 Bunny Girl outfit on the target for a day',
+    async apply(guild, { targetId, byId }) {
+      const r = await require('./easter').putOnBunny(guild, targetId, byId, 0);
+      if (r.error === 'off')
+        return {
+          text: '🐰 (The bunny outfit is switched off on this server.)',
+        };
+      if (r.error) return { text: '🐰 (I couldn’t dress them up.)' };
+      return {
+        text: `🐰 <@${targetId}> is wearing the **Bunny Girl** outfit for a day! *hop hop*`,
+      };
+    },
+  },
   nickname: {
     emoji: '🏷️',
     label: 'Nickname',

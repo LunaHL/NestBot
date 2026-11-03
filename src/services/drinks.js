@@ -27,9 +27,12 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
 // ---------- Menu helpers ----------
 
-/** Drinks that can be ordered right now (Halloween ones only on Oct 31). */
+/** Drinks that can be ordered right now (Halloween / Christmas / Easter ones only then). */
 function availableDrinks() {
-  return Object.entries(MENU).filter(([, d]) => !d.halloween || isHalloween());
+  const seasons = require('./seasons');
+  return Object.entries(MENU).filter(([, d]) =>
+    d.halloween ? isHalloween() : d.season ? seasons.active(d.season) : true,
+  );
 }
 
 /** Drinks matching a search text, for the autocomplete while typing. */
@@ -188,7 +191,12 @@ function serve(guildId, buyerId, drinkerId, drinkKey) {
   // In free mode there's nothing to be lucky about, so no "on the house" roll
   const lucky = !nestcoins.isFreeMode(guildId) && Math.random() < LUCKY_CHANCE;
   let paid = 0;
-  if (!lucky) {
+  // 🎟️ A free-drink voucher (advent calendar, Secret Santa) is used first
+  const voucher =
+    !lucky &&
+    !nestcoins.isFreeMode(guildId) &&
+    require('./seasons').useVoucher(guildId, buyerId, 'drink');
+  if (!lucky && !voucher) {
     const payment = nestcoins.pay(guildId, buyerId, drink.price);
     if (!payment.ok) return { error: 'coins' };
     paid = payment.paid;
@@ -204,7 +212,7 @@ function serve(guildId, buyerId, drinkerId, drinkKey) {
       stats.received++;
     }
   });
-  return { stats, lucky, paid };
+  return { stats, lucky, paid, voucher };
 }
 
 // ---------- Rounds ----------
@@ -289,8 +297,9 @@ function rollLatteArt(drink) {
 }
 
 /** The extra lines under a served drink (latte art, lucky, streak, jitters…). */
-function extrasText(stats, lucky, art, drink) {
+function extrasText(stats, lucky, art, drink, { voucher = false } = {}) {
   const extras = [];
+  if (voucher) extras.push('🎟️ Paid with a voucher. Free!');
   if (art) extras.push(`🎨 Latte art: ${art.text}`);
   if (lucky) extras.push('🍀 **On the house!** This one is free.');
   if (stats.streak > 1)

@@ -10,6 +10,8 @@
 //   blackTea: true  -> counts for the black tea achievement
 //   art: true       -> can get latte art (milky drinks)
 //   halloween: true -> only orderable on October 31
+//   season: 'christmas' / 'easter' -> only orderable then (services/seasons.js)
+//   hot: true       -> a warm drink (thaws someone frozen by a snowball)
 //   imagePrompt     -> description used by `npm run drink-art`
 
 // Limits per person per day
@@ -32,6 +34,8 @@ const CATEGORIES = {
   beer: { name: 'Beer', emoji: '🍺', place: 'bar' },
   wine: { name: 'Wine', emoji: '🍷', place: 'bar' },
   halloween: { name: 'Halloween Specials', emoji: '🎃', place: 'cafe' },
+  christmas: { name: 'Christmas Specials', emoji: '🎄', place: 'cafe' },
+  easter: { name: 'Easter Specials', emoji: '🐣', place: 'cafe' },
 };
 
 // 🍹 The menu. Add, remove or reprice drinks here.
@@ -586,6 +590,163 @@ const MENU = {
     lines: [
       'Raspberry syrup. It’s raspberry. Definitely raspberry.',
       'Best enjoyed after sunset. Garlic not included.',
+    ],
+  },
+  // 🎄 Christmas only (December 1–26)
+  gluehwein: {
+    name: 'Glühwein',
+    emoji: '🍷',
+    price: 7,
+    category: 'christmas',
+    season: 'christmas',
+    alcohol: true,
+    hot: true,
+    art: false,
+    imagePrompt:
+      'a steaming glass mug of German mulled wine with an orange slice, cinnamon sticks and star anise, at a cozy Christmas market stall with fairy lights',
+    lines: [
+      'Hot, spiced and dangerously easy to drink. Mind the mug deposit.',
+      'Christmas market in a cup. Cinnamon, orange, cloves… and wine, obviously.',
+    ],
+  },
+  eggnog: {
+    name: 'Eggnog',
+    emoji: '🥛',
+    price: 7,
+    category: 'christmas',
+    season: 'christmas',
+    alcohol: true,
+    art: false,
+    imagePrompt:
+      'a glass of creamy eggnog with grated nutmeg and a cinnamon stick, next to a decorated Christmas tree',
+    lines: [
+      'Creamy, nutmeggy, a little boozy. Very festive.',
+      'Grandma’s recipe. Probably. The rum is definitely in there.',
+    ],
+  },
+  gingerbreadlatte: {
+    name: 'Gingerbread Latte',
+    emoji: '🍪',
+    price: 6,
+    category: 'christmas',
+    season: 'christmas',
+    caffeine: true,
+    hot: true,
+    art: true,
+    imagePrompt:
+      'a gingerbread latte with whipped cream and a small gingerbread man on the saucer, Christmas decorations around',
+    lines: [
+      'Espresso, gingerbread syrup and a tiny cookie friend.',
+      'Tastes like a Christmas bakery. Smells like one too.',
+    ],
+  },
+  marshmallowcocoa: {
+    name: 'Hot Chocolate with Marshmallows',
+    emoji: '☃️',
+    price: 5,
+    category: 'christmas',
+    season: 'christmas',
+    hot: true,
+    art: false,
+    imagePrompt:
+      'a big mug of hot chocolate piled high with mini marshmallows and a candy cane, snowy window behind',
+    lines: [
+      'More marshmallows than chocolate. As it should be.',
+      'Thick, sweet and topped with a marshmallow mountain.',
+    ],
+  },
+  kinderpunsch: {
+    name: 'Kinderpunsch',
+    emoji: '🍊',
+    price: 4,
+    category: 'christmas',
+    season: 'christmas',
+    hot: true,
+    art: false,
+    imagePrompt:
+      'a steaming mug of alcohol-free fruit punch with orange slices and cinnamon at a Christmas market',
+    lines: [
+      'All the Christmas-market spice, none of the alcohol.',
+      'Warm, fruity and kid-approved.',
+    ],
+  },
+  christmastea: {
+    name: 'Christmas Tea',
+    emoji: '🎄',
+    price: 4,
+    category: 'christmas',
+    season: 'christmas',
+    caffeine: true,
+    blackTea: true,
+    hot: true,
+    art: false,
+    imagePrompt:
+      'a glass teapot and cup of black tea with orange peel and cinnamon, Christmas cookies on a plate',
+    lines: [
+      'Black tea with cinnamon and orange. Christmas, steeped.',
+      'Smells like a cozy December evening.',
+    ],
+  },
+
+  // 🐣 Easter only (Good Friday – Easter Monday)
+  carrotlatte: {
+    name: 'Carrot Cake Latte',
+    emoji: '🥕',
+    price: 6,
+    category: 'easter',
+    season: 'easter',
+    caffeine: true,
+    hot: true,
+    art: true,
+    imagePrompt:
+      'a carrot cake latte with cream cheese foam and a sprinkle of cinnamon, small pastel Easter eggs on the table',
+    lines: [
+      'Cinnamon, carrot cake spice and cream cheese foam. Bunny-approved.',
+      'Like carrot cake, but you can drink it.',
+    ],
+  },
+  bunnycocoa: {
+    name: 'Chocolate Bunny Cocoa',
+    emoji: '🐰',
+    price: 5,
+    category: 'easter',
+    season: 'easter',
+    hot: true,
+    art: false,
+    imagePrompt:
+      'a mug of hot chocolate with a little chocolate bunny melting on top, pastel Easter decoration',
+    lines: [
+      'A whole chocolate bunny melted into it. RIP, bunny.',
+      'Ears first or tail first? Too late now.',
+    ],
+  },
+  easterpunch: {
+    name: 'Easter Punch',
+    emoji: '🌸',
+    price: 4,
+    category: 'easter',
+    season: 'easter',
+    art: false,
+    imagePrompt:
+      'a glass of pink alcohol-free spring punch with strawberries, mint and edible flowers, spring garden behind',
+    lines: [
+      'Fruity, pink and alcohol-free. Spring in a glass.',
+      'Strawberries, mint and a flower on top. Fancy.',
+    ],
+  },
+  eierlikoer: {
+    name: 'Egg Liqueur Cocktail',
+    emoji: '🍋',
+    price: 7,
+    category: 'easter',
+    season: 'easter',
+    alcohol: true,
+    art: false,
+    imagePrompt:
+      'a creamy yellow egg liqueur cocktail in a small glass with a lemon twist, pastel Easter eggs around',
+    lines: [
+      'Creamy, lemony, very Easter. Very yellow.',
+      'Egg liqueur with lemon. Grandma would approve.',
     ],
   },
 };

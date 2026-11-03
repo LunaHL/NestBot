@@ -19,11 +19,12 @@ chat with by pinging `@NestBot`.
 | 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters), `/puzzle` (puzzle of the day), coins for the Discord **Wordle app** (automatic), streak bonuses, daily results post |
 | 🍹 **Café & Bar** | `/drinks` to order or gift coffee, tea, hot chocolate, cocktails, beer and wine, with pictures, latte art, streaks and daily limits |
 | ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss), `/duel` rock-paper-scissors with bets |
-| 🏅 **Progress** | `/profile` with all stats in tabs (games, drinks, duels & fun, movies, achievements), 49 achievements with coin rewards |
+| 🏅 **Progress** | `/profile` with all stats in tabs (games, drinks, duels & fun, movies, achievements), 60 achievements with coin rewards |
 | 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, “@NestBot remember that …” |
 | 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag`, 🙈 blindfolds, paid temporary nicknames (in `/shop`) |
 | 🎂 **Social** | `/birthday` announcements with coins, weekly picture leaderboard |
 | 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device. `/watchlist`: personal watchlists with ratings and matches |
+| 🎄 **Christmas & Easter** | Dec 1–26: `/christmas` advent calendar, Secret Santa, snowballs, the server tree, holiday drinks, New Year post. Easter: egg hunt in the chat, 🐰 Bunny Girl outfit, `/easter` egg painting. Admins can test them any time (`/settings holidays test:`) |
 | 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
 | ❓ **Help** | `/help` explains everything in Discord, with categories and a command search; ask @NestBot; pinned hub menu; right-click a member → Apps |
 | 🛠️ **Admin** | `/settings` and `/admin` (shop, wheel, puzzle, NestWord, coins, birthdays, tournaments), hidden from regular members |

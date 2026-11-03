@@ -49,6 +49,32 @@ const BLIND_CATEGORY = '🙈 Blindfolds';
 
 function specials(guildId) {
   const list = [];
+  // 🐰 Easter: the Bunny Girl outfit
+  const easter = require('../services/easter');
+  const seasons = require('../services/seasons');
+  if (seasons.active('easter') && easter.bunnyOn(guildId)) {
+    list.push(
+      {
+        id: 'bunny',
+        emoji: '🐰',
+        name: 'Bunny Girl outfit',
+        category: '🐣 Easter',
+        priceText: price(guildId, easter.BUNNY_PRICE),
+        menuPrice: priceShort(guildId, easter.BUNNY_PRICE),
+        description: `Pink role, 🐰 ears in front of the name, *hops* and carrot drinks for ${easter.BUNNY_HOURS} h. For you or a friend.`,
+      },
+      {
+        id: 'bunnyoff',
+        emoji: '🥕',
+        name: 'Take the bunny ears off',
+        category: '🐣 Easter',
+        priceText: 'what it cost',
+        menuPrice: 'same price',
+        description:
+          'Wearing the outfit? Take it off early for the price it cost.',
+      },
+    );
+  }
   if (nickname.enabled(guildId)) {
     list.push(
       {
@@ -398,6 +424,38 @@ async function handleComponent(interaction) {
         flags: 64,
       });
     }
+    if (value === 'bunny') {
+      return interaction.reply({
+        content: '🐰 Who gets the Bunny Girl outfit? (You can pick yourself.)',
+        components: [
+          new ActionRowBuilder().addComponents(
+            new UserSelectMenuBuilder()
+              .setCustomId('shop:bunnyuser')
+              .setPlaceholder('👤 Pick someone…'),
+          ),
+        ],
+        flags: 64,
+      });
+    }
+    if (value === 'bunnyoff') {
+      const easter = require('../services/easter');
+      const b = easter.getBunny(guildId, interaction.user.id);
+      if (!b)
+        return interaction.reply(ui.info('🐰 You’re not wearing the outfit.'));
+      const payment = nestcoins.pay(guildId, interaction.user.id, b.price || 0);
+      if (!payment.ok)
+        return interaction.reply(
+          ui.fail(
+            `Taking it off costs ${b.price} coins, you have ${payment.balance}.`,
+          ),
+        );
+      await easter.takeOffBunny(interaction.guild, interaction.user.id);
+      return interaction.reply(
+        ui.ok(
+          `🥕 The bunny ears are off.${payment.paid ? ` (${payment.paid} coins)` : ''}`,
+        ),
+      );
+    }
     if (value === 'blind') {
       if (!blindfold.isSetUp(guildId))
         return interaction.reply(
@@ -478,6 +536,66 @@ async function handleComponent(interaction) {
         ? null
         : await interaction.client.users.fetch(extra).catch(() => null);
     return purchase(interaction, idText, target, { viaButton: true });
+  }
+
+  if (action === 'bunnyuser') {
+    const easter = require('../services/easter');
+    const targetId = interaction.values[0];
+    const user = await interaction.client.users
+      .fetch(targetId)
+      .catch(() => null);
+    if (!user || user.bot)
+      return interaction.update({
+        content: '❌ Bots don’t wear bunny ears.',
+        components: [],
+      });
+    if (easter.getBunny(guildId, targetId))
+      return interaction.update({
+        content: '🐰 They’re already a bunny!',
+        components: [],
+      });
+    const payment = nestcoins.pay(
+      guildId,
+      interaction.user.id,
+      easter.BUNNY_PRICE,
+    );
+    if (!payment.ok)
+      return interaction.update({
+        content: `❌ That costs ${easter.BUNNY_PRICE} coins, you have ${payment.balance}.`,
+        components: [],
+      });
+    const r = await easter.putOnBunny(
+      interaction.guild,
+      targetId,
+      interaction.user.id,
+      payment.paid,
+    );
+    if (r.error) {
+      if (payment.paid)
+        nestcoins.addCoins(guildId, interaction.user.id, payment.paid);
+      return interaction.update({
+        content: '❌ I couldn’t dress them up. (Refunded.)',
+        components: [],
+      });
+    }
+    await interaction.update({ content: '✅ Done!', components: [] });
+    await interaction.followUp({
+      embeds: [
+        ui.card({
+          title: '🐰 Hop hop!',
+          color: easter.COLOR,
+          text:
+            targetId === interaction.user.id
+              ? `<@${targetId}> put on the **Bunny Girl** outfit for a day! 🥕`
+              : `<@${interaction.user.id}> dressed <@${targetId}> up as a **Bunny Girl** for a day! 🥕`,
+          footer: payment.paid
+            ? `Paid ${payment.paid} coins · take it off early: /shop → 🥕`
+            : '🎉 Free',
+        }),
+      ],
+      allowedMentions: { users: [targetId] },
+    });
+    return achievements.announce(interaction, [interaction.user.id, targetId]);
   }
 
   if (action === 'blinduser') {

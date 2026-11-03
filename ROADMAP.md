@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.19 | 🎄 Christmas and 🐣 Easter |
 | V 1.15 | 🛠️ `/admin`, 🖱️ right-click menu, 🔑 puzzle button, 📝 memories by chat, seasonal commands, 🙋/🎲 quick buttons |
 | V 1.14 | 📌 Group panel, check-in and clock stay at the bottom |
 | V 1.13 | 💬 Ask NestBot, 💡 tips, 🪺 hub menu, weekly “Did you know?”, 🙈 blindfold in the shop |
@@ -91,7 +92,9 @@ use for coins. Max 1 at a time; shown in the profile.
 
 ---
 
-## 🎄 Christmas (December 1–26)
+## ✅ 🎄 Christmas (December 1–26): done in V 1.19
+
+*Built as described below, except: no “puzzle hint” door, the Christmas tree card is posted in the holiday channel.*
 
 Like Halloween, everything turns on and off by itself, and `/help` shows a
 🎄 Christmas section only in December.
@@ -157,7 +160,9 @@ Like Halloween, everything turns on and off by itself, and `/help` shows a
 
 ---
 
-## 🐣 Easter (Good Friday to Easter Monday)
+## ✅ 🐣 Easter (Good Friday to Easter Monday): done in V 1.19
+
+*Built as described below; eggs only hide under chat messages (not randomly in channels).*
 
 ### 🥚 Egg hunt
 - During the weekend, eggs appear as a 🥚 button under random messages and in
@@ -251,7 +256,6 @@ A cute Easter outfit you can wear yourself or put on a friend.
 - `/daily` DM reminder when you can claim again (opt-in)
 
 **Drinks**
-- "🔁 Same again" button under your drink
 - "🍻 Round on me" button under a drink: buy the same for everyone in voice
 - Favorites at the top of the search
 

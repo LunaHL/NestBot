@@ -18,6 +18,10 @@ let deployedKey = null;
 
 async function deployCommands() {
   deployedKey = seasonKey();
+  if (!process.env.BOT_TOKEN) {
+    console.warn('Not registering slash commands: BOT_TOKEN is missing.');
+    return;
+  }
   const commands = loadCommands()
     .filter(inSeason)
     .map(c => c.data.toJSON());

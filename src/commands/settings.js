@@ -128,6 +128,22 @@ module.exports = {
                 name: '🏷️ Nicknames: end all paid nicknames now',
                 value: 'nicknames-reset',
               },
+              {
+                name: '🎅 Secret Santa: draw the names now',
+                value: 'santa-draw',
+              },
+              {
+                name: '🎅 Secret Santa: open the presents now',
+                value: 'santa-reveal',
+              },
+              {
+                name: '🎆 New Year: post the New Year message now',
+                value: 'newyear-post',
+              },
+              {
+                name: '🧺 Easter: post the best egg hunters now',
+                value: 'easter-results',
+              },
             ),
         ),
     )
@@ -155,6 +171,44 @@ module.exports = {
           o
             .setName('end-for')
             .setDescription('End this person’s paid nickname now'),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('holidays')
+        .setDescription(
+          '🎄 Christmas & 🐣 Easter: channel, egg hunt, bunny outfit, test mode. Empty = show',
+        )
+        .addChannelOption(o =>
+          o
+            .setName('channel')
+            .setDescription(
+              'Secret Santa, the tree, New Year, Easter results (default: the hub channel)',
+            )
+            .addChannelTypes(ChannelType.GuildText),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('eggs')
+            .setDescription('Easter egg hunt in the chat (default on)'),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('bunny')
+            .setDescription('🐰 Bunny Girl outfit (default on)'),
+        )
+        .addStringOption(o =>
+          o
+            .setName('test')
+            .setDescription(
+              'Pretend it’s a holiday now, to try everything (all servers!)',
+            )
+            .addChoices(
+              { name: '🎄 Christmas', value: 'christmas' },
+              { name: '🐣 Easter', value: 'easter' },
+              { name: '🎆 New Year', value: 'newyear' },
+              { name: '❌ Off (real dates)', value: 'off' },
+            ),
         ),
     )
     .addSubcommand(sub =>
@@ -501,6 +555,58 @@ module.exports = {
           flags: 64,
         });
       }
+      if (action === 'santa-draw') {
+        const r = await require('../services/christmas').santaDraw(
+          interaction.client,
+          guildId,
+        );
+        return interaction.reply({
+          content: r.error
+            ? `❌ Only ${r.count} signed up; Secret Santa needs at least 2.`
+            : `🎅 Drew the names for ${r.count} people and sent the DMs.`,
+          flags: 64,
+        });
+      }
+      if (action === 'santa-reveal') {
+        const r = await require('../services/christmas').santaReveal(
+          interaction.client,
+          guildId,
+        );
+        return interaction.reply({
+          content: r.error
+            ? '❌ Nothing to open (names not drawn yet, or already opened).'
+            : `🎁 Opened ${r.count} presents in the holiday channel.`,
+          flags: 64,
+        });
+      }
+      if (action === 'newyear-post') {
+        const yr =
+          new Date().getFullYear() + (new Date().getMonth() === 11 ? 1 : 0);
+        const ok = await require('../services/christmas').postNewYear(
+          interaction.client,
+          guildId,
+          yr,
+          'newyear',
+        );
+        return interaction.reply({
+          content: ok
+            ? '🎆 Posted.'
+            : '❌ Set a channel first: `/settings holidays channel:` (or a hub channel).',
+          flags: 64,
+        });
+      }
+      if (action === 'easter-results') {
+        const ok = await require('../services/easter').postResults(
+          interaction.client,
+          guildId,
+        );
+        return interaction.reply({
+          content: ok
+            ? '🧺 Posted.'
+            : '❌ No eggs found yet, or no channel set.',
+          flags: 64,
+        });
+      }
       if (action === 'nicknames-reset') {
         const n = await require('../services/nickname').restoreAll(
           interaction.guild,
@@ -510,6 +616,86 @@ module.exports = {
           flags: 64,
         });
       }
+    }
+
+    if (sub === 'holidays') {
+      const o = interaction.options;
+      const seasons = require('../services/seasons');
+      const notes = [];
+      if (o.getChannel('channel'))
+        setSetting(guildId, 'holidayChannelId', o.getChannel('channel').id);
+      if (o.getBoolean('eggs') !== null)
+        setSetting(guildId, 'easterEnabled', o.getBoolean('eggs'));
+      if (o.getBoolean('bunny') !== null)
+        setSetting(guildId, 'bunnyEnabled', o.getBoolean('bunny'));
+      const test = o.getString('test');
+      if (test) {
+        await interaction.deferReply({ flags: 64 });
+        seasons.setTest(test === 'off' ? null : test);
+        await require('../deploy-commands').deployCommands(); // show / hide /christmas and /easter
+        notes.push(
+          test === 'off'
+            ? '✅ Test mode off: holidays follow the real dates again.'
+            : `🧪 Test mode: it’s **${test}** now (on every server).${test === 'newyear' ? ' Try `/settings tools action:New Year`.' : ` \`/${test}\` shows up in a moment (Ctrl+R helps).`} Turn it off with \`test:off\`.`,
+        );
+      }
+      const on = name => (seasons.active(name) ? '🟢 on now' : '⚪ not now');
+      const ch =
+        getSetting(guildId, 'holidayChannelId') ||
+        getSetting(guildId, 'hubChannelId');
+      const embed = new EmbedBuilder()
+        .setTitle('🎄 Holidays')
+        .setColor(0xc0392b)
+        .addFields(
+          {
+            name: '🎄 Christmas (Dec 1–26)',
+            value: on('christmas'),
+            inline: true,
+          },
+          {
+            name: '🎆 New Year (Dec 31–Jan 1)',
+            value: on('newyear'),
+            inline: true,
+          },
+          {
+            name: '🐣 Easter (Good Friday–Monday)',
+            value: on('easter'),
+            inline: true,
+          },
+          {
+            name: '📣 Channel',
+            value: ch ? `<#${ch}>` : '– not set (no Santa/tree/New Year posts)',
+            inline: true,
+          },
+          {
+            name: '🥚 Egg hunt',
+            value:
+              getSetting(guildId, 'easterEnabled') === false
+                ? '❌ Off'
+                : '✅ On',
+            inline: true,
+          },
+          {
+            name: '🐰 Bunny outfit',
+            value:
+              getSetting(guildId, 'bunnyEnabled') === false
+                ? '❌ Off'
+                : '✅ On',
+            inline: true,
+          },
+          {
+            name: '🧪 Test mode',
+            value: seasons.getTest() ? `🧪 ${seasons.getTest()}` : 'Off',
+            inline: true,
+          },
+        )
+        .setFooter({
+          text: 'Change with /settings holidays channel: eggs: bunny: test:',
+        });
+      if (notes.length) embed.setDescription(notes.join('\n'));
+      return interaction.deferred || interaction.replied
+        ? interaction.editReply({ embeds: [embed] })
+        : interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     if (sub === 'hub') {

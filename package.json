@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/index.js",
     "commands": "node src/deploy-commands.js",
-    "test": "node tests/smoke.js",
+    "test": "node tests/smoke.js && node tests/scenarios/run.js",
     "drink-art": "node src/scripts/generate-drink-art.js"
   },
   "dependencies": {

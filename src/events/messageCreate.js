@@ -28,6 +28,11 @@ module.exports = async function onMessage(message) {
     // 2. Gagged members: their message is replaced by a garbled version
     if (await gag.handleGaggedMessage(message)) return;
 
+    // Easter: bunnies hop, eggs hide under messages
+    const easter = require('../services/easter');
+    await easter.maybeHop(message);
+    await easter.maybeEgg(message);
+
     // 3. AI chat, but only for a real @NestBot. Replying to one of the bot's
     //    messages also counts as a mention in Discord, so that's ignored,
     //    as are @everyone/@here and role pings.

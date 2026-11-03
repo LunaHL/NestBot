@@ -210,6 +210,40 @@ const CATEGORIES = [
     ],
   },
   {
+    id: 'holidays',
+    emoji: '🎄',
+    name: 'Christmas & Easter',
+    intro:
+      'Only in their season: Christmas Dec 1–26 (plus New Year), Easter from Good Friday to Easter Monday. The commands only show up then.',
+    commands: ['christmas', 'easter'],
+    features: [
+      {
+        name: '🗓️ Advent calendar',
+        text: '`/christmas advent` opens one door a day (Dec 1–24): coins, 🎟️ a free drink, 🎡 a free wheel spin on someone, or a 🎅 Santa hat for 3 days. Door 6 is St. Nicholas’ boot, door 24 is the big one. 20 doors → 🎄 Festive, all 24 → 🎁 Advent Champion.',
+      },
+      {
+        name: '🎅 Secret Santa',
+        text: '`/christmas santa join` until Dec 10 (with a wish). Then NestBot draws the names and DMs you who you’re Santa for. Prepare your gift with `/christmas santa gift` (coins, a drink, a note). On Christmas Eve at 18:00 all presents are opened in the holiday channel and the Santas revealed. Forgot your gift? They get a backup from NestBot, you get 🪨 coal.',
+      },
+      {
+        name: '❄️ Snowballs & 🎄 the tree',
+        text: '`/christmas snowball @someone`: 3 free a day. A hit freezes them for 10 minutes (❄️ around their name, can’t throw back); a warm drink gift thaws them. `/christmas tree`: hang one ornament a day; 50 → 20 coins for everyone who helped, 150 → the 🌟 lights up and loot drops double for a day.',
+      },
+      {
+        name: '🎆 New Year',
+        text: 'At midnight on New Year’s Eve NestBot posts in the holiday channel: press 🥂 for your New Year coins.',
+      },
+      {
+        name: '🥚 Egg hunt & 🐰 Bunny Girl',
+        text: 'At Easter, eggs hide under chat messages: first to grab gets it (🥚 5, 🌈 15, 🥇 50 coins, 💣 a prank egg, or the rare 🐰 bunny egg). The **Bunny Girl** outfit (in `/shop` at Easter, or from the bunny egg): pink role, 🐰 ears, *hops* and carrot drinks for a day; 3 bunnies at once = bunny party. `/easter paint` paints a new egg every day, `/easter basket` shows your eggs.',
+      },
+      {
+        name: '🍷 Holiday drinks',
+        text: 'Christmas: Glühwein, eggnog, gingerbread latte, hot chocolate with marshmallows, Kinderpunsch, Christmas tea. Easter: carrot cake latte, chocolate bunny cocoa, Easter punch, egg liqueur cocktail.',
+      },
+    ],
+  },
+  {
     id: 'admin',
     emoji: '🛠️',
     name: 'Admin',
@@ -331,6 +365,16 @@ const COMMANDS = {
     tips: 'Admins can also add and remove birthdays for others. The birthday channel is set with `/settings channels`.',
   },
 
+  // 🎄 Holidays
+  christmas: {
+    explain:
+      'Christmas (Dec 1–26): `advent` opens today’s door, `snowball @someone` (3 free a day), `tree` to hang an ornament, `santa join / leave / gift / status` for Secret Santa.',
+  },
+  easter: {
+    explain:
+      'Easter (Good Friday – Easter Monday): `basket` shows your eggs, `paint` paints a new egg every day (collect 10 patterns for 🎨 Egg Artist), `gift` gives a painted egg away. The egg hunt itself happens in the chat.',
+  },
+
   // 🎃 Halloween
   trickortreat: {
     explain:
@@ -364,7 +408,7 @@ const COMMANDS = {
   },
   settings: {
     explain:
-      'Server settings. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
+      'Server settings. `holidays`: the channel for Secret Santa / tree / New Year / Easter results, egg hunt and bunny outfit on/off, and a **test mode** to try Christmas or Easter now. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
     admin: ['*'],
   },
 

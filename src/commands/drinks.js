@@ -32,6 +32,13 @@ const COLOR_BAR = 0x8e44ad;
 const colorFor = drink =>
   CATEGORIES[drink.category]?.place === 'bar' ? COLOR_BAR : COLOR_CAFE;
 
+/** 🐰 Bunnies get the carrot version of everything (Easter outfit). */
+function bunnyName(guildId, userId, drink) {
+  return require('../services/easter').getBunny(guildId, userId)
+    ? `🥕 Carrot ${drink.name}`
+    : drink.name;
+}
+
 // ---------- Replies ----------
 
 /** Checks the chosen drink. Returns an error reply, or null if it's fine. */
@@ -47,6 +54,12 @@ function checkDrink(key) {
   if (drink.halloween && !isHalloween()) {
     return {
       content: `🎃 The ${drink.name} is only served on Halloween (October 31).`,
+      flags: 64,
+    };
+  }
+  if (drink.season && !require('../services/seasons').active(drink.season)) {
+    return {
+      content: `${drink.season === 'christmas' ? '🎄' : '🐣'} The ${drink.name} is only served at ${drink.season === 'christmas' ? 'Christmas (December 1–26)' : 'Easter'}.`,
       flags: 64,
     };
   }
@@ -125,7 +138,7 @@ function menuEmbed(categoryFilter, guildId) {
 
   if (categoryFilter && !embed.data.fields?.length) {
     embed.setDescription(
-      'Nothing on the menu here today. 🎃 These are only served on Halloween.',
+      'Nothing on the menu here today. These are only served on their holiday.',
     );
   }
   embed.addFields({
@@ -483,9 +496,11 @@ module.exports = {
 
       const art = drinks.rollLatteArt(drink);
       const embed = new EmbedBuilder()
-        .setTitle(`${drink.emoji} ${drink.name} for ${myName}`)
+        .setTitle(
+          `${drink.emoji} ${bunnyName(guildId, userId, drink)} for ${myName}`,
+        )
         .setDescription(
-          `${drinks.serveLine(drink)}\n\n${drinks.extrasText(result.stats, result.lucky, art, drink)}`.trim(),
+          `${drinks.serveLine(drink)}\n\n${drinks.extrasText(result.stats, result.lucky, art, drink, result)}`.trim(),
         )
         .setFooter({
           text: `Drink #${result.stats.todayCups} today · ${result.stats.total} all time`,
@@ -535,11 +550,13 @@ module.exports = {
 
       const art = drinks.rollLatteArt(drink);
       const embed = new EmbedBuilder()
-        .setTitle(`${drink.emoji} A ${drink.name} for ${targetName}!`)
+        .setTitle(
+          `${drink.emoji} A ${bunnyName(guildId, target.id, drink)} for ${targetName}!`,
+        )
         .setDescription(
           `**${myName}** bought you a drink.\n` +
             (note ? `> 📝 ${note}\n` : '') +
-            `\n${drinks.serveLine(drink)}\n\n${drinks.extrasText(result.stats, result.lucky, art, drink)}`.trimEnd(),
+            `\n${drinks.serveLine(drink)}\n\n${drinks.extrasText(result.stats, result.lucky, art, drink, result)}`.trimEnd(),
         )
         .setColor(colorFor(drink));
       await replyWithPicture(
@@ -553,6 +570,23 @@ module.exports = {
         key,
         art,
       );
+      // ❄️ A warm drink thaws a friend frozen by a snowball
+      const warm =
+        drink.hot || ['coffee', 'tea', 'chocolate'].includes(drink.category);
+      if (
+        warm &&
+        (await require('../services/christmas').thaw(
+          interaction.guild,
+          target.id,
+        ))
+      ) {
+        await interaction
+          .followUp({
+            content: `☕ The warm ${drink.name} thawed <@${target.id}>! No longer frozen. 🫠`,
+            allowedMentions: { parse: [] },
+          })
+          .catch(() => {});
+      }
       return achievements.announce(interaction, [userId, target.id]);
     }
 

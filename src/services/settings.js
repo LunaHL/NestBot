@@ -5,6 +5,10 @@ const db = require('../utils/db');
 const DEFAULTS = {
   streakMode: 'capped', // see utils/streak.js
   freeMode: false, // true = everything you can buy is free (/settings free)
+  holidayChannelId: null, // Secret Santa, the tree, New Year, Easter results (else the hub channel)
+  easterEnabled: true, // egg hunt in the chat at Easter
+  bunnyEnabled: true, // 🐰 Bunny Girl outfit
+  bunnyRoleId: null,
   hubChannelId: null, // menu + weekly "Did you know?" (/settings hub)
   hubMessageId: null,
   hubWeekly: true,

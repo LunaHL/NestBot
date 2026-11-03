@@ -1,5 +1,23 @@
 # NestBot Changelog
 
+## V 1.19 (November 2026)
+
+**New: 🎄 Christmas & 🐣 Easter** (only in their season; admins can test them any time with `/settings holidays test:`)
+- 🗓️ Advent calendar (`/christmas advent`): a door a day with coins, 🎟️ free drinks, 🎡 free wheel spins or a 🎅 Santa hat; St. Nicholas' boot on the 6th, the big one on the 24th
+- 🎅 Secret Santa: sign up until Dec 10, names drawn by DM, gifts opened on Christmas Eve at 18:00, coal for forgetful Santas
+- ❄️ Snowball fights: hits freeze people for 10 minutes, a warm drink thaws them
+- 🎄 The server tree: one ornament a day, goals at 50 and 150 (coins, a shining star, double loot drops)
+- 🎁 Snowy loot drops, festive NestBot, 🎆 New Year countdown and 🥂 New Year coins
+- 🥚 Easter egg hunt in the chat (normal, painted, golden, prank and the rare bunny egg)
+- 🐰 Bunny Girl outfit (shop, bunny egg, wheel effect): pink role, 🐰 name, *hops*, carrot drinks, bunny parties
+- 🎨 Egg painting and gifting (`/easter`)
+- 🍷 10 holiday drinks (need pictures: `npm run drink-art`)
+- 11 new achievements (60 in total), holiday stats and vouchers in `/profile`
+- `/settings holidays` (channel, egg hunt, bunny, test mode), new `/settings tools` actions
+
+**Tests**
+- Scenario tests now live in the repo (`tests/scenarios/`) and run with `npm test`
+
 ## V 1.18 (November 2026)
 
 **Fixed**

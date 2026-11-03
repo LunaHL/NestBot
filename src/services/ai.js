@@ -226,6 +226,22 @@ function memoryLines(message, nickname) {
   );
 }
 
+/** Christmas / New Year / Easter mood (unless an admin set a mood). */
+function seasonPrompt(guildId) {
+  if (getMood(guildId)) return '';
+  const seasons = require('./seasons');
+  if (seasons.active('newyear'))
+    return '\n\nIT’S NEW YEAR’S EVE / NEW YEAR 🎆: celebrate with people, toast with them 🥂, ask about their resolutions. Keep the style rules.';
+  if (seasons.active('christmas'))
+    return (
+      '\n\nIT’S CHRISTMAS TIME 🎄: be cozy and festive, slightly sarcastic about Christmas songs. ' +
+      'Mention `/christmas advent`, snowballs (`/christmas snowball`), the tree or Secret Santa when it fits. Keep the style rules.'
+    );
+  if (seasons.active('easter'))
+    return '\n\nIT’S EASTER 🐣: be playful, joke about eggs and bunnies, remind people that eggs hide under chat messages. Keep the style rules.';
+  return '';
+}
+
 function halloweenPrompt(guildId) {
   if (!isHalloween() || getMood(guildId)) return '';
   return (
@@ -296,7 +312,7 @@ Style rules:
 - Use the user's name now and then, not in every message. Never call them "User".
 - Roleplay actions in asterisks (*waves*): only if the user uses them first, and at most one per message.
 - Don't comment on the channel name or your caretaker chores unless it is relevant to the conversation.
-- At most one emoji per message.${moodPrompt(message.guild.id)}${halloweenPrompt(message.guild.id)}${require('./guide').forPrompt(message)}`;
+- At most one emoji per message.${moodPrompt(message.guild.id)}${halloweenPrompt(message.guild.id)}${seasonPrompt(message.guild.id)}${require('./guide').forPrompt(message)}`;
 }
 
 // ==========================================

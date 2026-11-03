@@ -13,7 +13,7 @@ import. These are mistakes that otherwise only show up as "Error executing
 this command" in Discord.
 
 ```
-✅ All 97 subcommands, events and background jobs ran without errors.
+✅ All 110 subcommands, events and background jobs ran without errors.
 ```
 
 It uses its own temporary data folder (`NESTBOT_DATA_DIR`) and never talks to
@@ -25,3 +25,16 @@ coins, right text). It only checks that nothing crashes. Test new features in
 Discord too.
 
 Run it before every push.
+
+## Scenario tests
+
+`tests/scenarios/` plays whole features through with a small fake Discord
+(`fakes.js`: one server, channels, members, roles; data in a temporary
+folder, never the real `nestbot.json`). `npm test` runs them after the smoke
+test via `run.js`.
+
+- `holidays.test.js`: Christmas (advent calendar, vouchers, snowballs, the
+  tree, Secret Santa from sign-up to reveal), New Year, Easter (egg hunt,
+  Bunny Girl outfit, bunny party, painting) using the holiday test mode
+
+New features should get a `*.test.js` here too.

@@ -396,6 +396,26 @@ function funEmbed(guildId, user, member) {
         inline: true,
       },
       {
+        name: '🎄 Christmas & 🐣 Easter',
+        value:
+          `🗓️ ${s.seasons.adventOpened} doors · ❄️ ${s.seasons.snowHits} hits · 🔔 ${s.seasons.ornaments} ornaments` +
+          `\n🥚 ${s.seasons.eggs} eggs · 🎨 ${s.seasons.patterns.length} painted` +
+          (s.seasons.coal ? ` · 🪨 ${s.seasons.coal} coal` : ''),
+        inline: true,
+      },
+      ...(() => {
+        const v = require('../services/seasons').getVouchers(guildId, user.id);
+        return v.drink || v.spin
+          ? [
+              {
+                name: '🎟️ Vouchers',
+                value: `${v.drink ? `🍹 ${v.drink} free drink${v.drink === 1 ? '' : 's'}` : ''}${v.drink && v.spin ? '\n' : ''}${v.spin ? `🎡 ${v.spin} free spin${v.spin === 1 ? '' : 's'}` : ''}`,
+                inline: true,
+              },
+            ]
+          : [];
+      })(),
+      {
         name: '🎃 Halloween',
         value: `🍬 ${s.halloween.treats} treats · 👻 ${s.halloween.tricks} tricks`,
         inline: true,

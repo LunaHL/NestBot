@@ -227,3 +227,18 @@ Useful building blocks:
 - **🙋 Me too** under every served drink: orders the same drink for whoever clicks
 - **🎲 Again** under `/gamble`: play another round
 - **Seasonal commands:** `/trickortreat` only shows up in Discord on October 31 (`season()` in the command file; `deploy-commands.js` re-registers when a season starts or ends)
+
+## 🎄 Christmas & 🐣 Easter (only in their season)
+
+| File | Command | What it does |
+|---|---|---|
+| `christmas.js` | `/christmas advent` | Open today's door (Dec 1–24): coins, 🎟️ free drink, 🎡 free wheel spin, 🎅 Santa hat (3 days). Door 6 and 24 are special |
+| | `/christmas snowball` | 3 free a day (then 5 coins): 60% hit, 15% a bystander, 25% miss. A hit freezes for 10 min (❄️ name, can't throw); a warm drink gift thaws |
+| | `/christmas tree` | The server tree with ornament buttons, one a day each. 50 → 20 coins for every helper, 150 → 🌟 and double loot drops for a day. Posted finished on Dec 24 |
+| | `/christmas santa join` / `leave` / `gift` / `status` | Secret Santa: sign up until Dec 10, names drawn by DM, gifts (coins put aside, a drink voucher, a note) opened Dec 24 18:00 in the holiday channel; forgetful Santas get 🪨 |
+| `easter.js` | `/easter basket` / `paint` / `gift` | Your eggs, today's painted egg (collect 10 patterns), give a painted egg away |
+| (chat) | Egg hunt | At Easter an egg sometimes hides under a chat message (🥚 5 · 🌈 15 · 🥇 50 coins · 💣 prank · 🐰 bunny egg); first click wins, gone after 2 min |
+| (shop) | 🐰 Bunny Girl outfit / 🥕 take it off | Pink role, 🐰 name, *hops* and carrot drinks for 24 h; 3 bunnies at once = bunny party |
+| `settings.js` | `/settings holidays` 🔒 | Holiday channel, egg hunt and bunny on/off, **test mode** (Christmas / Easter / New Year now). `/settings tools` can draw/open Secret Santa, post New Year and the Easter results now |
+
+New Year: Dec 31 23:50 a countdown, at midnight a 🥂 button (25 coins each). Holiday drinks are in `config/drinksMenu.js` (`season:`); their pictures need `npm run drink-art`.

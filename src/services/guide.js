@@ -114,7 +114,12 @@ async function maybeTip(interaction, random = Math.random) {
 function weeklyItems(guildId) {
   const items = [];
   for (const cat of CATEGORIES) {
-    if (cat.id === 'help' || cat.id === 'admin' || cat.id === 'halloween')
+    if (
+      cat.id === 'help' ||
+      cat.id === 'admin' ||
+      cat.id === 'halloween' ||
+      cat.id === 'holidays'
+    )
       continue;
     for (const f of cat.features || [])
       items.push({ title: f.name, text: textOf(f.text, guildId), cat });

@@ -69,7 +69,9 @@ function drinksStats(guildId, userId) {
   const { MENU } = require('../config/drinksMenu');
   const s = require('./drinks').getDrinksSummary(guildId, userId);
   const tried = new Set(s?.tried || []);
-  const regular = Object.entries(MENU).filter(([, d]) => !d.halloween);
+  const regular = Object.entries(MENU).filter(
+    ([, d]) => !d.halloween && !d.season,
+  );
   const triedAll = list => list.length > 0 && list.every(([k]) => tried.has(k));
   const raw = db.read(d => d.coffee?.[guildId]?.[userId]?.drinks) || {};
   const alcoholTotal = Object.entries(raw)
@@ -172,6 +174,7 @@ function getUserStats(guildId, userId) {
       years: [],
     },
     pictures: db.read(d => d.pictracker?.[guildId]?.users?.[userId]) || 0,
+    seasons: require('./seasons').statsOf(guildId, userId),
     memories: (db.read(d => d.memories?.[guildId]?.[userId]) || []).length,
   };
 }

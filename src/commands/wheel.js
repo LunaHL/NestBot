@@ -57,7 +57,11 @@ async function handleComponent(interaction) {
     // Spinning for someone else costs coins
     const targeted = targetId !== issuerId;
     let paid = 0;
-    if (targeted) {
+    // 🎡 A free-spin voucher (advent calendar) is used first
+    const voucher =
+      targeted &&
+      require('../services/seasons').useVoucher(guild.id, issuerId, 'spin');
+    if (targeted && !voucher) {
       const payment = nestcoins.pay(
         guild.id,
         issuerId,
@@ -99,9 +103,11 @@ async function handleComponent(interaction) {
       text: `<@${targetId}>: **${r.entry.text}**${r.effectText ? `\n\n${r.effectText}` : ''}`,
       footer: paid
         ? `Spun by someone else for ${paid} coins`
-        : targeted
-          ? 'Spun by someone else (free)'
-          : 'Self spin (free)',
+        : voucher
+          ? 'Spun by someone else with a 🎡 voucher'
+          : targeted
+            ? 'Spun by someone else (free)'
+            : 'Self spin (free)',
     });
     await interaction
       .editReply({
