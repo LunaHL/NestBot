@@ -370,7 +370,7 @@ const COMMANDS = {
   },
   suggest: {
     explain:
-      'An idea for NestBot? `/suggest idea:` posts it as a card; everyone votes 👍 / 👎 and can discuss it in its thread. Admins set the status (📋 planned, 🚧 in progress, ✅ done, ❌ declined) and you get a DM. `/suggest` without text shows the most liked open ideas.',
+      'An idea for NestBot? In the ideas channel, `/suggest idea:` posts it as a card (or use 💡 in the hub menu from anywhere); everyone votes 👍 / 👎 and can discuss it in its thread. Admins set the status (📋 planned, 🚧 in progress, ✅ done, ❌ declined) and you get a DM. `/suggest` without text shows the most liked open ideas.',
   },
 
   // 🎄 Holidays

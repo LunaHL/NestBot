@@ -17,12 +17,23 @@ const ui = require('../utils/ui');
 async function submitIdea(interaction, text) {
   if (!String(text || '').trim())
     return interaction.reply(ui.fail('Write your idea first.'));
+  if (
+    !require('../services/settings').getSetting(
+      interaction.guildId,
+      'suggestionChannelId',
+    )
+  )
+    return interaction.reply(
+      ui.info(
+        '💡 There’s no ideas channel yet. An admin can set one with `/settings channels suggestions:`.',
+      ),
+    );
   const s = suggestions.create(interaction.guildId, interaction.user.id, text);
   const msg = await suggestions.post(
     interaction.client,
     interaction.guildId,
     s,
-    interaction.channelId,
+    null,
   );
   return interaction.reply(
     msg
@@ -144,6 +155,19 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    // Ideas have their own channel: /suggest only works there
+    const { getSetting } = require('../services/settings');
+    const ideas = getSetting(interaction.guildId, 'suggestionChannelId');
+    if (!ideas)
+      return interaction.reply(
+        ui.info(
+          '💡 There’s no ideas channel yet. An admin can set one with `/settings channels suggestions:`.',
+        ),
+      );
+    if (interaction.channelId !== ideas)
+      return interaction.reply(
+        ui.info(`💡 Ideas go in <#${ideas}>. Use \`/suggest\` there.`),
+      );
     const idea = interaction.options.getString('idea');
     if (idea) return submitIdea(interaction, idea);
     const list = suggestions.top(interaction.guildId, 10);

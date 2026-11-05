@@ -4,7 +4,8 @@
 //
 // Data: data.suggestions[guildId] = { nextId, items: { id: { id, text, by, at, status,
 //         up: [userIds], down: [userIds], channelId, messageId, statusBy, statusAt } } }
-// Channel: /settings channels suggestions: (else the channel it was posted in)
+// Channel: /settings channels suggestions: (/suggest only works there; the
+// 💡 hub menu form posts there too)
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../utils/db');
 const ui = require('../utils/ui');

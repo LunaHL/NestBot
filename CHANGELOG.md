@@ -1,5 +1,10 @@
 # NestBot Changelog
 
+## V 1.21.2 (November 2026)
+
+**Changed**
+- 💡 `/suggest` only works in the ideas channel (`/settings channels suggestions:`); elsewhere it points there. Without an ideas channel it asks an admin to set one. The 💡 form in the hub menu still works from anywhere and posts in the ideas channel
+
 ## V 1.21.1 (November 2026)
 
 **Fixed / better**

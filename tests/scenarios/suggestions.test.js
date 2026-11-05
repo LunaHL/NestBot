@@ -2,19 +2,28 @@
 // Run: node tests/scenarios/suggestions.test.js
 const assert = require('assert');
 const F = require('./fakes');
-const { load, run, click, submit, text, general, hub, dms } = F;
+const { load, run, click, submit, text, hub, dms } = F;
 
 const suggestions = load('services/suggestions');
 const { setSetting } = load('services/settings');
 
 (async () => {
-  // Without a channel setting: posted where it was written
+  // No ideas channel yet: /suggest says so
   let out = await run('suggest', null, { idea: 'A cat cafe mode' }, 'a');
-  assert.match(text(out), /idea \*\*#1\*\*/);
-  const card = general.sent.at(-1);
-  assert.match(JSON.stringify(card.payload), /A cat cafe mode/);
-  // With the channel setting
+  assert.match(text(out), /no ideas channel yet/);
   setSetting('g', 'suggestionChannelId', 'hub');
+  // Only in the ideas channel
+  out = await run('suggest', null, { idea: 'A cat cafe mode' }, 'a', {
+    channelId: 'general',
+  });
+  assert.match(text(out), /Ideas go in <#hub>/);
+  assert.equal(suggestions.all('g').length, 0);
+  out = await run('suggest', null, { idea: 'A cat cafe mode' }, 'a', {
+    channelId: 'hub',
+  });
+  assert.match(text(out), /idea \*\*#1\*\*/);
+  assert.match(JSON.stringify(hub.sent.at(-1).payload), /A cat cafe mode/);
+  // The 💡 form from the hub menu works from anywhere and posts in the ideas channel
   out = await submit('suggest:new', 'b', { idea: 'Weekly quiz night' });
   assert.match(text(out), /#2/);
   assert.match(JSON.stringify(hub.sent.at(-1).payload), /Weekly quiz night/);
@@ -32,7 +41,7 @@ const { setSetting } = load('services/settings');
   assert.match(text(out), /👍/);
 
   // Top list
-  out = await run('suggest', null, {}, 'e');
+  out = await run('suggest', null, {}, 'e', { channelId: 'hub' });
   assert.match(text(out), /Top ideas/);
   assert.ok(
     text(out).indexOf('#1') < text(out).indexOf('#2'),
