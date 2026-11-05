@@ -32,7 +32,9 @@ used. Members who already qualify get it the next time they do something.
 | `blindfold.js` | 🙈 Blindfolds: setup/teardown (role, dark channel, overwrites), giving and stacking (max 3 h), counting what blindfolded people miss, whispers in the dark channel (mentions right away, busy channels every 3 min), the DM summary at the end (job every minute) |
 | `guide.js` | Helps people discover features: the feature guide NestBot's AI gets when someone asks how something works, the tips after commands (texts in `config/tips.js`), the weekly “Did you know?” items. All built from `config/help.js` |
 | `hub.js` | The hub channel: the pinned menu (buttons run the normal commands, answered privately) and the weekly “Did you know?” post (Mondays 18:00) |
-| `seasons.js` | Which holiday is on (Christmas, advent, New Year, Easter computed per year), the test mode, lifetime holiday stats, 🎟️/🎡 vouchers, the holiday channel |
+| `birthdays.js` | Birthdays: understanding typed dates, upcoming list, the daily card at the set hour with 🎉 wishes (+5 coins each), coins, birthday role, the reminder the day before |
+| `suggestions.js` | 💡 Ideas for NestBot: saving, 👍/👎 votes, status, the card and its thread |
+| `seasons.js` | The holiday master switch (off by default), which holiday is on (Christmas, advent, New Year, Easter computed per year), the test mode, lifetime holiday stats, 🎟️/🎡 vouchers, the holiday channel |
 | `christmas.js` | Advent calendar, snowballs, the server tree, Secret Santa, New Year (job every 5 min) |
 | `easter.js` | Egg hunt, 🐰 Bunny Girl outfit and bunny party, egg painting, Easter results (job every 5 min) |
 | `gag.js` | Gagging: who is gagged and until when, garbling text, and handling messages of gagged members (delete, repost garbled, double the gag on spam) |

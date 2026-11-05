@@ -596,6 +596,8 @@ async function tick(client) {
     );
     if (melted.length)
       change(guild.id, x => melted.forEach(([id]) => delete x.frozen[id]));
+    // Real dates only when holidays are switched on (/settings holidays enabled:)
+    if (!seasons.isEnabled()) continue;
     if (m === 11) {
       if (
         day >= SANTA_JOIN_UNTIL &&

@@ -22,30 +22,12 @@ const achievements = require('../services/achievements');
 const watchlist = require('../services/watchlist');
 const tmdb = require('../services/tmdb');
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
 function getBirthday(guildId, userId) {
-  const birthdays = db.read(d => d.birthdays?.[guildId] || {});
-  for (const entry of Object.values(birthdays)) {
-    if (entry.userId === userId) {
-      const [month, day] = entry.date.split('-');
-      return `${MONTHS[parseInt(month, 10) - 1]} ${parseInt(day, 10)}`;
-    }
-  }
-  return 'Not set';
+  const birthdays = require('../services/birthdays');
+  const e = birthdays.forUser(guildId, userId);
+  if (!e) return 'Not set · `/birthday set`';
+  const days = birthdays.daysUntil(e.date);
+  return `${birthdays.pretty(e.date)}${days === 0 ? ' 🎂 **today!**' : `\nin ${days} day${days === 1 ? '' : 's'}`}`;
 }
 
 /** The 📊 Overview tab. */

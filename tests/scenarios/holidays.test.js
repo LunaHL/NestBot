@@ -39,6 +39,14 @@ const withRandom = async (value, fn) => {
 
 (async () => {
   // ---------- Dates ----------
+  // Off by default: nothing starts by itself
+  assert.equal(seasons.isEnabled(), false);
+  assert.equal(
+    seasons.active('christmas', new Date(2026, 11, 5)),
+    false,
+    'off by default',
+  );
+  seasons.setEnabled(true);
   assert.deepEqual(seasons.easterSunday(2026), { month: 3, day: 5 });
   assert.deepEqual(seasons.easterSunday(2027), { month: 2, day: 28 });
   assert.equal(

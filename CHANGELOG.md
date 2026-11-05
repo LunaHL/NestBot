@@ -1,5 +1,16 @@
 # NestBot Changelog
 
+## V 1.20 (November 2026)
+
+**New**
+- 🎂 Birthdays, simpler and nicer: `/birthday set date:` understands “24.12.”, “Dec 24”, “24. Dezember” (year optional, for “turns 25”); `list` shows who's next; `remove` without IDs. On the day: a card at 9:00 (configurable) with 🎉 wishes (+5 coins each), coins, an optional birthday role, and a reminder the day before. NestBot knows it's your birthday. Old birthdays keep working
+- 💡 `/suggest`: ideas for NestBot with 👍/👎 votes and a discussion thread; admins set the status (planned, in progress, done, declined) and the author gets a DM. Also in the hub menu
+- `/settings birthdays` (channel, hour, coins, role, reminder), `/settings channels suggestions:`, `/admin birthday add-for / remove-for / announce`
+
+**Changed**
+- 🔌 Christmas, New Year and Easter are **off by default**: nothing shows up until an admin runs `/settings holidays enabled:true` (test mode still works)
+- Roadmap: costume ideas (Bunny Girl downsides, Santa's Little Helper), the tree as a picture and mistletoe noted as future ideas
+
 ## V 1.19 (November 2026)
 
 **New: 🎄 Christmas & 🐣 Easter** (only in their season; admins can test them any time with `/settings holidays test:`)

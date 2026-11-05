@@ -39,6 +39,9 @@ module.exports = {
     'Someone else’s profile: right-click them → **Apps → View profile**.',
   ],
   leaderboard: ['Switch boards with the menu under the card.'],
+  help: [
+    'Missing something? Suggest it: `/suggest idea:` and everyone can vote.',
+  ],
   wheel: ['Wheel entries can gag 🔇, blindfold 🙈 or rename 🏷️ automatically.'],
   duel: [
     'Your duel record: `/profile tab:Duels & fun`.',
@@ -62,6 +65,9 @@ module.exports = {
   ],
   ai: [
     'Tell @NestBot things to remember: “@NestBot remember that I love Earl Grey”.',
+  ],
+  suggest: [
+    'Your idea got popular? Admins set it to 📋 planned and you get a DM.',
   ],
   birthday: [
     'On your birthday NestBot congratulates you and gives you coins 🎂.',

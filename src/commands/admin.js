@@ -22,7 +22,10 @@ const GROUPS = {
     description: 'NestWord: set a word, manage the word pools',
   },
   coins: { command: 'balance', description: 'Give or take NestCoins' },
-  birthday: { command: 'birthday', description: 'Announce birthdays now' },
+  birthday: {
+    command: 'birthday',
+    description: 'Birthdays: add or remove for others, announce now',
+  },
   event: {
     command: 'event',
     description: 'Tournaments: create, results, finish',

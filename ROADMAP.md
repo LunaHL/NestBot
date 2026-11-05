@@ -11,7 +11,8 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
-| V 1.19 | 🎄 Christmas and 🐣 Easter |
+| V 1.20 | 🎂 New birthdays (type dates freely, cards with 🎉 wishes, role, reminder), 💡 `/suggest` ideas with votes, 🔌 holidays off by default |
+| V 1.19 | 🎄 Christmas and 🐣 Easter (built, **off until an admin switches them on**: `/settings holidays enabled:`) |
 | V 1.15 | 🛠️ `/admin`, 🖱️ right-click menu, 🔑 puzzle button, 📝 memories by chat, seasonal commands, 🙋/🎲 quick buttons |
 | V 1.14 | 📌 Group panel, check-in and clock stay at the bottom |
 | V 1.13 | 💬 Ask NestBot, 💡 tips, 🪺 hub menu, weekly “Did you know?”, 🙈 blindfold in the shop |
@@ -211,6 +212,38 @@ A cute Easter outfit you can wear yourself or put on a friend.
   (alcohol-free), 🍋 Lemon egg liqueur cocktail.
 
 ---
+
+## 🔮 Holiday ideas for later (not built, nothing visible)
+
+Ideas only. None of this exists in the bot yet.
+
+### 🎭 Costumes with passive downsides
+A shared costume system: someone puts you in a costume (shop, wheel, a rare
+egg or advent door), it lasts a day, and the downsides just happen. Nothing to
+click or react to. Buying yourself out costs double.
+
+**🐰 Bunny Girl, extended** (Easter)
+- 🐇 Bunny speech: now and then NestBot reposts a message with *hop* in it and
+  “~” at the end
+- 🥕 Carrot diet: only carrot drinks, tea and juice at the bar; no coffee, no alcohol
+- 💰 Carrot tax: 20% of what you earn goes to whoever dressed you up
+- 🥚 Unlucky hunter: eggs hide under your messages more often, but you can't
+  collect any yourself
+
+**🧝 Santa's Little Helper** (all of December, not just Christmas Day)
+- Green role, 🧝 in front of the name, 🔔 on your messages, “*jingle*” now and then
+- 🎅 Santa's cut: 20% of what you earn goes to “Santa” (whoever made you an elf)
+- 🍺 On duty: no alcohol and no `/gamble` while you're an elf
+- ❄️ Easy target: snowballs always hit elves, and elves can't throw back
+
+### 🎄 More Christmas
+- The server tree as a real picture (ornaments in their colors, snow, a star
+  that lights up at the goal) instead of emojis
+- 🌿 Mistletoe: now and then it hangs over a message; whoever writes next is
+  “under the mistletoe” with that person. Both get a few coins, NestBot comments
+
+### Dropped (too much clicking)
+Bunny hunt, wrapping presents, cookie baking, egg roulette, the shared snowman.
 
 ## 🔮 Other seasons
 

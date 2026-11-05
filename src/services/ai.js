@@ -312,7 +312,7 @@ Style rules:
 - Use the user's name now and then, not in every message. Never call them "User".
 - Roleplay actions in asterisks (*waves*): only if the user uses them first, and at most one per message.
 - Don't comment on the channel name or your caretaker chores unless it is relevant to the conversation.
-- At most one emoji per message.${moodPrompt(message.guild.id)}${halloweenPrompt(message.guild.id)}${seasonPrompt(message.guild.id)}${require('./guide').forPrompt(message)}`;
+- At most one emoji per message.${moodPrompt(message.guild.id)}${halloweenPrompt(message.guild.id)}${seasonPrompt(message.guild.id)}${require('./birthdays').isBirthday(message.guild.id, message.author.id) ? `\n\nTODAY IS ${nickname.toUpperCase()}'S BIRTHDAY 🎂: congratulate them warmly (once), keep the style rules.` : ''}${require('./guide').forPrompt(message)}`;
 }
 
 // ==========================================

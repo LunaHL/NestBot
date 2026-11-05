@@ -5,6 +5,11 @@ const db = require('../utils/db');
 const DEFAULTS = {
   streakMode: 'capped', // see utils/streak.js
   freeMode: false, // true = everything you can buy is free (/settings free)
+  birthdayHour: 9, // birthdays are announced from this hour on (server time)
+  birthdayCoins: 200, // coins for the birthday person
+  birthdayReminder: true, // "tomorrow is X's birthday" the day before
+  birthdayRoleId: null, // role for the birthday person, for the day
+  suggestionChannelId: null, // 💡 /suggest ideas (else where they were posted)
   holidayChannelId: null, // Secret Santa, the tree, New Year, Easter results (else the hub channel)
   easterEnabled: true, // egg hunt in the chat at Easter
   bunnyEnabled: true, // 🐰 Bunny Girl outfit

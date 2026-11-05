@@ -6,6 +6,9 @@
 //   christmas  Dec 1–26      advent  Dec 1–24      newyear  Dec 31 + Jan 1
 //   easter     Good Friday – Easter Monday           halloween  Oct 31
 // Test mode (/settings holidays test:): one season is "on" no matter the date.
+// Master switch (/settings holidays enabled:): OFF by default. While it's off,
+// Christmas, New Year and Easter never start by themselves: no commands, no
+// drinks, no eggs, nothing visible. (Halloween is separate.)
 //
 // Data: data.seasonTest = 'christmas' | 'easter' | 'newyear' | null
 //       data.seasonStats[guildId][userId] = { adventOpened, adventYears, santaGifts, coal,
@@ -42,6 +45,12 @@ function daysFromEaster(date) {
 }
 
 const getTest = () => db.read(d => d.seasonTest) || null;
+const isEnabled = () => db.read(d => d.holidaysOn) === true;
+function setEnabled(on) {
+  db.perform(d => {
+    d.holidaysOn = !!on;
+  });
+}
 function setTest(name) {
   db.perform(d => {
     d.seasonTest = name || null;
@@ -69,7 +78,8 @@ const TEST_INCLUDES = {
 /** Is this season on right now (or being tested)? */
 function active(name, date = nowInTZ()) {
   const test = getTest();
-  if (test && TEST_INCLUDES[test]?.includes(name)) return true;
+  if (test) return !!TEST_INCLUDES[test]?.includes(name);
+  if (!isEnabled()) return false;
   return !!SEASONS[name]?.(date);
 }
 
@@ -166,6 +176,8 @@ module.exports = {
   daysFromEaster,
   getTest,
   setTest,
+  isEnabled,
+  setEnabled,
   active,
   adventDay,
   year,

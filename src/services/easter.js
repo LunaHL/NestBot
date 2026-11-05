@@ -388,8 +388,9 @@ async function tick(client) {
     // Bunnies whose day is over
     for (const [id, b] of Object.entries(read(guild.id).bunnies))
       if (b.until <= Date.now()) await takeOffBunny(guild, id);
-    // Easter Monday evening: the best egg hunters
+    // Easter Monday evening: the best egg hunters (only when holidays are on)
     if (
+      seasons.isEnabled() &&
       seasons.daysFromEaster(now) === 1 &&
       now.getHours() >= 20 &&
       !read(guild.id).announced

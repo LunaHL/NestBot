@@ -104,6 +104,12 @@ module.exports = {
             .setName('pictures')
             .setDescription('Weekly picture leaderboard')
             .addChannelTypes(ChannelType.GuildText),
+        )
+        .addChannelOption(o =>
+          o
+            .setName('suggestions')
+            .setDescription('💡 Where /suggest ideas are posted for votes')
+            .addChannelTypes(ChannelType.GuildText),
         ),
     )
     .addSubcommand(sub =>
@@ -175,9 +181,58 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('birthdays')
+        .setDescription(
+          '🎂 Birthday channel, time, coins, role, reminder. Empty = show',
+        )
+        .addChannelOption(o =>
+          o
+            .setName('channel')
+            .setDescription('Where birthday cards are posted')
+            .addChannelTypes(ChannelType.GuildText),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('hour')
+            .setDescription('From what hour (server time), default 9')
+            .setMinValue(0)
+            .setMaxValue(23),
+        )
+        .addIntegerOption(o =>
+          o
+            .setName('coins')
+            .setDescription('Coins for the birthday person, default 200')
+            .setMinValue(0)
+            .setMaxValue(5000),
+        )
+        .addRoleOption(o =>
+          o
+            .setName('role')
+            .setDescription('A role the birthday person gets for the day'),
+        )
+        .addBooleanOption(o =>
+          o.setName('no-role').setDescription('True = no birthday role'),
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('reminder')
+            .setDescription(
+              '“Tomorrow is X’s birthday” the day before (default on)',
+            ),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('holidays')
         .setDescription(
-          '🎄 Christmas & 🐣 Easter: channel, egg hunt, bunny outfit, test mode. Empty = show',
+          '🎄 Christmas & 🐣 Easter: on/off, channel, egg hunt, bunny, test mode. Empty = show',
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('enabled')
+            .setDescription(
+              'Christmas / New Year / Easter start by themselves on their dates (default OFF)',
+            ),
         )
         .addChannelOption(o =>
           o
@@ -452,6 +507,12 @@ module.exports = {
           puzzles.setChannel(guildId, channelId, set.ping?.id ?? cur.roleId);
       }
       if (set.wordle) wordle.setChannel(guildId, set.wordle.id);
+      if (o.getChannel('suggestions'))
+        setSetting(
+          guildId,
+          'suggestionChannelId',
+          o.getChannel('suggestions').id,
+        );
       if (set.birthdays || set.pictures) {
         db.perform(d => {
           if (set.birthdays) {
@@ -491,6 +552,11 @@ module.exports = {
           {
             name: '📸 Pictures',
             value: show(db.read(d => d.pictracker?.[guildId]?.channelId)),
+            inline: true,
+          },
+          {
+            name: '💡 Ideas',
+            value: show(getSetting(guildId, 'suggestionChannelId')),
             inline: true,
           },
           {
@@ -618,6 +684,66 @@ module.exports = {
       }
     }
 
+    if (sub === 'birthdays') {
+      const o = interaction.options;
+      if (o.getChannel('channel')) {
+        db.perform(d => {
+          d.birthdayChannels ||= {};
+          d.birthdayChannels[guildId] = o.getChannel('channel').id;
+        });
+      }
+      if (o.getInteger('hour') !== null)
+        setSetting(guildId, 'birthdayHour', o.getInteger('hour'));
+      if (o.getInteger('coins') !== null)
+        setSetting(guildId, 'birthdayCoins', o.getInteger('coins'));
+      if (o.getRole('role'))
+        setSetting(guildId, 'birthdayRoleId', o.getRole('role').id);
+      if (o.getBoolean('no-role')) setSetting(guildId, 'birthdayRoleId', null);
+      if (o.getBoolean('reminder') !== null)
+        setSetting(guildId, 'birthdayReminder', o.getBoolean('reminder'));
+      const ch = db.read(d => d.birthdayChannels?.[guildId]);
+      const role = getSetting(guildId, 'birthdayRoleId');
+      const embed = new EmbedBuilder()
+        .setTitle('🎂 Birthdays')
+        .setColor(0xff9ff3)
+        .addFields(
+          {
+            name: '📣 Channel',
+            value: ch ? `<#${ch}>` : '– not set (no cards!)',
+            inline: true,
+          },
+          {
+            name: '🕘 From',
+            value: `${getSetting(guildId, 'birthdayHour')}:00`,
+            inline: true,
+          },
+          {
+            name: '💰 Coins',
+            value: `${getSetting(guildId, 'birthdayCoins')} (+5 per 🎉 wish)`,
+            inline: true,
+          },
+          {
+            name: '🎀 Role for the day',
+            value: role ? `<@&${role}>` : 'None',
+            inline: true,
+          },
+          {
+            name: '🎈 Reminder the day before',
+            value:
+              getSetting(guildId, 'birthdayReminder') === false ? 'Off' : 'On',
+            inline: true,
+          },
+        )
+        .setFooter({
+          text: 'Change with /settings birthdays channel: hour: coins: role: reminder:',
+        });
+      return interaction.reply({
+        embeds: [embed],
+        flags: 64,
+        allowedMentions: { parse: [] },
+      });
+    }
+
     if (sub === 'holidays') {
       const o = interaction.options;
       const seasons = require('../services/seasons');
@@ -629,10 +755,21 @@ module.exports = {
       if (o.getBoolean('bunny') !== null)
         setSetting(guildId, 'bunnyEnabled', o.getBoolean('bunny'));
       const test = o.getString('test');
-      if (test) {
+      const enabled = o.getBoolean('enabled');
+      if (enabled !== null) {
+        seasons.setEnabled(enabled);
+        notes.push(
+          enabled
+            ? '✅ Holidays are **on**: Christmas, New Year and Easter start by themselves on their dates.'
+            : '🔒 Holidays are **off**: nothing of Christmas, New Year or Easter shows up (Halloween is separate).',
+        );
+      }
+      if (test || enabled !== null) {
         await interaction.deferReply({ flags: 64 });
-        seasons.setTest(test === 'off' ? null : test);
+        if (test) seasons.setTest(test === 'off' ? null : test);
         await require('../deploy-commands').deployCommands(); // show / hide /christmas and /easter
+      }
+      if (test) {
         notes.push(
           test === 'off'
             ? '✅ Test mode off: holidays follow the real dates again.'
@@ -647,6 +784,13 @@ module.exports = {
         .setTitle('🎄 Holidays')
         .setColor(0xc0392b)
         .addFields(
+          {
+            name: '🔌 Holidays',
+            value: seasons.isEnabled()
+              ? '✅ On (start by themselves)'
+              : '🔒 Off (nothing shows up)',
+            inline: true,
+          },
           {
             name: '🎄 Christmas (Dec 1–26)',
             value: on('christmas'),
@@ -690,7 +834,7 @@ module.exports = {
           },
         )
         .setFooter({
-          text: 'Change with /settings holidays channel: eggs: bunny: test:',
+          text: 'Change with /settings holidays enabled: channel: eggs: bunny: test:',
         });
       if (notes.length) embed.setDescription(notes.join('\n'));
       return interaction.deferred || interaction.replied

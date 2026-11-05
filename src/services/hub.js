@@ -25,6 +25,8 @@ const BUTTONS = [
   ['movies', 'Movie nights', '🍿', null],
   ['watchlist', 'My watchlist', '📝', ['watchlist', 'show']],
   ['help', 'Everything else', '❓', ['help']],
+  ['birthdays', 'Birthdays', '🎂', ['birthday', 'list']],
+  ['suggest', 'Suggest an idea', '💡', null],
 ];
 
 function menuMessage() {
@@ -47,10 +49,9 @@ function menuMessage() {
         footer: 'Every Monday there’s a “💡 Did you know?” here',
       }),
     ],
-    components: [
-      new ActionRowBuilder().addComponents(buttons.slice(0, 5)),
-      new ActionRowBuilder().addComponents(buttons.slice(5, 10)),
-    ],
+    components: [0, 5, 10]
+      .map(i => new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)))
+      .filter(r => r.components.length),
   };
 }
 
@@ -83,6 +84,8 @@ async function handleComponent(interaction) {
   const button = BUTTONS.find(b => b[0] === id);
   if (!button)
     return interaction.reply({ content: '🤔 Unknown button.', flags: 64 });
+  if (id === 'suggest')
+    return interaction.showModal(require('../commands/suggest').ideaForm());
   if (id === 'movies') {
     const watch = require('./watch');
     return interaction.reply({
