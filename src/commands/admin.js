@@ -44,12 +44,15 @@ module.exports = {
         'Admin tools: shop, wheel, puzzle, NestWord, coins, birthdays, tournaments',
       default_member_permissions: String(PermissionFlagsBits.Administrator),
       dm_permission: false,
-      options: Object.entries(GROUPS).map(([name, g]) => ({
-        type: 2, // subcommand group
-        name,
-        description: g.description,
-        options: target(name).adminSubcommands || [],
-      })),
+      // Tools of switched-off commands (e.g. NestWord) aren't shown either
+      options: Object.entries(GROUPS)
+        .filter(([name]) => !target(name).season || target(name).season())
+        .map(([name, g]) => ({
+          type: 2, // subcommand group
+          name,
+          description: g.description,
+          options: target(name).adminSubcommands || [],
+        })),
     }),
   },
 

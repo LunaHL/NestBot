@@ -32,7 +32,11 @@ function postResults(client) {
   }));
 
   // 🟩 NestWord
-  if (daily?.guesses && Object.keys(daily.guesses).length > 0) {
+  if (
+    require('./features').on('nestword') &&
+    daily?.guesses &&
+    Object.keys(daily.guesses).length > 0
+  ) {
     const lines = Object.entries(daily.guesses).map(([userId, tries]) => {
       const solved = daily.solvedBy?.includes(userId);
       return `• <@${userId}> — ${solved ? '✅' : '❌'} ${tries} tries`;

@@ -1,5 +1,13 @@
 # NestBot Changelog
 
+## V 1.22 (November 2026)
+
+**Changed**
+- 🟩 NestWord is switched off: nobody played it, the Wordle app does the same. It's invisible everywhere (command, `/admin nestword`, `/help`, hub menu, reminders, tips, scoreboard, NestBot's hints); stats, achievements and word pools are kept, and the profile still shows it for people who played
+- 🧩 `/settings features` switches whole features on/off (for NestWord now, more later)
+- `/help` hides commands that are switched off or out of season, and the Christmas & Easter section while holidays are off
+- Roadmap: ideas for a second daily game (“Who said it?”, emoji riddles)
+
 ## V 1.21.2 (November 2026)
 
 **Changed**

@@ -11,6 +11,20 @@ const TIPS = require('../config/tips');
 const db = require('../utils/db');
 const { getSetting } = require('./settings');
 
+/** Categories and commands that are on right now (holidays, switched-off games). */
+function visibleCategories() {
+  const { loadCommands } = require('../utils/commands');
+  const hidden = new Set(
+    loadCommands()
+      .filter(c => c.season && !c.season())
+      .map(c => c.data.name),
+  );
+  return CATEGORIES.filter(c => !c.visible || c.visible()).map(c => ({
+    ...c,
+    commands: (c.commands || []).filter(n => !hidden.has(n)),
+  }));
+}
+
 const textOf = (t, guildId) => (typeof t === 'function' ? t(guildId) : t);
 const plain = s =>
   String(s || '')
@@ -22,7 +36,7 @@ const plain = s =>
 /** All features and commands as short plain text. */
 function featureGuide(guildId) {
   const lines = [];
-  for (const cat of CATEGORIES) {
+  for (const cat of visibleCategories()) {
     lines.push(`\n## ${cat.name}: ${plain(cat.intro)}`);
     for (const name of cat.commands || []) {
       const c = COMMANDS[name];
@@ -113,7 +127,7 @@ async function maybeTip(interaction, random = Math.random) {
 /** Everything worth a weekly post: features and commands, in /help order. */
 function weeklyItems(guildId) {
   const items = [];
-  for (const cat of CATEGORIES) {
+  for (const cat of visibleCategories()) {
     if (
       cat.id === 'help' ||
       cat.id === 'admin' ||

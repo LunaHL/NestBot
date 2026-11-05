@@ -48,6 +48,14 @@ const TASKS = {
 };
 
 /** Times people can pick. */
+/** The tasks people can pick right now (NestWord only when it's switched on). */
+const activeTasks = () =>
+  Object.fromEntries(
+    Object.entries(TASKS).filter(
+      ([key]) => key !== 'nestword' || require('./features').on('nestword'),
+    ),
+  );
+
 const TIMES = [
   '10:00',
   '12:00',
@@ -95,7 +103,7 @@ async function tick(client) {
     const guild = client.guilds.cache.get(guildId);
     if (!guild) continue;
     for (const [userId, r] of Object.entries(users)) {
-      const due = Object.keys(TASKS).filter(
+      const due = Object.keys(activeTasks()).filter(
         t => r[t] && r[t] <= hhmm && r.sent?.[t] !== today,
       );
       if (!due.length) continue;
@@ -160,4 +168,13 @@ function startReminders(client) {
   require('../utils/schedule').runEvery('Reminders', 5, () => tick(client));
 }
 
-module.exports = { TASKS, TIMES, get, set, tick, sendDM, startReminders };
+module.exports = {
+  TASKS,
+  activeTasks,
+  TIMES,
+  get,
+  set,
+  tick,
+  sendDM,
+  startReminders,
+};

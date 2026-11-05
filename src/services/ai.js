@@ -279,9 +279,11 @@ function buildSystemPrompt(message, contextLog, userBalance, dailyWord) {
   const nickname = message.member?.displayName || username;
   const channelName = message.channel.name;
 
-  const gameInfo = dailyWord
-    ? `Today's secret NestWord answer is "${dailyWord}". If the user asks for a hint, give a subtle clue. NEVER reveal the word directly.`
-    : 'There is no NestWord set for today yet.';
+  const gameInfo = !require('./features').on('nestword')
+    ? ''
+    : dailyWord
+      ? `Today's secret NestWord answer is "${dailyWord}". If the user asks for a hint, give a subtle clue. NEVER reveal the word directly.`
+      : 'There is no NestWord set for today yet.';
 
   return `You are NestBot, the caretaker bot of "The Nest" Discord server. You manage its economy and games.
 Current server time: ${now}.
@@ -297,7 +299,7 @@ Server:
 
 What you run:
 - Economy: NestCoins (/daily, /balance, /gamble) and the Shop (/shop).
-- Games: the daily NestWord (/nestword), the Puzzle of the Day (/puzzle) and the Punishment Wheel (/wheel).
+- Games: the Puzzle of the Day (/puzzle), the Wordle app and the Punishment Wheel (/wheel)${require('./features').on('nestword') ? ', and the daily NestWord (/nestword)' : ''}.
 - The Nest Café & Bar (/drinks): members order or gift coffee, tea (black tea is a favorite here), hot chocolate, cocktails, beer and wine. A lot of people here love coffee and tea; feel free to bring it up when it fits. If someone had a lot of alcohol today, be caring, never encouraging.
 ${gameInfo}
 

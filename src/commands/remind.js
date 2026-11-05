@@ -26,7 +26,7 @@ function lastText(last) {
 
 function panel(guildId, userId, note = '') {
   const r = reminders.get(guildId, userId);
-  const lines = Object.entries(reminders.TASKS).map(
+  const lines = Object.entries(reminders.activeTasks()).map(
     ([key, t]) =>
       `${t.emoji} **${t.label}:** ${r[key] ? `⏰ ${r[key]}` : 'off'}`,
   );
@@ -41,7 +41,7 @@ function panel(guildId, userId, note = '') {
         footer: 'Pick a time below, or “Off”',
       }),
     ],
-    components: Object.entries(reminders.TASKS)
+    components: Object.entries(reminders.activeTasks())
       .map(([key, t]) =>
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()

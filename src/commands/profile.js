@@ -63,13 +63,18 @@ function overviewEmbed(guildId, targetUser, member) {
         value: `Solved **${s.puzzle.solved}** / ${s.puzzle.total}\n🔥 Streak **${s.puzzle.streak}** (best ${s.puzzle.best})`,
         inline: true,
       },
-      {
-        name: '🟩 NestWord',
-        value:
-          `Solved **${s.nestword.solved}** / ${s.nestword.played} played (${s.nestword.winRate}%)\n` +
-          `Avg. tries: **${s.nestword.avgTries}**\n🔥 Streak **${s.nestword.streak}** (best ${s.nestword.best})`,
-        inline: true,
-      },
+      // NestWord only when it's switched on, or someone has played it
+      ...(require('../services/features').on('nestword') || s.nestword.played
+        ? [
+            {
+              name: '🟩 NestWord',
+              value:
+                `Solved **${s.nestword.solved}** / ${s.nestword.played} played (${s.nestword.winRate}%)\n` +
+                `Avg. tries: **${s.nestword.avgTries}**\n🔥 Streak **${s.nestword.streak}** (best ${s.nestword.best})`,
+              inline: true,
+            },
+          ]
+        : []),
       {
         name: '⚔️ Tournaments & Duels',
         value:
@@ -237,13 +242,18 @@ function gamesEmbed(guildId, user, member) {
         value: `Solved **${s.puzzle.solved}** / ${s.puzzle.total}\n🔥 Streak **${s.puzzle.streak}** (best ${s.puzzle.best})`,
         inline: true,
       },
-      {
-        name: '🟩 NestWord',
-        value:
-          `Solved **${s.nestword.solved}** / ${s.nestword.played} (${s.nestword.winRate}%)\n` +
-          `⌀ **${s.nestword.avgTries}** tries\n🔥 Streak **${s.nestword.streak}** (best ${s.nestword.best})`,
-        inline: true,
-      },
+      // NestWord only when it's switched on, or someone has played it
+      ...(require('../services/features').on('nestword') || s.nestword.played
+        ? [
+            {
+              name: '🟩 NestWord',
+              value:
+                `Solved **${s.nestword.solved}** / ${s.nestword.played} (${s.nestword.winRate}%)\n` +
+                `⌀ **${s.nestword.avgTries}** tries\n🔥 Streak **${s.nestword.streak}** (best ${s.nestword.best})`,
+              inline: true,
+            },
+          ]
+        : []),
     ],
     footer: 'Rankings: /leaderboard · rewards: /help',
   });

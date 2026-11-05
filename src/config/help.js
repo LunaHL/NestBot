@@ -45,7 +45,7 @@ const CATEGORIES = [
     emoji: '🎮',
     name: 'Daily games',
     intro:
-      'Daily challenges that reset at midnight: NestWord, the Puzzle of the Day and the Wordle app. Play every day to build a streak.',
+      'Daily challenges that reset at midnight: the Puzzle of the Day and the Wordle app (and NestWord, if switched on). Play every day to build a streak.',
     commands: ['nestword', 'puzzle', 'remind'],
     features: [
       {
@@ -211,6 +211,10 @@ const CATEGORIES = [
   },
   {
     id: 'holidays',
+    visible: () => {
+      const seasons = require('../services/seasons');
+      return seasons.isEnabled() || !!seasons.getTest();
+    },
     emoji: '🎄',
     name: 'Christmas & Easter',
     intro:
@@ -313,7 +317,7 @@ const COMMANDS = {
   },
   remind: {
     explain:
-      'Never miss a day: pick a time for the 🧩 puzzle, 🟩 NestWord and 💰 daily coins. If it’s not done by then, NestBot sends you a DM. If it’s done, nothing comes. Times are server time; “Off” stops it.',
+      'Never miss a day: pick a time for the 🧩 puzzle and 💰 daily coins (and 🟩 NestWord when it’s on). If it’s not done by then, NestBot sends you a DM. If it’s done, nothing comes. Times are server time; “Off” stops it.',
   },
   puzzle: {
     explain:
@@ -416,7 +420,7 @@ const COMMANDS = {
   },
   settings: {
     explain:
-      'Server settings. `birthdays`: channel, time (default 9:00), coins, a role for the day, reminder. `holidays`: on/off (off by default), the channel for Secret Santa / tree / New Year / Easter results, egg hunt and bunny outfit on/off, and a **test mode** to try Christmas or Easter now. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures, 💡 ideas). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
+      'Server settings. `features`: switch whole features on/off (🟩 NestWord is off by default; off = invisible, data kept). `birthdays`: channel, time (default 9:00), coins, a role for the day, reminder. `holidays`: on/off (off by default), the channel for Secret Santa / tree / New Year / Easter results, egg hunt and bunny outfit on/off, and a **test mode** to try Christmas or Easter now. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures, 💡 ideas). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
     admin: ['*'],
   },
 

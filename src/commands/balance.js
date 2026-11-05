@@ -69,7 +69,7 @@ module.exports = {
             thumbnail: user.displayAvatarURL(),
             footer: nestcoins.isFreeMode(guildId)
               ? '🎉 Free mode: everything you can buy is free right now'
-              : 'Earn: /daily · /puzzle · /nestword · Wordle app · Spend: /shop · /drinks',
+              : 'Earn: /daily · /puzzle · Wordle app · Spend: /shop · /drinks',
           }),
         ],
         flags: 64,

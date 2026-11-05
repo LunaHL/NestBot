@@ -209,6 +209,9 @@ function initDailyPicker() {
 
 // -------------- Slash Commands --------------
 module.exports = {
+  // Only shown in Discord when switched on (/settings features nestword:)
+  season: () => require('../services/features').on('nestword'),
+
   initDailyPicker,
   pruneUsedWords,
 

@@ -181,6 +181,20 @@ module.exports = {
     )
     .addSubcommand(sub =>
       sub
+        .setName('features')
+        .setDescription(
+          'Switch whole features on or off (off = invisible, data kept). Empty = show',
+        )
+        .addBooleanOption(o =>
+          o
+            .setName('nestword')
+            .setDescription(
+              '🟩 NestWord (the Wordle app does the same; default off)',
+            ),
+        ),
+    )
+    .addSubcommand(sub =>
+      sub
         .setName('birthdays')
         .setDescription(
           '🎂 Birthday channel, time, coins, role, reminder. Empty = show',
@@ -682,6 +696,43 @@ module.exports = {
           flags: 64,
         });
       }
+    }
+
+    if (sub === 'features') {
+      const features = require('../services/features');
+      let changed = false;
+      for (const name of Object.keys(features.FEATURES)) {
+        const v = interaction.options.getBoolean(name);
+        if (v !== null) {
+          features.set(name, v);
+          changed = true;
+        }
+      }
+      if (changed) {
+        await interaction.deferReply({ flags: 64 });
+        await require('../deploy-commands').deployCommands(); // show / hide the commands
+        await require('../services/hub')
+          .postMenu(interaction.guild)
+          .catch(() => {});
+      }
+      const embed = new EmbedBuilder()
+        .setTitle('🧩 Features')
+        .setColor(0x5865f2)
+        .setDescription(
+          Object.entries(features.FEATURES)
+            .map(
+              ([name, f]) =>
+                `${f.emoji} **${f.label}:** ${features.on(name) ? '✅ on' : '🔒 off (invisible, data kept)'}`,
+            )
+            .join('\n') +
+            (changed
+              ? '\n\nDiscord’s command list updates in a moment (Ctrl+R helps).'
+              : ''),
+        )
+        .setFooter({ text: 'Change with /settings features nestword:' });
+      return changed
+        ? interaction.editReply({ embeds: [embed] })
+        : interaction.reply({ embeds: [embed], flags: 64 });
     }
 
     if (sub === 'birthdays') {

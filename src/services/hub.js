@@ -31,7 +31,11 @@ const BUTTONS = [
 ];
 
 function menuMessage() {
-  const buttons = BUTTONS.map(([id, label, emoji], i) =>
+  // Switched-off features (e.g. NestWord) have no button
+  const shown = BUTTONS.filter(
+    ([id]) => id !== 'nestword' || require('./features').on('nestword'),
+  );
+  const buttons = shown.map(([id, label, emoji], i) =>
     new ButtonBuilder()
       .setCustomId(`hub:${id}`)
       .setLabel(label)

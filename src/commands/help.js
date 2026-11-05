@@ -19,6 +19,7 @@ function allCommands(client) {
   for (const cmd of client.commands?.values() || []) {
     const json = cmd.data.toJSON();
     if (json.type && json.type !== 1) continue; // right-click entries aren't slash commands
+    if (cmd.season && !cmd.season()) continue; // switched off or out of season
     map.set(json.name, json);
   }
   return map;
@@ -47,7 +48,7 @@ function usage(name, sub, options = []) {
 function categoriesWithOther(commands) {
   const listed = new Set(CATEGORIES.flatMap(c => c.commands));
   const unlisted = [...commands.keys()].filter(n => !listed.has(n));
-  const cats = CATEGORIES.map(c => ({
+  const cats = CATEGORIES.filter(c => !c.visible || c.visible()).map(c => ({
     ...c,
     commands: c.commands.filter(n => commands.has(n)),
   }));

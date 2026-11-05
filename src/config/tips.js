@@ -5,7 +5,7 @@ module.exports = {
   daily: [
     'Forget your daily coins sometimes? `/remind` DMs you if you haven’t claimed them.',
     'Spend your coins in `/shop`: rename a friend 🏷️ or buy them a blindfold 🙈.',
-    'More coins every day: `/puzzle`, `/nestword` and the Wordle app all pay.',
+    'More coins every day: `/puzzle` and the Wordle app both pay.',
     'See where you rank: `/leaderboard`.',
   ],
   balance: [

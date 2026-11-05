@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.22 | 🧩 `/settings features`: NestWord switched off (the Wordle app does the same; data kept) |
 | V 1.21 | ⏰ `/remind`: DMs for unfinished daily games |
 | V 1.20 | 🎂 New birthdays (type dates freely, cards with 🎉 wishes, role, reminder), 💡 `/suggest` ideas with votes, 🔌 holidays off by default |
 | V 1.19 | 🎄 Christmas and 🐣 Easter (built, **off until an admin switches them on**: `/settings holidays enabled:`) |
@@ -213,6 +214,16 @@ A cute Easter outfit you can wear yourself or put on a friend.
   (alcohol-free), 🍋 Lemon egg liqueur cocktail.
 
 ---
+
+## 💡 A second daily game (instead of NestWord)
+
+NestWord is switched off: it was the same as the Wordle app everyone already
+plays. Ideas for something only this server has, played with buttons:
+- 🗣️ **Who said it?** Every day NestBot shows a funny line from the server
+  chat of the last weeks; guess who wrote it (4 names as buttons). Coins and a
+  streak for right guesses
+- 🎬 **Emoji riddle:** “🧙‍♂️💍🌋” → which movie or series? Titles from your
+  watchlists and TMDB; ties in with movie nights
 
 ## 🔮 Holiday ideas for later (not built, nothing visible)
 
