@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.21 | ⏰ `/remind`: DMs for unfinished daily games |
 | V 1.20 | 🎂 New birthdays (type dates freely, cards with 🎉 wishes, role, reminder), 💡 `/suggest` ideas with votes, 🔌 holidays off by default |
 | V 1.19 | 🎄 Christmas and 🐣 Easter (built, **off until an admin switches them on**: `/settings holidays enabled:`) |
 | V 1.15 | 🛠️ `/admin`, 🖱️ right-click menu, 🔑 puzzle button, 📝 memories by chat, seasonal commands, 🙋/🎲 quick buttons |
@@ -286,7 +287,6 @@ Bunny hunt, wrapping presents, cookie baking, egg roulette, the shared snowman.
 - `/balance history`: the last 20 coin changes (what for)
 - 🎒 Inventory in `/profile`: items you own and haven't used yet (vouchers)
 - Shop: limited items (only 3 in stock), sales (−20% this weekend)
-- `/daily` DM reminder when you can claim again (opt-in)
 
 **Drinks**
 - "🍻 Round on me" button under a drink: buy the same for everyone in voice

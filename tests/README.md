@@ -13,7 +13,7 @@ import. These are mistakes that otherwise only show up as "Error executing
 this command" in Discord.
 
 ```
-✅ All 117 subcommands, events and background jobs ran without errors.
+✅ All 118 subcommands, events and background jobs ran without errors.
 ```
 
 It uses its own temporary data folder (`NESTBOT_DATA_DIR`) and never talks to
@@ -40,5 +40,7 @@ test via `run.js`.
 - `birthdays.test.js`: typed dates, the list, the daily card, 🎉 wishes,
   coins, the birthday role and the reminder
 - `suggestions.test.js`: ideas, 👍/👎 votes, admin status, DM to the author
+
+- `reminders.test.js`: DMs only for unfinished puzzle / NestWord / daily coins, once a day
 
 New features should get a `*.test.js` here too.

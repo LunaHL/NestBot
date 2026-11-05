@@ -46,7 +46,7 @@ const CATEGORIES = [
     name: 'Daily games',
     intro:
       'Daily challenges that reset at midnight: NestWord, the Puzzle of the Day and the Wordle app. Play every day to build a streak.',
-    commands: ['nestword', 'puzzle'],
+    commands: ['nestword', 'puzzle', 'remind'],
     features: [
       {
         name: '🔥 Streaks',
@@ -310,6 +310,10 @@ const COMMANDS = {
     explain:
       'A Wordle-style word game. Every day there is a new word with 3–7 letters. 🟩 = right letter, right spot; 🟨 = right letter, wrong spot. Fewer letters means more attempts.',
     tips: 'Ask @NestBot for a hint if you’re stuck.',
+  },
+  remind: {
+    explain:
+      'Never miss a day: pick a time for the 🧩 puzzle, 🟩 NestWord and 💰 daily coins. If it’s not done by then, NestBot sends you a DM. If it’s done, nothing comes. Times are server time; “Off” stops it.',
   },
   puzzle: {
     explain:

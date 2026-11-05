@@ -26,6 +26,7 @@ const BUTTONS = [
   ['watchlist', 'My watchlist', '📝', ['watchlist', 'show']],
   ['help', 'Everything else', '❓', ['help']],
   ['birthdays', 'Birthdays', '🎂', ['birthday', 'list']],
+  ['remind', 'Reminders', '⏰', ['remind']],
   ['suggest', 'Suggest an idea', '💡', null],
 ];
 

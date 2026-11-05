@@ -1,5 +1,10 @@
 # NestBot Changelog
 
+## V 1.21 (November 2026)
+
+**New**
+- ⏰ `/remind`: pick a time for the 🧩 puzzle, 🟩 NestWord and 💰 daily coins. If it's not done by then, NestBot sends a DM; if it's done, nothing comes. Also in the hub menu
+
 ## V 1.20 (November 2026)
 
 **New**

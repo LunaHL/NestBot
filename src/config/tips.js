@@ -3,6 +3,7 @@
 // How often: /settings tips frequency:  (logic: services/guide.js)
 module.exports = {
   daily: [
+    'Forget your daily coins sometimes? `/remind` DMs you if you haven’t claimed them.',
     'Spend your coins in `/shop`: rename a friend 🏷️ or buy them a blindfold 🙈.',
     'More coins every day: `/puzzle`, `/nestword` and the Wordle app all pay.',
     'See where you rank: `/leaderboard`.',
@@ -26,11 +27,13 @@ module.exports = {
   ],
   'drinks round': ['Who bought the most rounds? `/leaderboard board:Drinks`.'],
   puzzle: [
+    'Never miss a puzzle: `/remind` sends a DM if you haven’t solved it by your time.',
     'Found the code? Press **🔑 Enter code** on the puzzle card.',
     'Your puzzle stats and streak: `/profile tab:Games`.',
     'Best solvers: `/leaderboard board:Puzzle`.',
   ],
   nestword: [
+    'Want a nudge? `/remind` DMs you if you haven’t played NestWord by your time.',
     'Stuck? Ask @NestBot for a hint.',
     'Your NestWord stats: `/profile tab:Games`.',
   ],

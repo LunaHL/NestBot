@@ -33,6 +33,7 @@ used. Members who already qualify get it the next time they do something.
 | `guide.js` | Helps people discover features: the feature guide NestBot's AI gets when someone asks how something works, the tips after commands (texts in `config/tips.js`), the weekly “Did you know?” items. All built from `config/help.js` |
 | `hub.js` | The hub channel: the pinned menu (buttons run the normal commands, answered privately) and the weekly “Did you know?” post (Mondays 18:00) |
 | `birthdays.js` | Birthdays: understanding typed dates, upcoming list, the daily card at the set hour with 🎉 wishes (+5 coins each), coins, birthday role, the reminder the day before |
+| `reminders.js` | ⏰ The reminders people sign up for: checks every 5 minutes, DMs only for what's still open (puzzle, NestWord, daily coins), once a day |
 | `suggestions.js` | 💡 Ideas for NestBot: saving, 👍/👎 votes, status, the card and its thread |
 | `seasons.js` | The holiday master switch (off by default), which holiday is on (Christmas, advent, New Year, Easter computed per year), the test mode, lifetime holiday stats, 🎟️/🎡 vouchers, the holiday channel |
 | `christmas.js` | Advent calendar, snowballs, the server tree, Secret Santa, New Year (job every 5 min) |

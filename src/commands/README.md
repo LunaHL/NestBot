@@ -115,6 +115,7 @@ Chatting with `@NestBot` isn't a command; it's handled in
 |---|---|---|
 | `birthday.js` | `/birthday set` / `list` / `remove` | Save your birthday typed freely (“24.12.”, “Dec 24”, optional year for “turns 25”), upcoming birthdays (soonest first), remove yours |
 | | `/admin birthday add-for` / `remove-for` / `announce` 🔒 | Birthdays for others (also outside names), announce now |
+| `remind.js` | `/remind` | ⏰ Pick a time (or off) for 🧩 puzzle, 🟩 NestWord and 💰 daily coins: a DM at that time, only if it's not done yet. Also in the hub menu |
 | `suggest.js` | `/suggest idea:` | 💡 An idea for NestBot: posted as a card with 👍/👎 and a thread; admins set the status with ⚙️ (planned, in progress, done, declined), the author gets a DM. Without text: the most liked open ideas |
 
 📸 **Picture leaderboard** (no command): pictures in the picture channel are
