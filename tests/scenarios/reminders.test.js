@@ -28,7 +28,7 @@ const { localDate } = load('utils/time');
   // The panel and the menus
   let out = await run('remind', null, {}, 'a');
   assert.match(text(out), /Your reminders/);
-  assert.equal(out[0].components.length, 3);
+  assert.equal(out[0].components.length, 4, '3 menus + test button');
   for (const user of ['a', 'b'])
     for (const task of ['puzzle', 'nestword', 'daily'])
       await click(`remind:set:${task}`, user, ['20:00']);
@@ -56,9 +56,27 @@ const { localDate } = load('utils/time');
     'b did everything: no DM',
   );
 
+  // The panel shows what happened
+  assert.equal(reminders.get('g', 'a').last.result, 'sent');
+  assert.equal(reminders.get('g', 'b').last.result, 'done');
+  out = await run('remind', null, {}, 'a');
+  assert.match(text(out), /Last time:.*reminder sent/);
+
+  // 📨 Test DM: works for a; for someone with closed DMs it explains why
+  out = await click('remind:test', 'a');
+  assert.match(text(out), /Sent! Check your DMs/);
+  F.MEMBERS.e.send = async () => {
+    const err = new Error('Cannot send messages to this user');
+    err.code = 50007;
+    throw err;
+  };
+  out = await click('remind:test', 'e');
+  assert.match(text(out), /Direct messages from server members/);
+
   // Only once a day
+  const sentToA = dms.filter(m => m.to === 'a').length;
   await reminders.tick(client);
-  assert.equal(dms.filter(m => m.to === 'a').length, 1);
+  assert.equal(dms.filter(m => m.to === 'a').length, sentToA);
 
   // A time that's already over starts tomorrow (no instant DM)
   db.perform(d => delete d.reminders.g.c);

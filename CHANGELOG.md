@@ -1,5 +1,11 @@
 # NestBot Changelog
 
+## V 1.21.1 (November 2026)
+
+**Fixed / better**
+- ⏰ `/remind` has a **📨 Send me a test DM** button: it says right away whether DMs reach you, and how to turn them on if not
+- The `/remind` panel shows what happened last time (sent ✅, nothing to remind, or why the DM didn't arrive); the bot log writes a line for every reminder
+
 ## V 1.21 (November 2026)
 
 **New**

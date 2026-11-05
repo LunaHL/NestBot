@@ -105,14 +105,54 @@ async function tick(client) {
         for (const t of due) x.sent[t] = today;
       });
       const open = due.filter(t => TASKS[t].open(guildId, userId));
-      if (!open.length) continue;
-      const user = await client.users.fetch(userId).catch(() => null);
-      await user
-        ?.send(
-          `⏰ **Reminder from ${guild.name}**\n${open.map(t => TASKS[t].text()).join('\n\n')}\n\n*Change or stop reminders with \`/remind\`.*`,
-        )
-        .catch(() => {});
+      if (!open.length) {
+        remember(guildId, userId, {
+          at: hhmm,
+          date: today,
+          result: 'done',
+          tasks: due,
+        });
+        continue;
+      }
+      const sent = await sendDM(
+        client,
+        userId,
+        `⏰ **Reminder from ${guild.name}**\n${open.map(t => TASKS[t].text()).join('\n\n')}\n\n*Change or stop reminders with \`/remind\`.*`,
+      );
+      remember(guildId, userId, {
+        at: hhmm,
+        date: today,
+        result: sent.ok ? 'sent' : 'failed',
+        error: sent.error || null,
+        tasks: open,
+      });
+      console.log(
+        `[Reminders] ${sent.ok ? 'Sent' : 'Could not send'} reminder (${open.join(', ')}) to ${userId}${sent.error ? `: ${sent.error}` : ''}`,
+      );
     }
+  }
+}
+
+/** Remember what happened last time (shown in /remind). */
+function remember(guildId, userId, last) {
+  db.perform(d => {
+    const r = d.reminders?.[guildId]?.[userId];
+    if (r) r.last = last;
+  });
+}
+
+/**
+ * Send a DM. Returns { ok } or { ok: false, error } ('dms-closed' = Discord
+ * error 50007: the person doesn't accept DMs from the bot).
+ */
+async function sendDM(client, userId, content) {
+  const user = await client.users.fetch(userId).catch(() => null);
+  if (!user) return { ok: false, error: 'user not found' };
+  try {
+    await user.send(content);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.code === 50007 ? 'dms-closed' : e.message };
   }
 }
 
@@ -120,4 +160,4 @@ function startReminders(client) {
   require('../utils/schedule').runEvery('Reminders', 5, () => tick(client));
 }
 
-module.exports = { TASKS, TIMES, get, set, tick, startReminders };
+module.exports = { TASKS, TIMES, get, set, tick, sendDM, startReminders };
