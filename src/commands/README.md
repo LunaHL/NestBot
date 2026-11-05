@@ -240,6 +240,7 @@ Useful building blocks:
 | `easter.js` | `/easter basket` / `paint` / `gift` | Your eggs, today's painted egg (collect 10 patterns), give a painted egg away |
 | (chat) | Egg hunt | At Easter an egg sometimes hides under a chat message (🥚 5 · 🌈 15 · 🥇 50 coins · 💣 prank · 🐰 bunny egg); first click wins, gone after 2 min |
 | (shop) | 🐰 Bunny Girl outfit / 🥕 take it off | Pink role, 🐰 name, *hops* and carrot drinks for 24 h; 3 bunnies at once = bunny party |
-| `settings.js` | `/settings holidays` 🔒 | **On/off (off by default: nothing shows up)**, holiday channel, egg hunt and bunny on/off, **test mode** (Christmas / Easter / New Year now). `/settings tools` can draw/open Secret Santa, post New Year and the Easter results now |
+| `settings.js` | `/settings birthdays` 🔒 | Birthday channel, from what hour (default 9:00), coins (200), a role for the day, the reminder the day before |
+| | `/settings holidays` 🔒 | **On/off (off by default: nothing shows up)**, holiday channel, egg hunt and bunny on/off, **test mode** (Christmas / Easter / New Year now). `/settings tools` can draw/open Secret Santa, post New Year and the Easter results now |
 
 New Year: Dec 31 23:50 a countdown, at midnight a 🥂 button (25 coins each). Holiday drinks are in `config/drinksMenu.js` (`season:`); their pictures need `npm run drink-art`.
