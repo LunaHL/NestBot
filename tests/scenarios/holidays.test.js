@@ -39,7 +39,7 @@ const withRandom = async (value, fn) => {
 
 (async () => {
   // These are off by default (src/config/features.js)
-  for (const key of ['christmas', 'easter', 'newyear', 'shop', 'achievements'])
+  for (const key of ['christmas', 'easter', 'newyear', 'shop', 'achievements', 'drinkgift'])
     load('services/features').set(key, true);
 
   // ---------- Dates ----------
