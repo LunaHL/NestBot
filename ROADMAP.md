@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.23 | 🔌 Feature switches: defaults in `src/config/features.js`, override with `/settings features`; most features switched off (data kept) |
 | V 1.22 | 🧩 `/settings features`: NestWord switched off (the Wordle app does the same; data kept) |
 | V 1.21 | ⏰ `/remind`: DMs for unfinished daily games |
 | V 1.20 | 🎂 New birthdays (type dates freely, cards with 🎉 wishes, role, reminder), 💡 `/suggest` ideas with votes, 🔌 holidays off by default |
@@ -31,6 +32,8 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 ---
 
 ## 📋 Next
+
+> ⏸️ **Parked since V 1.23:** most features are switched off (see `src/config/features.js`). Ideas that build on them (blindfold step 2, protection shield, holiday ideas, movie night simplifications…) are kept here but not planned until their feature is switched on again.
 
 ### 🙈 Blindfold, step 2
 

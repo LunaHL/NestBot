@@ -341,8 +341,11 @@ async function checkGroupSeries(client) {
 }
 
 function startSeriesAlerts(client) {
-  require('../utils/schedule').runEvery('Series alerts', 6 * 60, () =>
-    checkGroupSeries(client),
+  // Only while groups are switched on (/settings features)
+  require('../utils/schedule').runEvery(
+    'Series alerts',
+    6 * 60,
+    require('./features').only('group', () => checkGroupSeries(client)),
   );
 }
 

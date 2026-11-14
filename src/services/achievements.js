@@ -596,6 +596,9 @@ function getUnlocked(guildId, userId) {
  * rewards, and return the newly unlocked achievements.
  */
 function checkAchievements(guildId, userId) {
+  // Switched off (/settings features): nothing unlocks, no coins. Switched
+  // back on, everything earned meanwhile unlocks on the next check.
+  if (!require('./features').on('achievements')) return [];
   const have = getUnlocked(guildId, userId);
   const stats = getUserStats(guildId, userId);
   const fresh = ACHIEVEMENTS.filter(a => !have[a.id] && a.check(stats));
@@ -617,6 +620,7 @@ function checkAchievements(guildId, userId) {
  * or as a message in a channel. Never throws, so it can't break the caller.
  */
 async function announce(target, userIds) {
+  if (!require('./features').on('achievements')) return; // switched off
   try {
     // target: a slash command interaction (answers with followUp) or a
     // channel (posts a normal message), e.g. for the Wordle app results

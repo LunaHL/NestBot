@@ -754,6 +754,8 @@ const visibilityChoices = o =>
   );
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'watchlist',
   handleComponent,
   SERVICES,
 

@@ -19,6 +19,10 @@ function localDate(offsetDays = 0) {
 
 /** True on October 31 in the server's time zone. FORCE_HALLOWEEN=true in .env to test. */
 function isHalloween() {
+  // Halloween switched off (/settings features): never Halloween, not even
+  // with FORCE_HALLOWEEN. Required here, not at the top, so the files can't
+  // end up requiring each other in a loop.
+  if (!require('../services/features').on('halloween')) return false;
   if (String(process.env.FORCE_HALLOWEEN).toLowerCase() === 'true') return true;
   const d = nowInTZ();
   return d.getMonth() === 9 && d.getDate() === 31;

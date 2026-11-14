@@ -8,6 +8,7 @@ const suggestions = load('services/suggestions');
 const { setSetting } = load('services/settings');
 
 (async () => {
+  load('services/features').set('suggest', true); // off by default
   // No ideas channel yet: /suggest says so
   let out = await run('suggest', null, { idea: 'A cat cafe mode' }, 'a');
   assert.match(text(out), /no ideas channel yet/);

@@ -22,6 +22,15 @@ const achievements = require('../services/achievements');
 const watchlist = require('../services/watchlist');
 const tmdb = require('../services/tmdb');
 
+// Switched-off features (/settings features) are left out of the profile
+const features = () => require('../services/features');
+const on = name => features().on(name);
+/** Fields with a `feature` spec only while it's on (the key is removed). */
+const visibleFields = fields =>
+  fields
+    .filter(f => features().check(f.feature))
+    .map(({ feature, ...f }) => f);
+
 function getBirthday(guildId, userId) {
   const birthdays = require('../services/birthdays');
   const e = birthdays.forUser(guildId, userId);
@@ -75,13 +84,21 @@ function overviewEmbed(guildId, targetUser, member) {
             },
           ]
         : []),
-      {
-        name: '⚔️ Tournaments & Duels',
-        value:
-          `Tournaments: joined **${s.events.joined}**, won **${s.events.won}**\n` +
-          `Duels: **${s.duels.wins}**W / ${s.duels.losses}L`,
-        inline: true,
-      },
+      ...(on('event') || on('duel')
+        ? [
+            {
+              name: `⚔️ ${[on('event') && 'Tournaments', on('duel') && 'Duels'].filter(Boolean).join(' & ')}`,
+              value: [
+                on('event') &&
+                  `Tournaments: joined **${s.events.joined}**, won **${s.events.won}**`,
+                on('duel') && `Duels: **${s.duels.wins}**W / ${s.duels.losses}L`,
+              ]
+                .filter(Boolean)
+                .join('\n'),
+              inline: true,
+            },
+          ]
+        : []),
       {
         name: '🍹 Drinks',
         value: s.drinks.total
@@ -97,30 +114,36 @@ function overviewEmbed(guildId, targetUser, member) {
           : 'Not played yet',
         inline: true,
       },
-      {
-        name: '🍿 Movie nights',
-        value:
-          s.movies.attended || s.movies.watchedMovies
-            ? `Watched **${s.movies.attended}** · 🎞️ ${s.movies.watchedMovies} movies\nMore: 🎬 Movies tab`
-            : 'None yet',
-        inline: true,
-      },
-      {
-        name: '📸 Pictures this week',
-        value: `**${s.pictures}**`,
-        inline: true,
-      },
-      {
-        name: `🏅 Achievements (${badges.length}/${total})`,
-        value: badges.length
-          ? badges.map(a => a.emoji).join(' ') + '\nMore: 🏅 Achievements tab'
-          : 'None yet. See the 🏅 Achievements tab',
-      },
+      ...visibleFields([
+        {
+          feature: 'watch',
+          name: '🍿 Movie nights',
+          value:
+            s.movies.attended || s.movies.watchedMovies
+              ? `Watched **${s.movies.attended}** · 🎞️ ${s.movies.watchedMovies} movies\nMore: 🎬 Movies tab`
+              : 'None yet',
+          inline: true,
+        },
+        {
+          feature: 'pictures',
+          name: '📸 Pictures this week',
+          value: `**${s.pictures}**`,
+          inline: true,
+        },
+        {
+          feature: 'achievements',
+          name: `🏅 Achievements (${badges.length}/${total})`,
+          value: badges.length
+            ? badges.map(a => a.emoji).join(' ') + '\nMore: 🏅 Achievements tab'
+            : 'None yet. See the 🏅 Achievements tab',
+        },
+      ]),
     )
     .setTimestamp();
 
   const nick = nickname.getActive(guildId, userId);
   const nickStats = nickname.getStats(guildId, userId);
+  // A running nickname or gag is always shown (it's still there)
   if (nick) {
     embed.addFields({
       name: '🏷️ Paid nickname',
@@ -128,7 +151,7 @@ function overviewEmbed(guildId, targetUser, member) {
       inline: true,
     });
   }
-  if (nickStats.given || nickStats.received) {
+  if (on('nicknames') && (nickStats.given || nickStats.received)) {
     embed.addFields({
       name: '🏷️ Nicknames',
       value: `Renamed others **${nickStats.given}**×\nGot renamed **${nickStats.received}**×`,
@@ -349,18 +372,21 @@ function funEmbed(guildId, user, member) {
     title: `⚔️ Duels & fun: ${nameOf(user, member)}`,
     color: 0xe74c3c,
     thumbnail: user.displayAvatarURL(),
-    fields: [
+    fields: visibleFields([
       {
+        feature: 'duel',
         name: '🤺 Duels',
         value: `**${d.wins}**W / ${d.losses}L / ${d.ties || 0} draws${played ? ` (${Math.round((d.wins / played) * 100)}%)` : ''}\n💰 Coins won: **${d.coinsWon || 0}**`,
         inline: true,
       },
       {
+        feature: 'event',
         name: '🏆 Tournaments',
         value: `Joined **${s.events.joined}** · won **${s.events.won}**`,
         inline: true,
       },
       {
+        feature: 'gag',
         name: '🔇 Gags',
         value:
           `Gagged others **${s.gags.given}**× · got gagged **${s.gags.received}**×` +
@@ -370,6 +396,7 @@ function funEmbed(guildId, user, member) {
         inline: true,
       },
       {
+        feature: () => on('nicknames') || !!nick,
         name: '🏷️ Nicknames',
         value:
           `Renamed others **${nickStats.given}**× · got renamed **${nickStats.received}**×` +
@@ -379,6 +406,7 @@ function funEmbed(guildId, user, member) {
         inline: true,
       },
       {
+        feature: () => on('blindfold') || !!blindNow,
         name: '🙈 Blindfolds',
         value:
           `Blindfolded others **${blind.given}**× · got blindfolded **${blind.received}**×` +
@@ -388,6 +416,7 @@ function funEmbed(guildId, user, member) {
         inline: true,
       },
       {
+        feature: () => on('christmas') || on('easter'),
         name: '🎄 Christmas & 🐣 Easter',
         value:
           `🗓️ ${s.seasons.adventOpened} doors · ❄️ ${s.seasons.snowHits} hits · 🔔 ${s.seasons.ornaments} ornaments` +
@@ -408,11 +437,12 @@ function funEmbed(guildId, user, member) {
           : [];
       })(),
       {
+        feature: 'halloween',
         name: '🎃 Halloween',
         value: `🍬 ${s.halloween.treats} treats · 👻 ${s.halloween.tricks} tricks`,
         inline: true,
       },
-    ],
+    ]),
   });
 }
 
@@ -456,18 +486,58 @@ const TABS = {
   },
   games: { label: 'Games', emoji: '🎮', build: gamesEmbed },
   drinks: { label: 'Drinks', emoji: '🍹', build: drinksEmbed },
-  fun: { label: 'Duels & fun', emoji: '⚔️', build: funEmbed },
+  fun: {
+    label: 'Duels & fun',
+    emoji: '⚔️',
+    build: funEmbed,
+    feature: () =>
+      ['duel', 'event', 'gag', 'nicknames', 'halloween'].some(on),
+  },
   movies: {
     label: 'Movies',
     emoji: '🎬',
     build: (g, u, m, viewer, locale) => moviesEmbed(g, u, m, viewer, locale),
+    feature: () => on('watch') || on('watchlist'),
   },
   achievements: {
     label: 'Achievements',
     emoji: '🏅',
     build: achievementsEmbed,
+    feature: 'achievements',
   },
 };
+
+/** The tabs that are on right now (/settings features). */
+const visibleTabs = () =>
+  Object.entries(TABS).filter(([, t]) => features().check(t.feature));
+/** This tab if it's there and on, otherwise the overview. */
+const tabOrOverview = tab =>
+  tab && Object.hasOwn(TABS, tab) && features().check(TABS[tab].feature)
+    ? tab
+    : 'overview';
+
+/** /profile, with only the tabs that are on (rebuilt on every deploy). */
+function buildData() {
+  return new SlashCommandBuilder()
+    .setName('profile')
+    .setDescription(
+      'Profile and all stats: games, drinks, duels, movies, achievements',
+    )
+    .addUserOption(opt =>
+      opt.setName('user').setDescription('Whose profile (default: you)'),
+    )
+    .addStringOption(opt =>
+      opt
+        .setName('tab')
+        .setDescription('Open a tab directly (default: overview)')
+        .addChoices(
+          ...visibleTabs().map(([value, t]) => ({
+            name: `${t.emoji} ${t.label}`,
+            value,
+          })),
+        ),
+    );
+}
 
 function tabMenu(userId, active) {
   return [
@@ -476,7 +546,7 @@ function tabMenu(userId, active) {
         .setCustomId(`profile:tab:${userId}`)
         .setPlaceholder('Switch tab…')
         .addOptions(
-          Object.entries(TABS).map(([value, t]) => ({
+          visibleTabs().map(([value, t]) => ({
             label: t.label,
             value,
             emoji: t.emoji,
@@ -490,11 +560,7 @@ function tabMenu(userId, active) {
 /** Tab menu (and the old tab buttons). The own Movies tab (with settings) is shown privately. */
 async function handleComponent(interaction) {
   const [, , userId, buttonTab] = interaction.customId.split(':');
-  const tab = TABS[interaction.values?.[0]]
-    ? interaction.values[0]
-    : TABS[buttonTab]
-      ? buttonTab
-      : 'overview';
+  const tab = tabOrOverview(interaction.values?.[0] || buttonTab);
   const guildId = interaction.guildId;
   const user = await interaction.client.users.fetch(userId).catch(() => null);
   if (!user) return interaction.reply(ui.fail('User not found.'));
@@ -521,29 +587,15 @@ async function handleComponent(interaction) {
 module.exports = {
   handleComponent,
   TABS,
-  data: new SlashCommandBuilder()
-    .setName('profile')
-    .setDescription(
-      'Profile and all stats: games, drinks, duels, movies, achievements',
-    )
-    .addUserOption(opt =>
-      opt.setName('user').setDescription('Whose profile (default: you)'),
-    )
-    .addStringOption(opt =>
-      opt
-        .setName('tab')
-        .setDescription('Open a tab directly (default: overview)')
-        .addChoices(
-          ...Object.entries(TABS).map(([value, t]) => ({
-            name: `${t.emoji} ${t.label}`,
-            value,
-          })),
-        ),
-    ),
+  // A getter: the tab choices follow /settings features on every deploy
+  get data() {
+    return buildData();
+  },
   async execute(interaction) {
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const member = interaction.options.getMember('user') || interaction.member;
-    const tab = interaction.options.getString('tab') || 'overview';
+    // A switched-off tab (old command list in Discord): the overview
+    const tab = tabOrOverview(interaction.options.getString('tab'));
     const own = targetUser.id === interaction.user.id;
     const embed = TABS[tab].build(
       interaction.guildId,

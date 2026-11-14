@@ -208,6 +208,10 @@ console.log = () => {}; // keep the output short
   // database first makes sure its exit handler runs before ours.
   require(path.join(ROOT, 'src/utils/db'));
   process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
+  // Switch every feature on, so everything is run (src/config/features.js
+  // may have some off)
+  const features = require(path.join(ROOT, 'src/services/features'));
+  for (const key of Object.keys(features.FEATURES)) features.set(key, true);
   const commands = loadCommands();
   client.commands = new Map(commands.map(c => [c.data.name, c]));
   let count = 0;

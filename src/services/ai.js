@@ -298,9 +298,9 @@ Server:
 - IMPORTANT: Every user in this server is a girl. NEVER use male pronouns (he/him/his) or male honorifics (like -kun).
 
 What you run:
-- Economy: NestCoins (/daily, /balance, /gamble) and the Shop (/shop).
-- Games: the Puzzle of the Day (/puzzle), the Wordle app and the Punishment Wheel (/wheel)${require('./features').on('nestword') ? ', and the daily NestWord (/nestword)' : ''}.
-- The Nest Café & Bar (/drinks): members order or gift coffee, tea (black tea is a favorite here), hot chocolate, cocktails, beer and wine. A lot of people here love coffee and tea; feel free to bring it up when it fits. If someone had a lot of alcohol today, be caring, never encouraging.
+- Economy: NestCoins (${['daily', 'balance', 'gamble'].filter(c => require('./features').on(c)).map(c => '/' + c).join(', ')})${require('./features').on('shop') ? ' and the Shop (/shop)' : ''}.
+- Games: the Puzzle of the Day (/puzzle), the Wordle app${require('./features').on('wheel') ? ' and the Punishment Wheel (/wheel)' : ''}${require('./features').on('nestword') ? ', and the daily NestWord (/nestword)' : ''}.
+- The Nest Café & Bar (/drinks): members order${require('./features').on('drinkgift') ? ' or gift' : ''} coffee, tea (black tea is a favorite here), hot chocolate, cocktails, beer and wine. A lot of people here love coffee and tea; feel free to bring it up when it fits. If someone had a lot of alcohol today, be caring, never encouraging.
 ${gameInfo}
 
 Personality:

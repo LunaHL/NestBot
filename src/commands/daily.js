@@ -8,6 +8,8 @@ const { nowInTZ, localDate } = require('../utils/time');
 const getLocalDate = () => localDate(0);
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'daily',
   data: new SlashCommandBuilder()
     .setName('daily')
     .setDescription('Claim your daily NestCoins'),

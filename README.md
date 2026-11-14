@@ -15,19 +15,27 @@ chat with by pinging `@NestBot`.
 
 | | |
 |---|---|
-| 💰 **Economy** | NestCoins, `/daily`, `/balance`, `/leaderboard` (all rankings), `/shop` (categories, effects, nicknames), `/gamble`, random loot drops in chat, free mode for admins (`/settings free`) |
-| 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters), `/puzzle` (puzzle of the day), coins for the Discord **Wordle app** (automatic), streak bonuses, daily results post |
-| 🍹 **Café & Bar** | `/drinks` to order or gift coffee, tea, hot chocolate, cocktails, beer and wine, with pictures, latte art, streaks and daily limits |
-| ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss), `/duel` rock-paper-scissors with bets |
-| 🏅 **Progress** | `/profile` with all stats in tabs (games, drinks, duels & fun, movies, achievements), 60 achievements with coin rewards |
-| 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, “@NestBot remember that …” |
-| 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag`, 🙈 blindfolds, paid temporary nicknames (in `/shop`) |
-| 🎂 **Social** | `/birthday` announcements with coins, weekly picture leaderboard |
-| 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device. `/watchlist`: personal watchlists with ratings and matches |
-| 🎄 **Christmas & Easter** | Dec 1–26: `/christmas` advent calendar, Secret Santa, snowballs, the server tree, holiday drinks, New Year post. Easter: egg hunt in the chat, 🐰 Bunny Girl outfit, `/easter` egg painting. Admins can test them any time (`/settings holidays test:`) |
-| 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops |
-| ❓ **Help** | `/help` explains everything in Discord, with categories and a command search; ask @NestBot; pinned hub menu; right-click a member → Apps |
+| 💰 **Economy** | NestCoins, `/daily` (off), `/balance`, `/leaderboard` (all rankings), `/shop` (categories, effects, nicknames; off), `/gamble` (off), random loot drops in chat (off), free mode for admins (`/settings free`) |
+| 🎮 **Daily games** | `/nestword` (Wordle-like, 3–7 letters; off), `/puzzle` (puzzle of the day), coins for the Discord **Wordle app** (automatic), streak bonuses, daily results post |
+| 🍹 **Café & Bar** | `/drinks` to order or gift (gifts off) coffee, tea, hot chocolate, cocktails, beer and wine, with pictures, latte art, streaks and daily limits |
+| ⚔️ **Competition** | `/event` tournaments (single elimination / Swiss; off), `/duel` rock-paper-scissors with bets (off) |
+| 🏅 **Progress** | `/profile` with all stats in tabs (games, drinks, duels & fun, movies, achievements), 60 achievements with coin rewards (off) |
+| 🤖 **AI** | Ping `@NestBot` to chat; `/ai roast/compliment/poem`, `/ai mood`, “@NestBot remember that …” (all off) |
+| 🔇 **Fun moderation** | `/wheel` punishment wheel, gags (garbled messages), `/ungag`, 🙈 blindfolds, paid temporary nicknames (in `/shop`) (all off) |
+| 🎂 **Social** | `/birthday` announcements with coins, weekly picture leaderboard (off), `/suggest` ideas (off), `/remind` DMs (off) |
+| 🍿 **Movie nights** | `/watch`: plan or start a movie/series/anime night, sign up in the #movies calendar, private room, check-in and a shared live clock so everyone watches in sync on their own device. `/watchlist`: personal watchlists with ratings and matches. `/group` watch groups (all off) |
+| 🎄 **Christmas & Easter** | Dec 1–26: `/christmas` advent calendar, Secret Santa, snowballs, the server tree, holiday drinks, New Year post. Easter: egg hunt in the chat, 🐰 Bunny Girl outfit, `/easter` egg painting. Admins can test them any time (`/settings holidays test:`) (off) |
+| 🎃 **Halloween** | Only on October 31: `/trickortreat`, spooky drinks, haunted loot drops (off) |
+| ❓ **Help** | `/help` explains everything in Discord, with categories and a command search; ask @NestBot; pinned hub menu (off); right-click a member → Apps (off); tips after commands (off) |
 | 🛠️ **Admin** | `/settings` and `/admin` (shop, wheel, puzzle, NestWord, coins, birthdays, tournaments), hidden from regular members |
+
+## Switching features on/off
+
+Most features are switched off right now (marked “(off)” above).
+- **Defaults:** `src/config/features.js`, one line per feature (`true` = on). Restart after a change.
+- **In Discord:** `/settings features` (admins). Pick in the two menus what is on; works right away and is saved in the database. **↩️ Back to file defaults** undoes it.
+
+Off means invisible everywhere (commands, `/help`, hub, reminders, tips, NestBot's knowledge, profile, leaderboards, background jobs). All data and channels are kept.
 
 ---
 
@@ -117,6 +125,7 @@ See [`tests/README.md`](tests/README.md).
 | Streak bonus for Puzzle and NestWord | Switch old/new with `/settings streak` in Discord; numbers in `src/utils/streak.js` |
 | Puzzle rewards, first-solver bonus, tries per day | `src/services/puzzle.js` (top of the file) |
 | Wordle app rewards | `src/services/wordle.js` (`REWARDS`, `CROWN_BONUS`) |
+| Switch whole features on/off | Defaults: `src/config/features.js`; override: `/settings features` in Discord |
 | Daily coins | `src/commands/daily.js` (`DAILY_AMOUNT`) |
 | Birthday coins | `src/commands/birthday.js` (`BIRTHDAY_COINS`) |
 | Picture tracker rewards | `src/services/pictracker.js` |

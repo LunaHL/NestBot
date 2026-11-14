@@ -5,6 +5,10 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
   ChannelType,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 const { isAdmin, denyNonAdmin } = require('../utils/permissions');
 const db = require('../utils/db');
@@ -35,7 +39,108 @@ function comparisonTable() {
   );
 }
 
+// /settings features: the two groups, one select menu each
+const FEATURE_GROUPS = {
+  a: 'Economy, games & social',
+  b: 'Movies, holidays & extras',
+};
+
+/** The /settings features message: the list plus the menus to change it. */
+function featuresView(changed = false) {
+  const features = require('../services/features');
+  const keysOf = group =>
+    Object.keys(features.FEATURES).filter(
+      k => features.FEATURES[k].group === group,
+    );
+  const sections = Object.entries(FEATURE_GROUPS).map(
+    ([group, title]) =>
+      `**${title}**\n` +
+      keysOf(group)
+        .map(k => {
+          const f = features.FEATURES[k];
+          return (
+            `${f.emoji} ${f.label}: ${features.on(k) ? '✅ on' : '🔒 off'}` +
+            (features.isOverridden(k) ? ' *(changed here)*' : '')
+          );
+        })
+        .join('\n'),
+  );
+  const embed = new EmbedBuilder()
+    .setTitle('🔌 Features')
+    .setColor(0x5865f2)
+    .setDescription(
+      sections.join('\n\n') +
+        (changed
+          ? '\n\nDiscord’s command list updates in a moment (Ctrl+R helps).'
+          : ''),
+    )
+    .setFooter({
+      text: 'Off = invisible everywhere, data kept. Defaults: src/config/features.js',
+    });
+  const menu = group => {
+    const keys = keysOf(group);
+    return new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`settings:features:${group}`)
+        .setPlaceholder(`${FEATURE_GROUPS[group]}: pick what is ON`)
+        .setMinValues(0)
+        .setMaxValues(keys.length)
+        .addOptions(
+          keys.map(k => ({
+            label: features.FEATURES[k].label,
+            value: k,
+            emoji: features.FEATURES[k].emoji,
+            default: features.on(k),
+          })),
+        ),
+    );
+  };
+  const reset = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('settings:features:reset')
+      .setLabel('↩️ Back to file defaults')
+      .setStyle(ButtonStyle.Secondary),
+  );
+  return { embeds: [embed], components: [menu('a'), menu('b'), reset] };
+}
+
+// What free mode changes, without switched-off features (/settings features)
+const featureOn = name => require('../services/features').on(name);
+const freeAffected = () =>
+  [
+    ['🍹 drinks and rounds'],
+    ['🛍️ shop items', 'shop'],
+    ['🏷️ nicknames', 'nicknames'],
+    ['🤖 AI roast / compliment / poem / mood', 'ai'],
+    ['🎡 targeted wheel spins', 'wheel'],
+  ]
+    .filter(([, f]) => !f || featureOn(f))
+    .map(([text]) => text);
+const freeUnaffected = () => {
+  const bets = [
+    ['🎲 gamble', 'gamble'],
+    ['🤺 duel', 'duel'],
+  ].filter(([, f]) => featureOn(f));
+  return [
+    ...(bets.length
+      ? [
+          `${bets.map(([t]) => t).join(' and ')} bets (free bets would create coins from nothing)`,
+        ]
+      : []),
+    '💸 transfers',
+  ];
+};
+
 module.exports = {
+  // Settings of switched-off features are hidden (/settings features)
+  subFeatures: {
+    nicknames: 'nicknames',
+    blindfold: 'blindfold',
+    watch: 'watch',
+    hub: 'hub',
+    holidays: () =>
+      featureOn('christmas') || featureOn('easter') || featureOn('newyear'),
+  },
   data: new SlashCommandBuilder()
     .setName('settings')
     .setDescription('Server settings (admins only)')
@@ -179,18 +284,12 @@ module.exports = {
             .setDescription('End this person’s paid nickname now'),
         ),
     )
+    // Never put `features` in subFeatures: it's the way back on
     .addSubcommand(sub =>
       sub
         .setName('features')
         .setDescription(
-          'Switch whole features on or off (off = invisible, data kept). Empty = show',
-        )
-        .addBooleanOption(o =>
-          o
-            .setName('nestword')
-            .setDescription(
-              '🟩 NestWord (the Wordle app does the same; default off)',
-            ),
+          'Switch whole features on or off (off = invisible, data kept)',
         ),
     )
     .addSubcommand(sub =>
@@ -492,8 +591,10 @@ module.exports = {
           (free
             ? 'Everything you can buy costs **0 coins**. Coins can still be earned as usual.'
             : 'Everything costs its normal price.') +
-            '\n\n**Affected:** 🍹 drinks and rounds, 🛍️ shop items, 🏷️ nicknames, 🤖 AI roast / compliment / poem / mood, 🎡 targeted wheel spins' +
-            '\n**Not affected:** 🎲 gamble and 🤺 duel bets (free bets would create coins from nothing), 💸 transfers' +
+            '\n\n**Affected:** ' +
+            freeAffected().join(', ') +
+            '\n**Not affected:** ' +
+            freeUnaffected().join(', ') +
             (chosen === null
               ? ''
               : '\n\nMenus and prices in Discord show the change right away.'),
@@ -698,42 +799,8 @@ module.exports = {
       }
     }
 
-    if (sub === 'features') {
-      const features = require('../services/features');
-      let changed = false;
-      for (const name of Object.keys(features.FEATURES)) {
-        const v = interaction.options.getBoolean(name);
-        if (v !== null) {
-          features.set(name, v);
-          changed = true;
-        }
-      }
-      if (changed) {
-        await interaction.deferReply({ flags: 64 });
-        await require('../deploy-commands').deployCommands(); // show / hide the commands
-        await require('../services/hub')
-          .postMenu(interaction.guild)
-          .catch(() => {});
-      }
-      const embed = new EmbedBuilder()
-        .setTitle('🧩 Features')
-        .setColor(0x5865f2)
-        .setDescription(
-          Object.entries(features.FEATURES)
-            .map(
-              ([name, f]) =>
-                `${f.emoji} **${f.label}:** ${features.on(name) ? '✅ on' : '🔒 off (invisible, data kept)'}`,
-            )
-            .join('\n') +
-            (changed
-              ? '\n\nDiscord’s command list updates in a moment (Ctrl+R helps).'
-              : ''),
-        )
-        .setFooter({ text: 'Change with /settings features nestword:' });
-      return changed
-        ? interaction.editReply({ embeds: [embed] })
-        : interaction.reply({ embeds: [embed], flags: 64 });
-    }
+    if (sub === 'features')
+      return interaction.reply({ ...featuresView(), flags: 64 });
 
     if (sub === 'birthdays') {
       const o = interaction.options;
@@ -1259,5 +1326,26 @@ module.exports = {
         allowedMentions: { parse: [] },
       });
     }
+  },
+
+  // The menus and the button of /settings features ("settings:features:…")
+  async handleComponent(interaction) {
+    const [, kind, part] = interaction.customId.split(':');
+    if (kind !== 'features') return;
+    if (!isAdmin(interaction)) return denyNonAdmin(interaction);
+    const features = require('../services/features');
+    if (part === 'reset') features.reset();
+    else if (Object.hasOwn(FEATURE_GROUPS, part)) {
+      // Picked = on, everything else in this menu = off
+      const picked = new Set(interaction.values || []);
+      for (const [key, f] of Object.entries(features.FEATURES))
+        if (f.group === part) features.set(key, picked.has(key));
+    } else return;
+    await interaction.deferUpdate();
+    await require('../deploy-commands').deployCommands(); // show / hide the commands
+    require('../services/hub')
+      .postMenu(interaction.guild)
+      .catch(() => {});
+    return interaction.editReply(featuresView(true));
   },
 };

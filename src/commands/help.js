@@ -13,17 +13,23 @@ const MENU_TIMEOUT_MS = 10 * 60 * 1000;
 
 // ---------- Reading the live command definitions ----------
 
-/** All loaded commands as JSON, by name. */
+const features = () => require('../services/features');
+
+/** All loaded commands as JSON, by name (without switched-off parts). */
 function allCommands(client) {
   const map = new Map();
   for (const cmd of client.commands?.values() || []) {
-    const json = cmd.data.toJSON();
+    if (!features().commandOn(cmd)) continue; // switched off or out of season
+    const json = features().commandJson(cmd);
     if (json.type && json.type !== 1) continue; // right-click entries aren't slash commands
-    if (cmd.season && !cmd.season()) continue; // switched off or out of season
     map.set(json.name, json);
   }
   return map;
 }
+
+/** The notes of a category that are on right now. */
+const notesOf = cat =>
+  (cat.features || []).filter(f => features().check(f.feature));
 
 function subcommandsOf(json) {
   return (json.options || []).filter(o => o.type === 1);
@@ -48,10 +54,13 @@ function usage(name, sub, options = []) {
 function categoriesWithOther(commands) {
   const listed = new Set(CATEGORIES.flatMap(c => c.commands));
   const unlisted = [...commands.keys()].filter(n => !listed.has(n));
-  const cats = CATEGORIES.filter(c => !c.visible || c.visible()).map(c => ({
-    ...c,
-    commands: c.commands.filter(n => commands.has(n)),
-  }));
+  const cats = CATEGORIES.filter(c => !c.visible || c.visible())
+    .map(c => ({
+      ...c,
+      commands: c.commands.filter(n => commands.has(n)),
+    }))
+    // Nothing left in it (everything switched off): no category
+    .filter(c => c.commands.length || notesOf(c).length);
   if (unlisted.length) {
     cats.push({
       id: 'other',
@@ -104,7 +113,7 @@ function categoryEmbed(cat, commands, guildId) {
       value: clip(`${explain}${subList}`, 1024),
     });
   }
-  for (const f of cat.features || []) {
+  for (const f of notesOf(cat)) {
     const text = typeof f.text === 'function' ? f.text(guildId) : f.text;
     embed.addFields({ name: f.name, value: clip(text, 1024) });
   }

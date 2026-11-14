@@ -52,6 +52,8 @@ async function handleComponent(interaction) {
 }
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'ai',
   handleComponent,
   data: new SlashCommandBuilder()
     .setName('ai')

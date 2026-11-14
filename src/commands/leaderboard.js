@@ -42,7 +42,7 @@ const BOARDS = {
         footer:
           mine >= 0
             ? `You: #${mine + 1} with ${all[mine][1]} coins`
-            : 'Earn coins with /daily and the daily games',
+            : 'Earn coins with the daily games',
       };
     },
   },
@@ -125,6 +125,7 @@ const BOARDS = {
   duels: {
     label: 'Duels',
     emoji: '🤺',
+    feature: 'duel', // only while it's on (/settings features)
     color: 0xe74c3c,
     build: guildId => {
       const stats = db.read(d => d.duelStats?.[guildId]) || {};
@@ -152,6 +153,7 @@ const BOARDS = {
   pictures: {
     label: 'Pictures this week',
     emoji: '📸',
+    feature: 'pictures',
     color: 0x3498db,
     build: guildId => {
       const users = db.read(d => d.pictracker?.[guildId]?.users) || {};
@@ -164,6 +166,7 @@ const BOARDS = {
   movies: {
     label: 'Movie nights',
     emoji: '🍿',
+    feature: 'watch',
     color: 0xe50914,
     build: guildId => {
       const watch = require('../services/watch');
@@ -201,6 +204,7 @@ const BOARDS = {
   achievements: {
     label: 'Achievements',
     emoji: '🏅',
+    feature: 'achievements',
     color: 0xf1c40f,
     build: guildId => {
       const all = db.read(d => d.achievements?.[guildId]) || {};
@@ -217,14 +221,24 @@ const BOARDS = {
   },
 };
 
-function view(guildId, board, viewerId) {
-  const b = BOARDS[board] || BOARDS.coins;
+/** The boards that are on right now (/settings features). */
+const visibleBoards = () =>
+  Object.entries(BOARDS).filter(([, b]) =>
+    require('../services/features').check(b.feature),
+  );
+
+function view(guildId, wanted, viewerId) {
+  // Unknown or switched off (e.g. an old menu): the NestCoins board
+  const board = visibleBoards().some(([key]) => key === wanted)
+    ? wanted
+    : 'coins';
+  const b = BOARDS[board];
   const r = b.build(guildId, viewerId);
   const menu = new StringSelectMenuBuilder()
     .setCustomId('leaderboard:board')
     .setPlaceholder('Switch leaderboard…')
     .addOptions(
-      Object.entries(BOARDS).map(([value, x]) => ({
+      visibleBoards().map(([value, x]) => ({
         label: x.label,
         value,
         emoji: x.emoji,
@@ -249,22 +263,27 @@ function view(guildId, board, viewerId) {
 module.exports = {
   BOARDS,
 
-  data: new SlashCommandBuilder()
-    .setName('leaderboard')
-    .setDescription(
-      'All leaderboards: coins, puzzle, Wordle, drinks, duels, movies, pictures, achievements',
-    )
-    .addStringOption(o =>
-      o
-        .setName('board')
-        .setDescription('Which leaderboard (default: NestCoins)')
-        .addChoices(
-          ...Object.entries(BOARDS).map(([value, b]) => ({
-            name: `${b.emoji} ${b.label}`,
-            value,
-          })),
-        ),
-    ),
+  // A getter: the board choices follow /settings features on every deploy
+  get data() {
+    return new SlashCommandBuilder()
+      .setName('leaderboard')
+      .setDescription(
+        `All leaderboards: ${visibleBoards()
+          .map(([key]) => (key === 'wordle' ? 'Wordle' : key))
+          .join(', ')}`,
+      )
+      .addStringOption(o =>
+        o
+          .setName('board')
+          .setDescription('Which leaderboard (default: NestCoins)')
+          .addChoices(
+            ...visibleBoards().map(([value, b]) => ({
+              name: `${b.emoji} ${b.label}`,
+              value,
+            })),
+          ),
+      );
+  },
 
   async handleComponent(interaction) {
     return interaction.update(

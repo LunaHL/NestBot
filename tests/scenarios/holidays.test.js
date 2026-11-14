@@ -38,6 +38,10 @@ const withRandom = async (value, fn) => {
 };
 
 (async () => {
+  // These are off by default (src/config/features.js)
+  for (const key of ['christmas', 'easter', 'newyear', 'shop', 'achievements'])
+    load('services/features').set(key, true);
+
   // ---------- Dates ----------
   // Off by default: nothing starts by itself
   assert.equal(seasons.isEnabled(), false);

@@ -109,13 +109,15 @@ async function handleComponent(interaction) {
 }
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'remind',
   handleComponent,
   panel,
 
   data: new SlashCommandBuilder()
     .setName('remind')
     .setDescription(
-      '⏰ Get a DM if you haven’t done today’s puzzle, NestWord or daily coins',
+      '⏰ Get a DM if you haven’t done today’s daily things yet',
     ),
 
   async execute(interaction) {

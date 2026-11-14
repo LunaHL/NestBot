@@ -147,7 +147,9 @@ function menuEmbed(categoryFilter, guildId) {
       (free
         ? '🎉 **Everything is free right now!** '
         : 'Prices in NestCoins. ') +
-      'Order with `/drinks order`, treat a friend with `/drinks gift`, everyone with `/drinks round` 🍻.\n' +
+      (require('../services/features').on('drinkgift')
+        ? 'Order with `/drinks order`, treat a friend with `/drinks gift`, everyone with `/drinks round` 🍻.\n'
+        : 'Order with `/drinks order`, or buy everyone a round with `/drinks round` 🍻.\n') +
       `Per day: max ${CAFFEINE_LIMIT} with caffeine, ${ALCOHOL_LIMIT} with alcohol, ${TOTAL_LIMIT} in total.`,
   });
   return embed;
@@ -383,6 +385,8 @@ const drinkOption = (opt, description) =>
 // ---------- Command ----------
 
 module.exports = {
+  // /drinks gift only while gifting drinks is switched on (/settings features)
+  subFeatures: { gift: 'drinkgift' },
   handleComponent,
 
   data: new SlashCommandBuilder()

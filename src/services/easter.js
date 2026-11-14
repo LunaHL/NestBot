@@ -257,6 +257,9 @@ async function maybeParty(guild) {
 
 /** messageCreate: bunnies hop now and then. */
 async function maybeHop(message) {
+  // Easter switched off (/settings features): bunnies stay quiet until the
+  // outfit ends (tick() still takes it off)
+  if (!require('./features').on('easter')) return;
   if (message.author.bot || !getBunny(message.guild.id, message.author.id))
     return;
   const n = (hopCounter.get(message.author.id) || 0) + 1;
@@ -391,6 +394,7 @@ async function tick(client) {
     // Easter Monday evening: the best egg hunters (only when holidays are on)
     if (
       seasons.isEnabled() &&
+      require('./features').on('easter') && // switched on (/settings features)
       seasons.daysFromEaster(now) === 1 &&
       now.getHours() >= 20 &&
       !read(guild.id).announced

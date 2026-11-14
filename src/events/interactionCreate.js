@@ -12,6 +12,14 @@ const EXTRA_HANDLERS = {
     return require('../commands/userMenu');
   },
 };
+// …and the feature they belong to (/settings features)
+const EXTRA_FEATURES = { hub: 'hub', usermenu: 'usermenu' };
+
+const features = () => require('../services/features');
+const switchedOff = interaction =>
+  interaction
+    .reply({ content: '🔒 That’s switched off right now.', flags: 64 })
+    .catch(() => {});
 
 module.exports = async function onInteraction(interaction) {
   if (interaction.isAutocomplete?.()) {
@@ -36,9 +44,12 @@ module.exports = async function onInteraction(interaction) {
     interaction.isModalSubmit?.()
   ) {
     const prefix = String(interaction.customId).split(':')[0];
-    const command =
-      interaction.client.commands.get(prefix) || EXTRA_HANDLERS[prefix];
+    const fromCommand = interaction.client.commands.get(prefix);
+    const command = fromCommand || EXTRA_HANDLERS[prefix];
     if (!command?.handleComponent) return;
+    // Old buttons of a switched-off feature (seasonal ones keep working)
+    const feature = fromCommand ? fromCommand.feature : EXTRA_FEATURES[prefix];
+    if (!features().check(feature)) return switchedOff(interaction);
     try {
       await command.handleComponent(interaction);
     } catch (e) {
@@ -63,6 +74,9 @@ module.exports = async function onInteraction(interaction) {
   const command = interaction.client.commands.get(interaction.commandName);
   if (!command)
     return console.error(`❌ Unknown command: ${interaction.commandName}`);
+  // Switched off, but still in someone's (old) command list
+  if (!features().interactionOn(command, interaction))
+    return switchedOff(interaction);
 
   try {
     await command.execute(interaction);

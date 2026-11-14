@@ -75,8 +75,20 @@ const TEST_INCLUDES = {
   newyear: ['newyear'],
 };
 
+// The feature that switches each season on or off (/settings features)
+const SEASON_FEATURES = {
+  christmas: 'christmas',
+  advent: 'christmas',
+  newyear: 'newyear',
+  easter: 'easter',
+};
+
 /** Is this season on right now (or being tested)? */
 function active(name, date = nowInTZ()) {
+  // Switched off: never on, not even in test mode (required here, not at
+  // the top, like in utils/time.js)
+  const feature = SEASON_FEATURES[name];
+  if (feature && !require('./features').on(feature)) return false;
   const test = getTest();
   if (test) return !!TEST_INCLUDES[test]?.includes(name);
   if (!isEnabled()) return false;

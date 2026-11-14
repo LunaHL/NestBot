@@ -19,23 +19,29 @@ const { CATEGORIES } = require('../config/drinksMenu');
 
 const fail = content => ({ content: `❌ ${content}`, flags: 64 });
 
-const entry = (name, execute) => ({
+// `feature`: the entry is only in Discord while the right-click menu and its
+// own feature are on (/settings features)
+const entry = (name, feature, execute) => ({
+  feature,
   data: new ContextMenuCommandBuilder()
     .setName(name)
     .setType(ApplicationCommandType.User)
     .setDMPermission(false),
   execute,
 });
+// Renaming and blindfolding are bought in the shop
+const RENAME = ['usermenu', 'shop', 'nicknames'];
+const BLINDFOLD = ['usermenu', 'shop', 'blindfold'];
 
 const ENTRIES = [
-  entry('View profile', async interaction => {
+  entry('View profile', 'usermenu', async interaction => {
     const user = interaction.targetUser;
     return runAs(interaction, ['profile', null, { user }], {
       members: { user: interaction.targetMember },
     });
   }),
 
-  entry('Gift a drink', async interaction => {
+  entry('Gift a drink', ['usermenu', 'drinkgift'], async interaction => {
     const user = interaction.targetUser;
     if (user.bot)
       return interaction.reply(fail('Sweet, but bots run on electricity. ⚡'));
@@ -66,7 +72,7 @@ const ENTRIES = [
     });
   }),
 
-  entry('Challenge to a duel', async interaction => {
+  entry('Challenge to a duel', ['usermenu', 'duel'], async interaction => {
     const user = interaction.targetUser;
     if (user.bot || user.id === interaction.user.id)
       return interaction.reply(fail('Pick someone else to duel.'));
@@ -88,7 +94,7 @@ const ENTRIES = [
     );
   }),
 
-  entry('Rename (costs coins)', async interaction => {
+  entry('Rename (costs coins)', RENAME, async interaction => {
     const shop = require('./shop');
     const problem = await shop.nickProblem(
       interaction,
@@ -106,7 +112,7 @@ const ENTRIES = [
     });
   }),
 
-  entry('Blindfold (costs coins)', async interaction => {
+  entry('Blindfold (costs coins)', BLINDFOLD, async interaction => {
     const shop = require('./shop');
     if (!blindfold.isSetUp(interaction.guildId))
       return interaction.reply(
@@ -124,6 +130,14 @@ const ENTRIES = [
 async function handleComponent(interaction) {
   const [, action, targetId] = interaction.customId.split(':');
   const guild = interaction.guild;
+
+  // Old menus of a feature that was switched off since
+  const needs = { drinkcat: 'drinkgift', drink: 'drinkgift', duel: 'duel' };
+  if (!require('../services/features').check(needs[action]))
+    return interaction.reply({
+      content: '🔒 That’s switched off right now.',
+      flags: 64,
+    });
 
   // 🍹 Section picked → pick the drink
   if (action === 'drinkcat') {

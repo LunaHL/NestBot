@@ -10,7 +10,9 @@ const { localDate } = load('utils/time');
 
 (async () => {
   const today = localDate(0);
-  load('services/features').set('nestword', true); // NestWord is off by default
+  load('services/features').set('nestword', true); // NestWord and daily are off by default
+  load('services/features').set('daily', true);
+  load('services/features').set('remind', true);
   db.perform(d => {
     d.puzzles = {
       [today]: {

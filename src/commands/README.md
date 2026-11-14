@@ -9,6 +9,8 @@ replies and embeds. The real work (coins, stats, saving) is in
 
 🔒 = admin only (Discord "Administrator" permission). Admin-only commands are hidden from regular members; the admin parts of normal commands are under **`/admin`** (see below)
 
+Switched-off features are hidden (command, subcommand, `/help`); see [`../config/features.js`](../config/features.js) and `/settings features`.
+
 ---
 
 ## 💰 Economy
@@ -147,6 +149,7 @@ from the command files, so they're always current.
 | | `/settings blindfold` 🔒 | `enabled:true` creates the 🙈 Blindfolded role and the 🕶️ in-the-dark channel and hides every channel from the role (lists channels that other roles explicitly allow); `enabled:false` removes all of it. `give` + `minutes`: blindfold someone; `end-for`: take it off |
 | | `/settings hub` 🔒 | `channel`: posts and pins the NestBot menu (buttons for daily, profile, leaderboards, shop, drinks, puzzle, NestWord, movie nights, watchlist, help; answers are private). `weekly`: “💡 Did you know?” there every Monday 18:00. `tips`: how often a private tip follows a command (off / rarely / sometimes / often). `post-now`: try the weekly post |
 | | `/settings channels` 🔒 | All posting channels in one place: puzzle (+ `puzzle-ping` role), Wordle app, birthdays, pictures. Empty = show them |
+| | `/settings features` 🔒 | Switch whole features on/off: two menus (“Economy, games & social”, “Movies, holidays & extras”), pick what is on. Saved in the database, works without restart. **↩️ Back to file defaults** returns to `config/features.js` |
 | | `/settings tools` 🔒 | One-off actions: pay missed Wordle results, reset this week's picture count, end all paid nicknames |
 
 ## 🍿 Movie nights

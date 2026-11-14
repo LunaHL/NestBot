@@ -471,6 +471,8 @@ async function movePanelDown(guild, id) {
 
 /** On startup: every group gets its (updated) panel. */
 async function startGroups(client) {
+  // Groups switched off (/settings features): the old panels just stay
+  if (!require('./features').on('group')) return;
   for (const guild of client.guilds.cache.values()) {
     for (const g of allGroups(guild.id))
       await postPanel(guild, g.id).catch(() => {});

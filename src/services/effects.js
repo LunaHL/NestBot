@@ -98,10 +98,20 @@ function describe(effect) {
   return e ? `${e.emoji} ${e.describe(effect)}` : null;
 }
 
+// Effects of a switched-off feature (/settings features) do nothing
+const EFFECT_FEATURES = {
+  gag: ['gag', '🔇 (Gags are switched off right now.)'],
+  blindfold: ['blindfold', '🙈 (Blindfolds are switched off right now.)'],
+  nickname: ['nicknames', '🏷️ (Nicknames are switched off right now.)'],
+  bunny: ['easter', '🐰 (Easter is switched off right now.)'],
+};
+
 /** Apply an effect. Returns { text } (what happened) or null. */
 async function applyEffect(guild, effect, { targetId, byId }) {
   const e = effect && EFFECTS[effect.type];
   if (!e) return null;
+  const [feature, offText] = EFFECT_FEATURES[effect.type] || [];
+  if (feature && !require('./features').on(feature)) return { text: offText };
   return e.apply(guild, { targetId, byId, effect });
 }
 

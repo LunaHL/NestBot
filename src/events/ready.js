@@ -35,7 +35,8 @@ module.exports = function onReady(client) {
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
   startHalloween(client); // Halloween announcement (Oct 31 only)
-  ai.checkModels(); // warns if the configured Gemini models don't exist
+  // warns if the configured Gemini models don't exist
+  if (require('../services/features').on('ai')) ai.checkModels();
 
   // Jobs that live inside command files (birthdays, loot drops)
   for (const command of client.commands.values()) {

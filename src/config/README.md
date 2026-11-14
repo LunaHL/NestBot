@@ -5,6 +5,7 @@ Content that's meant to be edited without touching the code around it.
 | File | What's in it |
 |---|---|
 | `help.js` | The texts of `/help`: the categories (which commands go where, intro texts, notes about automatic features) and an explanation per command, including which subcommands are admin-only |
+| `features.js` | The default on/off for each of the 27 features (`true` / `false`; restart after a change). Admins override them with `/settings features`. Off = invisible everywhere, data kept |
 | `drinksMenu.js` | The café & bar: menu sections, every drink (name, emoji, price, category, caffeine/alcohol, serving lines, picture description), latte art designs, the daily limits (caffeine, alcohol, total), chances, and the lines NestBot says when you're jittery, tipsy or cut off |
 
 After changing anything here, restart the bot. If you add a drink or a latte

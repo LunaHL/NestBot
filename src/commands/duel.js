@@ -329,6 +329,8 @@ async function startDuel(interaction) {
 }
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'duel',
   data: new SlashCommandBuilder()
     .setName('duel')
     .setDescription(

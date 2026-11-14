@@ -90,6 +90,7 @@ async function spawnLootInGuild(guildId, guild) {
 }
 
 async function spawnLoot(client) {
+  if (!require('../services/features').on('drop')) return; // switched off
   for (const [guildId, guild] of client.guilds.cache) {
     try {
       await spawnLootInGuild(guildId, guild);
@@ -123,6 +124,8 @@ function schedule(client) {
 }
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'drop',
   data: new SlashCommandBuilder()
     .setName('drop')
     .setDescription('Configure Nest Loot Drops')

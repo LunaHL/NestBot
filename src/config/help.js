@@ -3,6 +3,7 @@
 // CATEGORIES: the sections shown in /help, in order.
 //   commands: command names (without /) shown in that section
 //   features: things that aren't commands (automatic stuff), shown as notes.
+//     `feature: 'name'` hides a note while that feature is off (config/features.js).
 //     `text` can also be a function (guildId) => text for server-dependent texts
 // COMMANDS: the explanation for each command, plus which subcommands are
 //   admin-only (marked 🔒).
@@ -16,6 +17,8 @@ const { describeStreakRule } = require('../utils/streak');
 const { getStreakMode } = require('../services/settings');
 const { rewardsTable } = require('../services/wordle');
 const { isFreeMode } = require('../services/nestcoins');
+// For `feature: () => …` notes (required when called: it reads the database)
+const on = name => require('../services/features').on(name);
 
 const CATEGORIES = [
   {
@@ -23,7 +26,7 @@ const CATEGORIES = [
     emoji: '💰',
     name: 'Economy',
     intro:
-      'NestCoins are the currency of the Nest. You earn them with games, streaks, achievements and loot drops, and spend them in the café & bar, the shop, on duels and AI extras.',
+      'NestCoins are the currency of the Nest. You earn them with games, streaks and achievements, and spend them in the café & bar, the shop, on duels and AI extras.',
     commands: ['daily', 'balance', 'shop', 'gamble', 'drop'],
     features: [
       {
@@ -36,6 +39,7 @@ const CATEGORIES = [
       },
       {
         name: '💰 Loot drops',
+        feature: 'drop', // hidden when switched off
         text: 'A few times a day a coin pouch appears in a random channel. The first person to click **Claim** gets the coins.',
       },
     ],
@@ -93,26 +97,32 @@ const CATEGORIES = [
     features: [
       {
         name: '🗓️ Plan & sign up',
+        feature: 'watch',
         text: 'Plan with `/watch plan when:tomorrow 20:00` (or `/watch now`). The calendar in #movies shows what’s coming up: one click to sign up, another to leave. Times are shown in your own time zone. Everything else is a button: **⚙️** on the card or in the room changes the time or title, starts a vote, cancels or ends it (planner and admins); 🎞️ History and 🏆 Top 10 are under the calendar.',
       },
       {
         name: '🚪 Your room',
+        feature: 'watch',
         text: 'One hour before the start, a private room opens. Signed-up people get a ping; anyone can still join with **🚪 Enter room**, even mid-movie.',
       },
       {
         name: '🗳️ Votes',
+        feature: 'watch',
         text: 'Not sure what to watch? Plan without a title (or **⚙️ → 🗳️ Start a vote**): the room opens right away and everyone who signed up votes in it. Their watchlists add options automatically, **💡 Suggest** adds more. The winner is set automatically; ties are decided by the wheel.',
       },
       {
         name: '📝 Watchlists',
+        feature: 'watchlist',
         text: 'Everyone has a watchlist (`/watchlist add`): public by default, single entries can be private. `/watchlist show` opens it: pick an entry to mark it watched, rate it, make it private, add a note or remove it; 🎲 picks something for you. After a movie night you get a **✅ mark as watched?** and can rate it ⭐1–5. `/watchlist match` shows what you all want to watch.',
       },
       {
         name: '💞 Groups',
+        feature: 'group',
         text: 'Couples and fixed groups get their own private channel with `/group create`, a panel (always at the bottom) with buttons for the shared watchlist (👍 votes) and 🍿 watching together, and their own series progress. Admins can technically see every channel; mute the group category if it pings you.',
       },
       {
         name: '▶️ Watching in sync',
+        feature: 'watch',
         text: 'Pause your movie at 0:00 and press **✅ Ready**, then 3… 2… 1… ▶️. The check-in and the clock always move back to the bottom of the room when people chat. The live clock shows where everyone should be, **🔄 I’m at…** tells you if you’re ahead or behind, and anyone can press **⏸️ Pause**.',
       },
     ],
@@ -135,6 +145,7 @@ const CATEGORIES = [
     features: [
       {
         name: '🏅 Achievements',
+        feature: 'achievements',
         text: 'Unlock automatically while you play and pay coins. Some are secret. NestBot announces every unlock in chat. All of them: `/profile tab:Achievements`.',
       },
     ],
@@ -149,10 +160,12 @@ const CATEGORIES = [
     features: [
       {
         name: '💬 Chatting',
+        feature: 'ai',
         text: 'Type **@NestBot** with your message to talk to her. She sees the last few messages in the channel. Replying to her messages without the @ does nothing.',
       },
       {
         name: '📝 She remembers things',
+        feature: 'ai',
         text: 'Tell her: “@NestBot remember that I love Earl Grey” (up to 10 things). “@NestBot what do you know about me?” shows them with a menu to forget one; “@NestBot forget Earl Grey” or “forget everything” works too. Nothing is saved unless you ask.',
       },
     ],
@@ -167,18 +180,22 @@ const CATEGORIES = [
     features: [
       {
         name: '🏷️ Paid nicknames',
+        feature: 'nicknames',
         text: 'In `/shop` (🏷️ Rename someone, or `/shop nickname`): rename someone for 10 minutes (15 coins) up to a whole day (300 coins). More coins, more time. The renamed person can buy themselves out with 🔓 **Get your name back** for the same price; afterwards NestBot gives the old name back. See who’s renamed in their profile (⚔️ Duels & fun). Admins: `/settings nicknames`.',
       },
       {
         name: '✨ Effects',
+        feature: () => ['gag', 'blindfold', 'nicknames'].some(on),
         text: 'Shop items and wheel entries can **gag** (🔇), **blindfold** (🙈) or **rename** (🏷️) their target automatically. Admins pick the effect when adding them.',
       },
       {
         name: '🙈 Blindfolds',
+        feature: 'blindfold',
         text: 'A blindfolded member can’t see any channel except **🕶️ in-the-dark**. There NestBot whispers what they’re missing: when someone says their name, and which channels are busy. When it comes off, NestBot DMs a summary of everything they missed. Several blindfolded people end up in the dark together. Blindfolds stack (max 3 h) and come from shop items, the wheel or admins. Admins can’t be blindfolded (Discord shows them everything).',
       },
       {
         name: '🔇 Gags',
+        feature: 'gag',
         text: 'A gagged member’s messages are replaced with garbled “mmph” versions until the gag runs out. Spamming while gagged doubles the time. Gags come from shop items, the wheel and Halloween tricks.',
       },
     ],
@@ -192,6 +209,7 @@ const CATEGORIES = [
     features: [
       {
         name: '📸 Picture leaderboard',
+        feature: 'pictures',
         text: 'NestBot counts pictures posted in the picture channel. Every Monday the weekly leaderboard is posted and active posters get coins. Live: `/leaderboard board:Pictures`.',
       },
     ],
@@ -205,6 +223,7 @@ const CATEGORIES = [
     features: [
       {
         name: '👻 Halloween day',
+        feature: 'halloween',
         text: `${TRIES_PER_DAY} trick-or-treat tries, spooky drinks (🧪 Witch's Brew, 🩸 Vampire Latte), haunted loot drops twice as often, and a spooky NestBot.`,
       },
     ],
@@ -223,26 +242,32 @@ const CATEGORIES = [
     features: [
       {
         name: '🗓️ Advent calendar',
+        feature: 'christmas',
         text: '`/christmas advent` opens one door a day (Dec 1–24): coins, 🎟️ a free drink, 🎡 a free wheel spin on someone, or a 🎅 Santa hat for 3 days. Door 6 is St. Nicholas’ boot, door 24 is the big one. 20 doors → 🎄 Festive, all 24 → 🎁 Advent Champion.',
       },
       {
         name: '🎅 Secret Santa',
+        feature: 'christmas',
         text: '`/christmas santa join` until Dec 10 (with a wish). Then NestBot draws the names and DMs you who you’re Santa for. Prepare your gift with `/christmas santa gift` (coins, a drink, a note). On Christmas Eve at 18:00 all presents are opened in the holiday channel and the Santas revealed. Forgot your gift? They get a backup from NestBot, you get 🪨 coal.',
       },
       {
         name: '❄️ Snowballs & 🎄 the tree',
+        feature: 'christmas',
         text: '`/christmas snowball @someone`: 3 free a day. A hit freezes them for 10 minutes (❄️ around their name, can’t throw back); a warm drink gift thaws them. `/christmas tree`: hang one ornament a day; 50 → 20 coins for everyone who helped, 150 → the 🌟 lights up and loot drops double for a day.',
       },
       {
         name: '🎆 New Year',
+        feature: 'newyear',
         text: 'At midnight on New Year’s Eve NestBot posts in the holiday channel: press 🥂 for your New Year coins.',
       },
       {
         name: '🥚 Egg hunt & 🐰 Bunny Girl',
+        feature: 'easter',
         text: 'At Easter, eggs hide under chat messages: first to grab gets it (🥚 5, 🌈 15, 🥇 50 coins, 💣 a prank egg, or the rare 🐰 bunny egg). The **Bunny Girl** outfit (in `/shop` at Easter, or from the bunny egg): pink role, 🐰 ears, *hops* and carrot drinks for a day; 3 bunnies at once = bunny party. `/easter paint` paints a new egg every day, `/easter basket` shows your eggs.',
       },
       {
         name: '🍷 Holiday drinks',
+        feature: () => ['christmas', 'easter', 'newyear'].some(on),
         text: 'Christmas: Glühwein, eggnog, gingerbread latte, hot chocolate with marshmallows, Kinderpunsch, Christmas tea. Easter: carrot cake latte, chocolate bunny cocoa, Easter punch, egg liqueur cocktail.',
       },
     ],
@@ -264,18 +289,22 @@ const CATEGORIES = [
     features: [
       {
         name: '💬 Just ask NestBot',
+        feature: 'ai',
         text: 'Write **@NestBot** and ask, e.g. “@NestBot how do movie nights work?” or “what can I buy with coins?”. She knows every feature.',
       },
       {
         name: '🖱️ Right-click someone',
+        feature: 'usermenu',
         text: 'Right-click a member (on phones: tap their name) → **Apps**: 👤 View profile, 🍹 Gift a drink, 🤺 Challenge to a duel, 🏷️ Rename, 🙈 Blindfold. No commands, no typing names.',
       },
       {
         name: '🪺 The menu',
-        text: 'A pinned menu in the hub channel: Daily coins, profile, shop, drinks, puzzle, movie nights… one click, no commands. Every Monday there’s a “💡 Did you know?” there too.',
+        feature: 'hub',
+        text: 'A pinned menu in the hub channel: profile, shop, drinks, puzzle, movie nights… one click, no commands. Every Monday there’s a “💡 Did you know?” there too.',
       },
       {
         name: '💡 Tips',
+        feature: 'tips',
         text: 'Now and then NestBot adds a short private tip after a command, about something related you might not know yet.',
       },
     ],
@@ -317,7 +346,7 @@ const COMMANDS = {
   },
   remind: {
     explain:
-      'Never miss a day: pick a time for the 🧩 puzzle and 💰 daily coins (and 🟩 NestWord when it’s on). If it’s not done by then, NestBot sends you a DM. If it’s done, nothing comes. Times are server time; “Off” stops it.',
+      'Never miss a day: pick a time for the 🧩 puzzle (and 💰 daily coins and 🟩 NestWord when they’re on). If it’s not done by then, NestBot sends you a DM. If it’s done, nothing comes. Times are server time; “Off” stops it.',
   },
   puzzle: {
     explain:
@@ -420,7 +449,7 @@ const COMMANDS = {
   },
   settings: {
     explain:
-      'Server settings. `features`: switch whole features on/off (🟩 NestWord is off by default; off = invisible, data kept). `birthdays`: channel, time (default 9:00), coins, a role for the day, reminder. `holidays`: on/off (off by default), the channel for Secret Santa / tree / New Year / Easter results, egg hunt and bunny outfit on/off, and a **test mode** to try Christmas or Easter now. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures, 💡 ideas). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
+      'Server settings. `birthdays`: channel, time (default 9:00), coins, a role for the day, reminder. `holidays`: on/off (off by default), the channel for Secret Santa / tree / New Year / Easter results, egg hunt and bunny outfit on/off, and a **test mode** to try Christmas or Easter now. `channels`: where NestBot posts (puzzle + ping role, Wordle app, birthdays, pictures, 💡 ideas). `tools`: one-off actions (pay missed Wordle results, reset the picture week, end all paid nicknames). `streak`: new capped streak bonus or the old multiplier. `free`: everything you can buy is free (earning works as usual). `hub`: the menu channel, the weekly “Did you know?” and how often tips come after commands. `blindfold`: set blindfolds up once (role + dark channel), switch them off again, blindfold someone or take it off. `nicknames`: paid nicknames on/off, may everyone change their own nickname, end one person’s nickname. `watch`: movie nights (#movies, room category, mod role, timings). Without options, each shows the current state.',
     admin: ['*'],
   },
 

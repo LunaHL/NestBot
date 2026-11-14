@@ -5,6 +5,8 @@ const gag = require('../services/gag');
 const ui = require('../utils/ui');
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'gag',
   data: new SlashCommandBuilder()
     .setName('ungag')
     .setDescription('Take a gag off someone (admins)')

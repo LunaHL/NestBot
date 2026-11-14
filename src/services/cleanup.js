@@ -70,9 +70,11 @@ function runCleanup() {
     }
   });
 
-  // Unanswered "did you watch it?" questions expire after a week
+  // Unanswered "did you watch it?" questions expire after a week (not while
+  // watchlists are switched off: nothing is tidied up then)
   try {
-    require('./watchlist').prunePending();
+    if (require('./features').on('watchlist'))
+      require('./watchlist').prunePending();
   } catch (e) {
     console.error('[Cleanup] Watchlist cleanup failed:', e);
   }

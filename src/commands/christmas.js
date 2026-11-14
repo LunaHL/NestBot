@@ -48,6 +48,9 @@ async function handleComponent(interaction) {
   }
 
   if (action === 'cheers') {
+    // New Year switched off (/settings features)
+    if (!require('../services/features').on('newyear'))
+      return interaction.reply(ui.fail('That’s switched off right now.'));
     const r = christmas.cheers(guildId, Number(value), interaction.user.id);
     return interaction.reply(
       ui.info(

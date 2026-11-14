@@ -852,6 +852,8 @@ async function handleComponent(interaction) {
 // ---------- Command ----------
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'watch',
   handleComponent,
 
   data: new SlashCommandBuilder()

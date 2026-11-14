@@ -146,15 +146,19 @@ async function announceIfNeeded(client) {
     d.halloween[guildId].announcedYear = year;
   });
 
+  // Only mentions what's switched on (/settings features)
+  const { on } = require('./features');
   await channel
     .send(
       '🎃 **Happy Halloween, Nest!** 👻\n' +
         `Today only:\n` +
         `• \`/trickortreat\`: ${TRIES_PER_DAY} tries for candy and coins… or a trick\n` +
         `• Spooky drinks at the café: 🧪 Witch's Brew and 🩸 Vampire Latte (\`/drinks menu\`)\n` +
-        `• Haunted loot drops appear twice as often\n` +
-        `• And NestBot is feeling a little… spooky.\n` +
-        `Unlock the 🎃 **Trick or Treater** achievement while you can!`,
+        (on('drop') ? `• Haunted loot drops appear twice as often\n` : '') +
+        (on('ai') ? `• And NestBot is feeling a little… spooky.\n` : '') +
+        (on('achievements')
+          ? `Unlock the 🎃 **Trick or Treater** achievement while you can!`
+          : ''),
     )
     .catch(e => console.error('[Halloween] Announcement failed:', e.message));
 }

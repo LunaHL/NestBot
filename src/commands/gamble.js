@@ -31,6 +31,8 @@ function roll() {
 }
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'gamble',
   data: new SlashCommandBuilder()
     .setName('gamble')
     .setDescription(`Try your luck in the Nest Roulette (costs ${BET} coins)`),

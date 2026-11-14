@@ -1,30 +1,42 @@
 // Registers all slash commands with Discord for your server (GUILD_ID).
 // Runs automatically on every start; `npm run commands` runs it on its own.
-// Seasonal commands (`season()` in the command file, e.g. /trickortreat) are
-// only registered while their season is on; startSeasons() re-registers
-// when a season starts or ends.
+// Only commands that are on right now are registered: switched-off features
+// (/settings features, src/config/features.js) and seasonal commands
+// (`season()` in the command file, e.g. /trickortreat) out of season are left
+// out, and so are switched-off subcommands (`subFeatures`). startSeasons()
+// re-registers when that changes.
 require('dotenv').config();
 const { REST, Routes } = require('discord.js');
 const { loadCommands } = require('./utils/commands');
+const features = require('./services/features');
 
-const inSeason = c => !c.season || c.season();
-/** Which seasonal commands are on right now, e.g. "trickortreat". */
-const seasonKey = () =>
-  loadCommands()
-    .filter(c => c.season && c.season())
-    .map(c => c.data.name)
-    .join(',');
+const inSeason = features.commandOn;
+/** What would be registered right now, as JSON for registeredKey(). */
+const registered = () =>
+  loadCommands().filter(features.commandOn).map(features.commandJson);
+/** Command, subcommand and group names, to notice when something changed. */
+const registeredKey = (commands = registered()) =>
+  JSON.stringify(
+    commands.map(c => [
+      c.name,
+      (c.options || [])
+        .filter(o => o.type === 1 || o.type === 2)
+        .map(o =>
+          o.type === 2
+            ? [o.name, (o.options || []).map(x => x.name)]
+            : o.name,
+        ),
+    ]),
+  );
 let deployedKey = null;
 
 async function deployCommands() {
-  deployedKey = seasonKey();
+  const commands = registered();
+  deployedKey = registeredKey(commands);
   if (!process.env.BOT_TOKEN) {
     console.warn('Not registering slash commands: BOT_TOKEN is missing.');
     return;
   }
-  const commands = loadCommands()
-    .filter(inSeason)
-    .map(c => c.data.toJSON());
   const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
   try {
@@ -45,7 +57,7 @@ async function deployCommands() {
 function startSeasons() {
   const { runEvery } = require('./utils/schedule');
   runEvery('Seasonal commands', 30, async () => {
-    if (deployedKey !== null && seasonKey() !== deployedKey)
+    if (deployedKey !== null && registeredKey() !== deployedKey)
       await deployCommands();
   });
 }

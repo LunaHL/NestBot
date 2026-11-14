@@ -48,12 +48,10 @@ const TASKS = {
 };
 
 /** Times people can pick. */
-/** The tasks people can pick right now (NestWord only when it's switched on). */
+/** The tasks people can pick right now (switched-off features are left out). */
 const activeTasks = () =>
   Object.fromEntries(
-    Object.entries(TASKS).filter(
-      ([key]) => key !== 'nestword' || require('./features').on('nestword'),
-    ),
+    Object.entries(TASKS).filter(([key]) => require('./features').on(key)),
   );
 
 const TIMES = [
@@ -165,7 +163,12 @@ async function sendDM(client, userId, content) {
 }
 
 function startReminders(client) {
-  require('../utils/schedule').runEvery('Reminders', 5, () => tick(client));
+  // Only while reminders are switched on (/settings features)
+  require('../utils/schedule').runEvery(
+    'Reminders',
+    5,
+    require('./features').only('remind', () => tick(client)),
+  );
 }
 
 module.exports = {

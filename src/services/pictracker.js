@@ -98,7 +98,12 @@ function finishWeeks(client) {
 
 /** Called once when the bot is ready. */
 function startPicTracker(client) {
-  runEvery('PicTracker', 30, () => finishWeeks(client));
+  // Only while the picture leaderboard is switched on (/settings features)
+  runEvery(
+    'PicTracker',
+    30,
+    require('./features').only('pictures', () => finishWeeks(client)),
+  );
 }
 
 module.exports = { getWeekRange, countImages, startPicTracker };

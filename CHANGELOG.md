@@ -1,5 +1,14 @@
 # NestBot Changelog
 
+## V 1.23 (November 2026)
+
+**Changed**
+- 🔌 Every feature can be switched on/off. The defaults are in `src/config/features.js` (`true` = on, `false` = off; restart after a change). Admins override them in Discord with `/settings features`: two menus (“Economy, games & social”, “Movies, holidays & extras”), pick what is on; **↩️ Back to file defaults** undoes it. Works right away, no restart
+- Switched off for now: daily coins, gamble, loot drops, shop, paid nicknames, wheel, drink gifts, NestWord, tournaments, duels, achievements, gags, blindfolds, reminders, suggestions, the picture leaderboard, NestBot AI (chat, extras, mood), movie nights, watchlists, groups, all holidays, the hub menu, tips and the right-click menu
+- Still on: `/balance` (incl. transfers), `/leaderboard`, `/profile`, `/puzzle`, Wordle app coins, `/drinks` order/menu/round, `/birthday`, `/help`, `/admin`, `/settings`, free mode, streak mode
+- Off means invisible everywhere (command, subcommand, `/help`, hub menu, reminders, tips, NestBot's knowledge, profile tabs, leaderboards, background jobs). All data and Discord channels are kept, so switching on brings it back
+- Old buttons of a switched-off feature (e.g. 🎲 Again) answer “switched off”
+
 ## V 1.22 (November 2026)
 
 **Changed**

@@ -11,18 +11,25 @@ const TIPS = require('../config/tips');
 const db = require('../utils/db');
 const { getSetting } = require('./settings');
 
-/** Categories and commands that are on right now (holidays, switched-off games). */
+/**
+ * Categories, commands and notes that are on right now (holidays, switched-off
+ * features). Categories with nothing left in them are left out.
+ */
 function visibleCategories() {
   const { loadCommands } = require('../utils/commands');
+  const features = require('./features');
   const hidden = new Set(
     loadCommands()
-      .filter(c => c.season && !c.season())
+      .filter(c => !features.commandOn(c))
       .map(c => c.data.name),
   );
-  return CATEGORIES.filter(c => !c.visible || c.visible()).map(c => ({
-    ...c,
-    commands: (c.commands || []).filter(n => !hidden.has(n)),
-  }));
+  return CATEGORIES.filter(c => !c.visible || c.visible())
+    .map(c => ({
+      ...c,
+      commands: (c.commands || []).filter(n => !hidden.has(n)),
+      features: (c.features || []).filter(f => features.check(f.feature)),
+    }))
+    .filter(c => c.commands.length || c.features.length);
 }
 
 const textOf = (t, guildId) => (typeof t === 'function' ? t(guildId) : t);
@@ -45,7 +52,7 @@ function featureGuide(guildId) {
         `- /${name}: ${plain(c.explain)}${c.tips ? ` Tip: ${plain(c.tips)}` : ''}${c.admin ? ' (some parts admins only)' : ''}`,
       );
     }
-    for (const f of cat.features || [])
+    for (const f of cat.features)
       lines.push(`- ${f.name}: ${plain(textOf(f.text, guildId))}`);
   }
   return lines.join('\n');
@@ -88,18 +95,57 @@ const FREQUENCIES = {
 const TIP_COOLDOWN_MS = 15 * 60000; // at most one tip per person every 15 min
 const lastTip = new Map(); // userId → time
 
+// Tips that mention these point to a feature (/settings features)
+const TIP_WORDS = [
+  [/right-click/i, 'usermenu'],
+  [/@NestBot/, 'ai'],
+  [/blindfold/i, 'blindfold'],
+  [/rename/i, 'nicknames'],
+  [/\bgag/i, 'gag'],
+  [/achievements/i, 'achievements'],
+  [/movies/i, 'watch'],
+  [/📝 Watchlist/, 'watchlist'],
+  [
+    /tab:Duels & fun/,
+    () =>
+      ['duel', 'event', 'gag', 'nicknames', 'halloween'].some(f =>
+        require('./features').on(f),
+      ),
+  ],
+];
+
+/**
+ * Does this tip only point to things that are on? Checks every `/command sub`
+ * in it (the command and the subcommand must be on) and TIP_WORDS.
+ */
+function tipOn(text) {
+  const features = require('./features');
+  const { loadCommands } = require('../utils/commands');
+  let commands = null; // loaded only when the tip names a command
+  for (const [, name, sub] of text.matchAll(/`\/([a-z]+)(?: ([a-z-]+))?/g)) {
+    commands ||= loadCommands();
+    const cmd = commands.find(c => c.data.name === name);
+    if (!cmd || !features.commandOn(cmd) || !features.subOn(cmd, sub))
+      return false;
+  }
+  return TIP_WORDS.every(
+    ([re, spec]) => !re.test(text) || features.check(spec),
+  );
+}
+
 /** A tip that fits the command just used, or null. */
 function pickTip(commandName, sub) {
   const list = [
     ...(TIPS[`${commandName} ${sub}`] || []),
     ...(TIPS[commandName] || []),
-  ];
+  ].filter(tipOn); // nothing about switched-off features
   if (!list.length) return null;
   return list[Math.floor(Math.random() * list.length)];
 }
 
 /** After a command: maybe send a short private tip. */
 async function maybeTip(interaction, random = Math.random) {
+  if (!require('./features').on('tips')) return; // switched off
   if (!interaction.guildId || !(interaction.replied || interaction.deferred))
     return;
   const freq =
@@ -135,7 +181,7 @@ function weeklyItems(guildId) {
       cat.id === 'holidays'
     )
       continue;
-    for (const f of cat.features || [])
+    for (const f of cat.features)
       items.push({ title: f.name, text: textOf(f.text, guildId), cat });
     for (const name of cat.commands || []) {
       const c = COMMANDS[name];
@@ -153,6 +199,7 @@ function weeklyItems(guildId) {
 /** The next weekly item for this server (and remember it). */
 function nextWeekly(guildId) {
   const items = weeklyItems(guildId);
+  if (!items.length) return null; // everything switched off
   let index = 0;
   db.perform(d => {
     d.guide ||= {};

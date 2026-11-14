@@ -33,6 +33,7 @@ const GROUPS = {
 };
 
 const target = name => require(`./${GROUPS[name].command}`);
+const features = () => require('../services/features');
 
 module.exports = {
   GROUPS,
@@ -44,15 +45,23 @@ module.exports = {
         'Admin tools: shop, wheel, puzzle, NestWord, coins, birthdays, tournaments',
       default_member_permissions: String(PermissionFlagsBits.Administrator),
       dm_permission: false,
-      // Tools of switched-off commands (e.g. NestWord) aren't shown either
+      // Tools of switched-off commands (e.g. NestWord) aren't shown either,
+      // nor switched-off subcommands (`subFeatures` in the command file)
       options: Object.entries(GROUPS)
-        .filter(([name]) => !target(name).season || target(name).season())
-        .map(([name, g]) => ({
-          type: 2, // subcommand group
-          name,
-          description: g.description,
-          options: target(name).adminSubcommands || [],
-        })),
+        .filter(([name]) => features().commandOn(target(name)))
+        .flatMap(([name, g]) => {
+          const all = target(name).adminSubcommands || [];
+          const subs = all.filter(o => features().subOn(target(name), o.name));
+          if (all.length && !subs.length) return []; // every tool switched off
+          return [
+            {
+              type: 2, // subcommand group
+              name,
+              description: g.description,
+              options: subs,
+            },
+          ];
+        }),
     }),
   },
 
@@ -71,6 +80,14 @@ module.exports = {
         content: '❓ Unknown admin tool.',
         flags: 64,
       });
-    return target(group).execute(interaction);
+    // Switched off (e.g. an old command list in Discord): same answer as
+    // events/interactionCreate.js gives for normal commands
+    const tool = target(group);
+    if (!features().interactionOn(tool, interaction, { group: false }))
+      return interaction.reply({
+        content: '🔒 That’s switched off right now.',
+        flags: 64,
+      });
+    return tool.execute(interaction);
   },
 };

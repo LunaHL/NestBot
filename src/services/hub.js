@@ -30,11 +30,29 @@ const BUTTONS = [
   ['suggest', 'Suggest an idea', '💡', null],
 ];
 
+// The feature a button belongs to (/settings features), if it isn't its id
+const BUTTON_FEATURES = { movies: 'watch' };
+const featureOf = id => BUTTON_FEATURES[id] || id;
+const on = name => require('./features').on(name);
+
+/** "🖱️ Right-click someone…" with only what's on right now. */
+function rightClickLine() {
+  if (!on('usermenu')) return '';
+  const things = [
+    ['profile'],
+    ['gift a drink', 'drinkgift'],
+    ['duel', 'duel'],
+    ['rename', 'shop', 'nicknames'],
+    ['blindfold', 'shop', 'blindfold'],
+  ]
+    .filter(([, ...f]) => f.every(on))
+    .map(([text]) => text);
+  return `\n🖱️ Right-click someone → **Apps**: ${things.join(', ')}`;
+}
+
 function menuMessage() {
-  // Switched-off features (e.g. NestWord) have no button
-  const shown = BUTTONS.filter(
-    ([id]) => id !== 'nestword' || require('./features').on('nestword'),
-  );
+  // Switched-off features (src/config/features.js) have no button
+  const shown = BUTTONS.filter(([id]) => on(featureOf(id)));
   const buttons = shown.map(([id, label, emoji], i) =>
     new ButtonBuilder()
       .setCustomId(`hub:${id}`)
@@ -47,9 +65,11 @@ function menuMessage() {
       ui.card({
         title: '🪺 NestBot',
         text:
-          'Hi! Press a button, no commands needed. Only you see the answer.\n\n' +
-          '💬 Questions? Just ask **@NestBot**, e.g. *“@NestBot how do movie nights work?”*\n' +
-          '🖱️ Right-click someone → **Apps**: profile, gift a drink, duel, rename, blindfold',
+          'Hi! Press a button, no commands needed. Only you see the answer.\n' +
+          (on('ai')
+            ? '\n💬 Questions? Just ask **@NestBot**, e.g. *“@NestBot how do movie nights work?”*'
+            : '') +
+          rightClickLine(),
         color: ui.COLORS.primary,
         footer: 'Every Monday there’s a “💡 Did you know?” here',
       }),
@@ -62,6 +82,7 @@ function menuMessage() {
 
 /** Post the menu in the hub channel (or update it), and pin it. */
 async function postMenu(guild) {
+  if (!on('hub')) return null; // switched off: the old menu just stays
   const channelId = getSetting(guild.id, 'hubChannelId');
   if (!channelId) return null;
   const channel = await guild.client.channels
@@ -89,6 +110,11 @@ async function handleComponent(interaction) {
   const button = BUTTONS.find(b => b[0] === id);
   if (!button)
     return interaction.reply({ content: '🤔 Unknown button.', flags: 64 });
+  if (!on(featureOf(id)))
+    return interaction.reply({
+      content: '🔒 That’s switched off right now.',
+      flags: 64,
+    });
   if (id === 'suggest')
     return interaction.showModal(require('../commands/suggest').ideaForm());
   if (id === 'movies') {
@@ -125,7 +151,7 @@ async function postWeekly(client, guildId) {
         title: `💡 Did you know? ${item.title}`,
         text: item.text,
         color: ui.COLORS.warning,
-        footer: `${item.cat.emoji} ${item.cat.name} · Questions? Ask @NestBot`,
+        footer: `${item.cat.emoji} ${item.cat.name}${on('ai') ? ' · Questions? Ask @NestBot' : ''}`,
       }),
     ],
     allowedMentions: { parse: [] },
@@ -134,6 +160,7 @@ async function postWeekly(client, guildId) {
 }
 
 async function weeklyTick(client) {
+  if (!on('hub')) return; // switched off (/settings features)
   const now = nowInTZ();
   if (now.getDay() !== WEEKLY_DAY || now.getHours() < WEEKLY_HOUR) return;
   const week = weekKey();

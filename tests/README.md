@@ -43,6 +43,6 @@ test via `run.js`.
 
 - `reminders.test.js`: DMs only for unfinished puzzle / NestWord / daily coins, once a day
 
-- `features.test.js`: switched-off NestWord is invisible everywhere and comes back when switched on
+- `features.test.js`: the feature switches: switched-off features are invisible everywhere (commands, help, hub, jobs) and come back when switched on
 
 New features should get a `*.test.js` here too.

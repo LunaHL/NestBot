@@ -40,6 +40,8 @@ function calculateStandings(event) {
 }
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'event',
   data: new SlashCommandBuilder()
     .setName('event')
     .setDescription('Manage server events and tournaments')

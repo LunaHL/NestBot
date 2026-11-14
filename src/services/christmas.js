@@ -584,6 +584,8 @@ function cheers(guildId, yr, userId) {
 // ---------- Jobs ----------
 
 async function tick(client) {
+  // Switched-off seasons (/settings features) post nothing; thawing goes on
+  const { on } = require('./features');
   const now = nowInTZ();
   const m = now.getMonth();
   const day = now.getDate();
@@ -598,7 +600,7 @@ async function tick(client) {
       change(guild.id, x => melted.forEach(([id]) => delete x.frozen[id]));
     // Real dates only when holidays are switched on (/settings holidays enabled:)
     if (!seasons.isEnabled()) continue;
-    if (m === 11) {
+    if (m === 11 && on('christmas')) {
       if (
         day >= SANTA_JOIN_UNTIL &&
         day < 24 &&
@@ -624,6 +626,8 @@ async function tick(client) {
             .catch(() => {});
         }
       }
+    }
+    if (m === 11 && on('newyear')) {
       if (day === 31 && hour === 23 && now.getMinutes() >= 50) {
         const yr = now.getFullYear() + 1;
         if (!newYearState(guild.id, yr).countdown) {
@@ -632,7 +636,7 @@ async function tick(client) {
         }
       }
     }
-    if (m === 0 && day === 1 && hour < 2) {
+    if (m === 0 && day === 1 && hour < 2 && on('newyear')) {
       const yr = now.getFullYear();
       if (!newYearState(guild.id, yr).posted) {
         changeNewYear(guild.id, yr, x => (x.posted = true));

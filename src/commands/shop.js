@@ -23,6 +23,8 @@ const { EFFECT_CHOICES, describe } = require('../services/effects');
 const { isAdmin, denyNonAdmin } = require('../utils/permissions');
 const { discordTime } = require('../utils/time');
 const ui = require('../utils/ui');
+// Paid nicknames and blindfolds can be switched off (/settings features)
+const featureOn = name => require('../services/features').on(name);
 
 const DEFAULT_CATEGORY = '📦 Other';
 const SPECIALS_CATEGORY = '🏷️ Nicknames';
@@ -76,8 +78,10 @@ function specials(guildId) {
     );
   }
   if (nickname.enabled(guildId)) {
+    // Getting your name back stays, even with paid nicknames switched off
     list.push(
       {
+        feature: 'nicknames',
         id: 'nick',
         emoji: '🏷️',
         name: 'Rename someone',
@@ -97,7 +101,7 @@ function specials(guildId) {
       },
     );
   }
-  if (blindfold.isSetUp(guildId)) {
+  if (blindfold.isSetUp(guildId) && featureOn('blindfold')) {
     const range = `${BLIND_PRICES[0].price}–${BLIND_PRICES.at(-1).price}`;
     list.push({
       id: 'blind',
@@ -109,7 +113,7 @@ function specials(guildId) {
       description: `Everything goes dark for them: ${BLIND_PRICES[0].min} min up to ${ui.duration(BLIND_PRICES.at(-1).min * 60)}. More coins, more time.`,
     });
   }
-  return list;
+  return list.filter(i => !i.feature || featureOn(i.feature));
 }
 
 /** The shop card. `category` = only that category (null = all). */
@@ -397,6 +401,22 @@ function blindMenu(guildId, targetId) {
 async function handleComponent(interaction) {
   const [, action, idText, extra] = interaction.customId.split(':');
   const guildId = interaction.guildId;
+
+  // Old menus of something that was switched off since
+  const needs = {
+    nickuser: 'nicknames',
+    nicktime: 'nicknames',
+    nickname: 'nicknames',
+    blinduser: 'blindfold',
+    blindtime: 'blindfold',
+    bunnyuser: 'easter',
+  };
+  const picked = action === 'pick' ? interaction.values?.[0] : null;
+  const needed =
+    needs[action] ||
+    (picked === 'nick' ? 'nicknames' : picked === 'blind' ? 'blindfold' : null);
+  if (needed && !featureOn(needed))
+    return interaction.reply(ui.fail('That’s switched off right now.'));
 
   if (action === 'cancel')
     return interaction.update({ content: '👍 Cancelled.', components: [] });
@@ -760,6 +780,10 @@ const itemText = item =>
   `**${item.emoji} ${item.name}** (${item.price} coins, ${categoryOf(item)})${item.effect ? `\n${describe(item.effect)}` : ''}`;
 
 module.exports = {
+  // Only in Discord when switched on (/settings features)
+  feature: 'shop',
+  // /shop nickname only while paid nicknames are on
+  subFeatures: { nickname: 'nicknames' },
   handleComponent,
 
   data: new SlashCommandBuilder()

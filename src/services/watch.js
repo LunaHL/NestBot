@@ -2270,16 +2270,20 @@ async function monthlyRecap(client, now = Date.now()) {
   }
 }
 
+// While movie nights are switched off (/settings features) none of these
+// run: no reminders, no rooms opened, closed or deleted, no recap. Rooms and
+// nights stay as they are until it's switched back on.
 /** Called once when the bot is ready. */
 function startWatch(client) {
-  runEvery('WatchRecap', 60, () => monthlyRecap(client));
-  runEvery('Watch', 1, () => schedulerTick(client));
-  setInterval(
-    () =>
-      clockTick(client).catch(e => console.error('[Watch] Clock failed:', e)),
-    TICK_MS,
-  );
+  const { only, on } = require('./features');
+  runEvery('WatchRecap', 60, only('watch', () => monthlyRecap(client)));
+  runEvery('Watch', 1, only('watch', () => schedulerTick(client)));
+  setInterval(() => {
+    if (!on('watch')) return;
+    clockTick(client).catch(e => console.error('[Watch] Clock failed:', e));
+  }, TICK_MS);
   // Make sure each server's calendar exists and is up to date
+  if (!on('watch')) return;
   for (const guildId of db.read(d => Object.keys(d.watch || {}))) {
     refreshCalendar(client, guildId).catch(() => {});
   }
