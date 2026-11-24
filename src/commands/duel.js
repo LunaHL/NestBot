@@ -122,7 +122,7 @@ async function startDuel(interaction) {
     )
     .setColor(0xe74c3c);
 
-  const message = await interaction.reply({
+  await interaction.reply({
     content: `${opponent}`,
     embeds: [embed],
     components: buttons(prefix, [
@@ -130,8 +130,8 @@ async function startDuel(interaction) {
       ['decline', '❌ Decline', ButtonStyle.Danger],
     ]),
     allowedMentions: { users: [opponent.id] },
-    fetchReply: true,
   });
+  const message = await interaction.fetchReply();
 
   // Duel state. `done` is set before any await so double-clicks can't resolve twice.
   const state = {

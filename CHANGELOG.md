@@ -1,5 +1,10 @@
 # NestBot Changelog
 
+## V 1.26.2 (November 2026)
+
+**Fixed**
+- `/duel` no longer uses discord.js' deprecated `fetchReply` reply option (warning in the log); it fetches the reply after sending instead
+
 ## V 1.26.1 (November 2026)
 
 **Fixed**
