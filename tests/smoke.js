@@ -14,7 +14,12 @@ const { EventEmitter } = require('events');
 const ROOT = path.join(__dirname, '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nestbot-test-'));
 process.env.NESTBOT_DATA_DIR = tmp;
-delete process.env.GEMINI_API_KEY; // never call the real AI from tests
+// Empty instead of deleted: dotenv (loaded by the bot's files) never
+// overwrites a variable that exists, so the real .env can't sneak them back.
+// No real AI, no DMs to the maintainer from tests.
+process.env.GEMINI_API_KEY = '';
+process.env.MAINTAINER_ID = '';
+process.env.TMDB_TOKEN = '';
 fs.writeFileSync(
   path.join(tmp, 'nestbot.json'),
   JSON.stringify({

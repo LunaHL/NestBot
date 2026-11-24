@@ -1,5 +1,10 @@
 # NestBot Changelog
 
+## V 1.26.1 (November 2026)
+
+**Fixed**
+- `npm test` on the server no longer reads the real `.env` values for `MAINTAINER_ID`, `GEMINI_API_KEY` and `TMDB_TOKEN` (they were blanked with `delete`, which dotenv then filled again). With `MAINTAINER_ID` set, the smoke test failed and the menu's Update stopped there
+
 ## V 1.26 (November 2026)
 
 **New in `npm run menu`**

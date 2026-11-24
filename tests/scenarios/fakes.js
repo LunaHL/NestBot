@@ -10,8 +10,12 @@ process.env.NESTBOT_DATA_DIR = fs.mkdtempSync(
   path.join(os.tmpdir(), 'nestbot-test-'),
 );
 process.env.TIMEZONE ||= 'Europe/Berlin';
-delete process.env.TMDB_TOKEN; // no real TMDB calls in tests
-delete process.env.GEMINI_API_KEY;
+process.env.TMDB_TOKEN = ''; // no real TMDB calls in tests
+// Empty instead of deleted: dotenv (loaded by the bot's files) never
+// overwrites a variable that exists, so the real .env can't sneak them back.
+// No real AI, no DMs to the maintainer from tests.
+process.env.GEMINI_API_KEY = '';
+process.env.MAINTAINER_ID = '';
 process.env.BOT_TOKEN = ''; // never register commands in the real Discord (dotenv keeps this)
 
 const SRC = path.join(__dirname, '..', '..', 'src');
