@@ -1,5 +1,7 @@
 # confidential Files
 .env
+.env.*
+!.env.example
 todo.md
 
 # Bot data: everything in src/data/ except its README and the examples

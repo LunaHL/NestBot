@@ -86,10 +86,12 @@ Everything for running the bot in one place (it runs in pm2):
 
 | | |
 |---|---|
-| **Update** | `git pull`, `npm install` if needed, `npm test`, and only if the tests pass: restart and show the log. If they fail, the bot keeps running and the menu offers to go back to the old code |
+| **Update** | `git pull` (a `package-lock.json` that npm rewrote on the server is reset first), `npm ci` if needed, `npm test`, and only if the tests pass: restart and show the log. If they fail, the bot keeps running and the menu offers to go back to the old code |
 | **Status** | pm2 state, uptime, restarts, version, data sizes, backups, last crash |
 | **Logs** / **Logs live** | `pm2 logs` (live: Ctrl+C goes back to the menu) |
 | **Restart / Stop / Start** | pm2 (Start also sets the bot up in pm2 if it isn't yet) |
+| **Settings** | every setting of `.env` with its explanation from `.env.example`; change, add or switch one off. Tokens and keys are shown hidden. The old file is kept as `.env.bak`; restart afterwards |
+| **Data** | read-only: upcoming and last puzzles with codes and solvers, top coins, birthdays, everywhere a member's ID shows up, any data file. Names are looked up on Discord with the bot token |
 | **Backup now** | a ZIP of all data in `~/nestbot-backups/` |
 | **Restore** | a daily backup, everything or only one file. Makes a ZIP of the current data first, stops and starts the bot itself |
 | **Log rotation** | sets up `pm2-logrotate` once (10 MB per file, 7 kept) |
@@ -99,9 +101,9 @@ Everything for running the bot in one place (it runs in pm2):
 On the server: `npm run menu` → **Update**. By hand it's:
 ```bash
 git pull
-npm install        # only needed when package.json changed, but never hurts
+npm ci             # installs exactly what package-lock.json says
 npm test
-pm2 restart nestbot
+pm2 restart NestBot
 ```
 Your data (`src/data/`) and `.env` are not in git, so an update never touches
 them.

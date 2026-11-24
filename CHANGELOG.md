@@ -1,5 +1,15 @@
 # NestBot Changelog
 
+## V 1.26 (November 2026)
+
+**New in `npm run menu`**
+- ⚙️ **Settings:** view and change `.env` (explanations from `.env.example`, tokens hidden, old file kept as `.env.bak`, restart offered)
+- 🔎 **Data** (read-only): upcoming and last puzzles with codes and solvers, top coins, birthdays, everywhere a member shows up, any data file; names from Discord
+
+**Fixed / better**
+- Update no longer stops when npm rewrote `package-lock.json` on the server: it's reset first, and packages are installed with `npm ci`, which never changes it
+- pm2 name suggestion is `NestBot`
+
 ## V 1.25 (November 2026)
 
 **New (for the person running the bot)**
