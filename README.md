@@ -77,15 +77,50 @@ renames; the server owner can never be renamed.
 **Movie nights:** set them up once in Discord with
 `/settings watch channel:#movies category:<a category for the rooms>`.
 
+## The menu (on the server)
+
+```bash
+npm run menu
+```
+Everything for running the bot in one place (it runs in pm2):
+
+| | |
+|---|---|
+| **Update** | `git pull`, `npm install` if needed, `npm test`, and only if the tests pass: restart and show the log. If they fail, the bot keeps running and the menu offers to go back to the old code |
+| **Status** | pm2 state, uptime, restarts, version, data sizes, backups, last crash |
+| **Logs** / **Logs live** | `pm2 logs` (live: Ctrl+C goes back to the menu) |
+| **Restart / Stop / Start** | pm2 (Start also sets the bot up in pm2 if it isn't yet) |
+| **Backup now** | a ZIP of all data in `~/nestbot-backups/` |
+| **Restore** | a daily backup, everything or only one file. Makes a ZIP of the current data first, stops and starts the bot itself |
+| **Log rotation** | sets up `pm2-logrotate` once (10 MB per file, 7 kept) |
+
 ## Updating the bot
 
-On the server:
+On the server: `npm run menu` → **Update**. By hand it's:
 ```bash
 git pull
 npm install        # only needed when package.json changed, but never hurts
+npm test
+pm2 restart nestbot
 ```
-Then restart the bot. Your data (`src/data/`) and `.env` are not in git, so an
-update never touches them.
+Your data (`src/data/`) and `.env` are not in git, so an update never touches
+them.
+
+**Version:** `version` in `package.json` matches the newest entry in
+`CHANGELOG.md` (V 1.25 → `1.25.0`). Change both together. The bot logs it at
+startup, the menu shows it.
+
+## Backup and error DMs
+
+With `MAINTAINER_ID` in `.env` (your Discord user ID), NestBot DMs you:
+- **once a week** a ZIP of all data (`BACKUP_DM_DAYS`, first one right after
+  the start). To restore: stop the bot, unzip into `src/data/`, start it.
+  These are your copies off the server; the daily backups are on the server.
+- **bad errors:** the bot crashed and pm2 restarted it, a command or button
+  failed for someone, saving data failed. The same error at most once a day,
+  at most 5 DMs an hour. Small hiccups of background jobs only go to the log.
+
+Your DMs must be open for the bot (it shares a server with you).
 
 **Rule of thumb:** make code changes on your PC, run `npm test`, push, then
 `git pull` on the server. Don't edit code directly on the server, or the two
@@ -106,6 +141,7 @@ See [`tests/README.md`](tests/README.md).
 |---|---|
 | `npm start` | Start the bot |
 | `npm test` | Run the smoke test |
+| `npm run menu` | The maintainer menu on the server: update, status, logs, backups, restore |
 | `npm run commands` | Only register the slash commands with Discord (the bot also does this on every start) |
 | `npm run drink-art` | Generate missing drink pictures once ([details](src/scripts/README.md)) |
 
@@ -139,6 +175,8 @@ See [`tests/README.md`](tests/README.md).
 | How long old data stays before archiving | `src/services/cleanup.js` |
 | Number of daily backups | `src/utils/db.js` (`BACKUPS_TO_KEEP`) |
 | Which data file lands in which folder of `src/data/` | `src/utils/dataLayout.js` |
+| Backup DM interval, who gets error DMs | `.env` (`BACKUP_DM_DAYS`, `MAINTAINER_ID`) |
+| Error DM limits | `src/services/maintainer.js` |
 | Gemini models, time zone, test switches | `.env` (see `.env.example`) |
 
 Restart the bot after changing anything.
@@ -167,4 +205,5 @@ backup: [`src/data/README.md`](src/data/README.md).
 | New commands don't show up | Wait a minute and restart Discord. Check the log for "Registered N slash commands" |
 | `Scoreboard channel invalid` | `SCOREBOARD_CHANNEL_ID` in `.env` is wrong or the bot can't see that channel |
 | `… is broken and no backup of it could be found` at startup | One data file is unreadable and there's no backup of it. The broken file is kept as `….broken-…`; see `src/data/README.md` |
+| No backup / error DMs | `MAINTAINER_ID` in `.env`? DMs from server members allowed? The log says `[Maintainer] DM … failed` with the reason |
 | A command says "Error executing this command" | The bot log shows the cause. Run `npm test` to find crashes |

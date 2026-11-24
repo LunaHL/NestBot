@@ -227,6 +227,7 @@ function snapshot(name) {
 }
 
 let written = new Map();
+let reportError = () => {}; // set by services/maintainer.js (DM on errors)
 let lastBackupDay = null;
 
 function load() {
@@ -309,6 +310,7 @@ function writeNow() {
   } catch (err) {
     dirty = true; // try again next time
     console.error('[DB] Save failed:', err);
+    reportError('Saving data failed', err);
   }
 }
 
@@ -321,6 +323,7 @@ function scheduleSave() {
 function backupIfNeeded() {
   const today = new Date().toISOString().slice(0, 10);
   if (lastBackupDay === today) return;
+  if (written.size === 0) return; // nothing to back up yet (fresh install)
   try {
     if (!fs.existsSync(path.join(backupDir, today))) snapshot(today);
     for (const old of listBackups().slice(BACKUPS_TO_KEEP)) {
@@ -329,6 +332,7 @@ function backupIfNeeded() {
     lastBackupDay = today;
   } catch (err) {
     console.error('[DB] Backup failed:', err);
+    reportError('Daily backup failed', err);
   }
 }
 
@@ -364,4 +368,9 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('exit', flush);
 
-module.exports = { perform, read, flush, database };
+// Get told when saving or the daily backup fails: onError((where, err) => …)
+function onError(fn) {
+  reportError = fn;
+}
+
+module.exports = { perform, read, flush, onError, database };

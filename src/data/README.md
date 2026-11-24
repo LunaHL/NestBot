@@ -33,6 +33,7 @@ Other things in here:
 | `backups/nestbot-YYYY-MM-DD.json` | Old-style backups from before the split. Disappear by themselves after 7 days |
 | `archive/` | Old data moved out of the live files every hour, one file per kind and month (`puzzles-2026-10.json`, `nestword-…`, `events-…`). Still used by `/puzzle history` and `/profile` |
 | `nestbot.json.imported-…` | The old single file, kept after it was split into the folders. Can be deleted once everything works |
+| `last-crash.txt` | Only after a crash: what happened. Sent to you by DM after the restart, then deleted (stays if `MAINTAINER_ID` isn't set) |
 | `*.tmp` | Appears for a split second while saving. Safe to ignore |
 | `*.broken-…` | Only if a file was unreadable at startup: the broken file, kept for inspection |
 | `examples/` | What some files look like, as a starting point (`games/wordlist.json`, `fun/wheels.json`) |

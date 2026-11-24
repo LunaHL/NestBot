@@ -60,6 +60,7 @@ anything to do.
 |---|---|
 | `scoreboard.js` | After midnight: posts yesterday's NestWord and Puzzle results to `SCOREBOARD_CHANNEL_ID` |
 | `pictracker.js` | Counts images in the tracked channel; at the end of each week posts the leaderboard and pays rewards |
+| `maintainer.js` | DMs to `MAINTAINER_ID`: the weekly backup ZIP, bad errors (`reportError`, deduplicated and limited) and the crash report after a restart (`recordCrash`) |
 | `cleanup.js` | Every hour: moves NestWord days and past puzzles older than 7 days, and tournaments finished 30+ days ago, into the archive. Removes expired gags |
 | `archive.js` | Reads and writes the monthly archive files in `../data/archive/` |
 

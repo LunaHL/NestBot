@@ -45,6 +45,8 @@ test via `run.js`.
 
 - `data.test.js`: the data folders: splitting the old `nestbot.json`, saving only changed files, backups, broken files, restore
 
+- `maintainer.test.js`: DMs to the maintainer: backup ZIP with the data inside, error DMs (once a day, max 5 an hour), crash report after a restart
+
 - `features.test.js`: the feature switches: switched-off features are invisible everywhere (commands, help, hub, jobs) and come back when switched on
 
 New features should get a `*.test.js` here too.

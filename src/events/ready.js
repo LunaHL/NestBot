@@ -34,6 +34,7 @@ module.exports = function onReady(client) {
   require('../services/easter').startEaster(client); // bunny outfits end, Easter results
   startPicTracker(client); // weekly picture leaderboard
   startCleanup(); // moves old data to the archive
+  require('../services/maintainer').startMaintainer(client); // weekly backup DM, crash report
   startHalloween(client); // Halloween announcement (Oct 31 only)
   // warns if the configured Gemini models don't exist
   if (require('../services/features').on('ai')) ai.checkModels();

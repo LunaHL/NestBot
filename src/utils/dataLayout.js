@@ -64,6 +64,7 @@ const LAYOUT = {
     'settings', // channels, roles, timings set with /settings
     'features', // /settings features overrides
     'guide', // hub menu, tips, "Did you know?"
+    'maintainer', // when the last backup DM went out
   ],
 };
 

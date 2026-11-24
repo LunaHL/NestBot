@@ -11,6 +11,7 @@ promised; it's a list to pick from. Newest changes: [CHANGELOG.md](CHANGELOG.md)
 
 | Version | What |
 |---|---|
+| V 1.25 | 🧰 `npm run menu` on the server, 🗄️ weekly backup DM, 🚨 error DMs to the maintainer |
 | V 1.24 | 🗂️ Data in folders: one file per kind (`economy/nestcoins.json` …) instead of one big `nestbot.json`, backups per day and per file |
 | V 1.23 | 🔌 Feature switches: defaults in `src/config/features.js`, override with `/settings features`; most features switched off (data kept) |
 | V 1.22 | 🧩 `/settings features`: NestWord switched off (the Wordle app does the same; data kept) |

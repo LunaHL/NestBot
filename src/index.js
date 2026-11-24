@@ -1,6 +1,22 @@
 // NestBot entry point: loads commands, connects the event handlers and logs in.
 // What happens where is explained in src/README.md.
 require('dotenv').config();
+const { version } = require('../package.json');
+const maintainer = require('./services/maintainer');
+
+// A crash: remember why (DM to the maintainer after pm2's restart) and stop.
+// After an uncaught error the bot could be in a weird state, so it's better
+// to start fresh. Data is saved on exit (utils/db.js).
+process.on('uncaughtException', error => {
+  console.error('💥 Uncaught error, NestBot stops:', error);
+  maintainer.recordCrash(error);
+  process.exit(1);
+});
+// A promise nobody waited for failed: log and DM, but keep running
+process.on('unhandledRejection', error => {
+  console.error('❌ Unhandled error:', error);
+  maintainer.reportError('Unhandled error', error);
+});
 const { Client, GatewayIntentBits, Events } = require('discord.js');
 const { loadCommands } = require('./utils/commands');
 const { deployCommands } = require('./deploy-commands');
@@ -58,9 +74,14 @@ async function login(privileged = true) {
 }
 
 (async () => {
-  console.log('▶ Deploying commands...');
+  console.log(`▶ NestBot v${version}. Deploying commands...`);
   await deployCommands();
   console.log('✅ Commands deployed. Logging in...');
   if (!process.env.BOT_TOKEN) console.error('❌ BOT_TOKEN is missing in .env');
   await login();
-})();
+})().catch(error => {
+  // e.g. a wrong BOT_TOKEN: stop, so pm2 shows it (and restarts)
+  console.error('💥 Start failed:', error);
+  maintainer.recordCrash(error);
+  process.exit(1);
+});

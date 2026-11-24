@@ -2,6 +2,14 @@
 
 Tools you run by hand. They're not part of the running bot.
 
+## `menu.js`
+
+`npm run menu` on the server: update, status, logs, restart, backups,
+restore and log rotation in one menu. Details in the main
+[README](../../README.md#the-menu-on-the-server). Finds the bot in pm2 by its
+folder (or `NESTBOT_PM2_NAME` in `.env`). Doesn't load the bot's database
+code, so it's safe to use while the bot runs.
+
 ## `generate-drink-art.js`
 
 Creates the drink pictures in `src/assets/drink-art/` with Gemini's image

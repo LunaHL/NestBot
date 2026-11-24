@@ -16,6 +16,10 @@ const EXTRA_HANDLERS = {
 const EXTRA_FEATURES = { hub: 'hub', usermenu: 'usermenu' };
 
 const features = () => require('../services/features');
+const maintainer = () => require('../services/maintainer');
+// "by Luna in #general", for error DMs
+const where = i =>
+  `by ${i.user?.username || '?'}${i.channel?.name ? ` in #${i.channel.name}` : ''}`;
 const switchedOff = interaction =>
   interaction
     .reply({ content: '🔒 That’s switched off right now.', flags: 64 })
@@ -54,6 +58,10 @@ module.exports = async function onInteraction(interaction) {
       await command.handleComponent(interaction);
     } catch (e) {
       console.error(`❌ Button ${interaction.customId} failed:`, e);
+      maintainer().reportError(
+        `Button ${String(interaction.customId).split(':').slice(0, 2).join(':')} failed (${where(interaction)})`,
+        e,
+      );
       const msg = {
         content: '❌ That didn’t work. Please try again.',
         flags: 64,
@@ -84,6 +92,10 @@ module.exports = async function onInteraction(interaction) {
     await guide.maybeTip(interaction);
   } catch (error) {
     console.error(`❌ /${interaction.commandName} failed:`, error);
+    maintainer().reportError(
+      `/${interaction.commandName} failed (${where(interaction)})`,
+      error,
+    );
     // If the command already replied, reply() would throw again
     const msg = { content: '❌ Error executing this command.', flags: 64 };
     try {

@@ -1,6 +1,6 @@
 {
   "name": "nestbot",
-  "version": "1.0.0",
+  "version": "1.25.0",
   "description": "A Discord Bot for the Nest Discord",
   "license": "ISC",
   "author": "",
@@ -10,7 +10,8 @@
     "start": "node src/index.js",
     "commands": "node src/deploy-commands.js",
     "test": "node tests/smoke.js && node tests/scenarios/run.js",
-    "drink-art": "node src/scripts/generate-drink-art.js"
+    "drink-art": "node src/scripts/generate-drink-art.js",
+    "menu": "node src/scripts/menu.js"
   },
   "dependencies": {
     "@google/genai": "2.28.0",

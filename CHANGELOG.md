@@ -1,5 +1,14 @@
 # NestBot Changelog
 
+## V 1.25 (November 2026)
+
+**New (for the person running the bot)**
+- 🧰 `npm run menu` on the server: update (pull, test, restart only if the tests pass, otherwise back to the old code), status, logs, restart/stop/start, backup now, restore a backup (everything or one file) and pm2 log rotation
+- 🗄️ Weekly backup by DM: with `MAINTAINER_ID` in `.env`, NestBot sends a ZIP of all data once a week (`BACKUP_DM_DAYS`)
+- 🚨 Bad errors by DM: crashes (reported after pm2's restart), commands and buttons that failed for someone, saving data that failed, uncaught errors. The same error at most once a day, at most 5 DMs an hour
+- An unhandled promise error no longer crashes the bot; it's logged and reported
+- Version: `package.json` now says 1.25.0, the bot logs it at startup
+
 ## V 1.24 (November 2026)
 
 **Changed**
