@@ -30,7 +30,7 @@ Run it before every push.
 
 `tests/scenarios/` plays whole features through with a small fake Discord
 (`fakes.js`: one server, channels, members, roles; data in a temporary
-folder, never the real `nestbot.json`). `npm test` runs them after the smoke
+folder, never the real bot data). `npm test` runs them after the smoke
 test via `run.js`.
 
 - `holidays.test.js`: Christmas (advent calendar, vouchers, snowballs, the
@@ -42,6 +42,8 @@ test via `run.js`.
 - `suggestions.test.js`: ideas, 👍/👎 votes, admin status, DM to the author
 
 - `reminders.test.js`: DMs only for unfinished puzzle / NestWord / daily coins, once a day
+
+- `data.test.js`: the data folders: splitting the old `nestbot.json`, saving only changed files, backups, broken files, restore
 
 - `features.test.js`: the feature switches: switched-off features are invisible everywhere (commands, help, hub, jobs) and come back when switched on
 

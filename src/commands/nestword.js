@@ -15,7 +15,7 @@ const { nowInTZ, formatDate: ymd, localDate } = require('../utils/time');
 const getToday = () => localDate(0);
 const getYesterday = () => localDate(-1);
 
-const WORDLIST_PATH = path.join(DATA_DIR, 'wordlist.json');
+const WORDLIST_PATH = path.join(DATA_DIR, 'games', 'wordlist.json');
 
 // ---------------- Utils ----------------
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -28,6 +28,7 @@ let _cachedWordlist = null;
 
 const ensureWordlistFile = () => {
   if (!fs.existsSync(WORDLIST_PATH)) {
+    fs.mkdirSync(path.dirname(WORDLIST_PATH), { recursive: true });
     const init = {
       pool3: [],
       pool4: [],

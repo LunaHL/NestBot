@@ -1,5 +1,15 @@
 # NestBot Changelog
 
+## V 1.24 (November 2026)
+
+**Changed**
+- 🗂️ The data is no longer one big `nestbot.json`: every kind of data has its own file, sorted into folders (`economy/nestcoins.json`, `games/puzzles.json`, `drinks/coffee.json`, `social/`, `movies/`, `holidays/`, `settings/` …). Which key goes where is set in `src/utils/dataLayout.js`; new keys land in `other/`
+- The first start after the update splits `nestbot.json` by itself and keeps the old file as `nestbot.json.imported-…`. `wordlist.json` moves to `games/`
+- Saving writes only the files that changed. Backups are a copy of all folders per day (`backups/YYYY-MM-DD/`), so one thing (e.g. only the coins) can be restored on its own. A broken file is restored from its own backup at startup
+- An old `nestbot.json` (or old-style backup) copied into `src/data/` is imported on the next start; what was there before is kept in `backups/before-import-…/`
+- Example files are in `src/data/examples/`
+- Nothing changes for members or in Discord
+
 ## V 1.23 (November 2026)
 
 **Changed**

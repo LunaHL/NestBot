@@ -1,0 +1,9 @@
+{
+  "123456789012345678": {
+    "nextId": 3,
+    "entries": {
+      "1": { "id": 1, "text": "Do 10 pushups", "effect": null },
+      "2": { "id": 2, "text": "Sing a song in voice chat", "effect": null }
+    }
+  }
+}

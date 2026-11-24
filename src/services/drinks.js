@@ -2,7 +2,7 @@
 // keeping drink stats. The menu and all tunable numbers are in
 // src/config/drinksMenu.js.
 //
-// Stats are stored under data.coffee in nestbot.json. That's the old name
+// Stats are stored under data.coffee (data/drinks/coffee.json). That's the old name
 // from when only coffee existed; it's kept so nobody loses their stats.
 const db = require('../utils/db');
 const nestcoins = require('./nestcoins');

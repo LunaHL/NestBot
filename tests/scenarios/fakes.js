@@ -1,7 +1,7 @@
 // A small fake Discord for scenario tests: one server ("g") with channels,
 // members, roles, DMs, and helpers to run commands, click buttons and send
 // forms the way Discord would. Data goes to a temporary folder, so the real
-// nestbot.json is never touched. Used by the *.test.js files next to it.
+// bot data is never touched. Used by the *.test.js files next to it.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

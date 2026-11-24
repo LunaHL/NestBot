@@ -1,5 +1,5 @@
 // Server settings that admins change with /settings. Stored per server in
-// data.settings[guildId] in nestbot.json.
+// data.settings[guildId] (data/settings/settings.json).
 const db = require('../utils/db');
 
 const DEFAULTS = {

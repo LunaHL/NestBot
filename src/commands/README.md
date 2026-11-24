@@ -37,7 +37,7 @@ Switched-off features are hidden (command, subcommand, `/help`); see [`../config
 | `nestword.js` | `/nestword guess` | Guess today's word (Wordle-style, 3–7 letters) |
 | | `/nestword info` | Today's length, attempts and reward |
 | | `/admin nestword set` 🔒 | Set the word for a date |
-| | `/admin nestword pool-bulkadd` 🔒 / `pool-remove` 🔒 / `pool-list` 🔒 / `pool-clear` 🔒 | Manage the word pools (stored in `data/wordlist.json`) |
+| | `/admin nestword pool-bulkadd` 🔒 / `pool-remove` 🔒 / `pool-list` 🔒 / `pool-clear` 🔒 | Manage the word pools (stored in `data/games/wordlist.json`) |
 | `puzzle.js` | **🔑 Enter code** button | On every puzzle card (announcement, `/puzzle info`, the hub menu): opens a form for today's code (10 tries per day). The first three get a bonus: 🥇 +15, 🥈 +10, 🥉 +5 |
 | | `/puzzle info` | Today's puzzle card with "Open puzzle" button, your position and streak |
 | | `/puzzle history` | Past puzzles, optionally which ones a user solved |

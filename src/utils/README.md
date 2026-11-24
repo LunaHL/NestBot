@@ -4,7 +4,8 @@ Small helpers used all over the bot.
 
 | File | What it gives you |
 |---|---|
-| `db.js` | The database (`data/nestbot.json`). `db.read(data => …)` to look something up, `db.perform(data => …)` to change something. Changes are saved within 2 seconds, crash-safe, with a daily backup. On startup it falls back to the newest backup if the file is broken |
+| `db.js` | The database: one file per top-level key in `data/<folder>/<key>.json`, one object in memory. `db.read(data => …)` to look something up, `db.perform(data => …)` to change something. Changes are saved within 2 seconds (only changed files), crash-safe, with a daily backup. A broken file is restored from its newest backup at startup. An old single `data/nestbot.json` is imported into the folders |
+| `dataLayout.js` | Which data folder each key goes into (`nestcoins` → `economy/`). New keys not listed here land in `other/` |
 | `time.js` | Dates in the server's time zone (`TIMEZONE` in `.env`): `localDate()` = today as `"YYYY-MM-DD"`, `localDate(-1)` = yesterday, `nowInTZ()`, `formatDate()`, `isHalloween()`, `daysUntilHalloween()`, `zonedToUtc(date, time)` (server time → timestamp, handles summer time), `discordTime(ms)` (shows in each viewer's own time zone) |
 | `schedule.js` | `runEvery(name, minutes, job)`: runs a background job now and then regularly; errors are logged instead of crashing the bot |
 | `streak.js` | The streak reward rules for Puzzle and NestWord: new (+10% per day, max +50%, milestone bonuses at 7/14/30/100 days) and old (reward × streak days). Which one is active is set with `/settings streak` |

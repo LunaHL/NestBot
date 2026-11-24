@@ -1,4 +1,4 @@
-// Long-term storage for old data that is moved out of nestbot.json.
+// Long-term storage for old data that is moved out of the live db.
 // One file per kind and month, e.g. archive/puzzles-2026-10.json, so the
 // main database stays small and no single file grows forever.
 const fs = require('fs');
@@ -47,7 +47,7 @@ function listFiles(kind) {
 /**
  * Save entries to the archive. `entries` is { key: value } where the month
  * comes from monthOf(key, value). Returns true only if everything was written,
- * so the caller knows it's safe to remove the data from nestbot.json.
+ * so the caller knows it's safe to remove the data from the db.
  */
 function add(kind, entries, monthOf) {
   if (!KINDS.includes(kind)) throw new Error(`Unknown archive kind: ${kind}`);

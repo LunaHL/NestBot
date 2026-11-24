@@ -138,6 +138,7 @@ See [`tests/README.md`](tests/README.md).
 | Halloween outcomes and tries | `src/services/halloween.js` |
 | How long old data stays before archiving | `src/services/cleanup.js` |
 | Number of daily backups | `src/utils/db.js` (`BACKUPS_TO_KEEP`) |
+| Which data file lands in which folder of `src/data/` | `src/utils/dataLayout.js` |
 | Gemini models, time zone, test switches | `.env` (see `.env.example`) |
 
 Restart the bot after changing anything.
@@ -149,11 +150,13 @@ Restart the bot after changing anything.
 Everything the bot remembers is in `src/data/`. Details and how to restore a
 backup: [`src/data/README.md`](src/data/README.md).
 
-- `nestbot.json`: all live data (coins, games, stats…), saved safely within
-  2 seconds of any change.
-- `backups/`: one copy per day, the last 7 days.
-- `archive/`: old puzzles, NestWord days and tournaments, moved out of the main
-  file every hour so it stays small. Used by `/puzzle history` and `/profile`.
+- `economy/`, `games/`, `drinks/`, `social/`, `movies/`, `settings/` …: all
+  live data, one file per kind (e.g. `economy/nestcoins.json`), saved safely
+  within 2 seconds of any change. Which file goes where:
+  `src/utils/dataLayout.js`.
+- `backups/`: a copy of all folders once per day, the last 7 days.
+- `archive/`: old puzzles, NestWord days and tournaments, moved out of the live
+  files every hour so they stay small. Used by `/puzzle history` and `/profile`.
 
 ## Troubleshooting
 
@@ -163,5 +166,5 @@ backup: [`src/data/README.md`](src/data/README.md).
 | `[AI] ⚠️ Model(s) not available` | Set `AI_MODELS=` in `.env` to one of the models listed in that warning |
 | New commands don't show up | Wait a minute and restart Discord. Check the log for "Registered N slash commands" |
 | `Scoreboard channel invalid` | `SCOREBOARD_CHANNEL_ID` in `.env` is wrong or the bot can't see that channel |
-| `nestbot.json is broken` at startup | The bot restores the newest backup automatically; see `src/data/README.md` |
+| `… is broken and no backup of it could be found` at startup | One data file is unreadable and there's no backup of it. The broken file is kept as `….broken-…`; see `src/data/README.md` |
 | A command says "Error executing this command" | The bot log shows the cause. Run `npm test` to find crashes |

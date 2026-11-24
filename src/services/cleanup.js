@@ -1,4 +1,4 @@
-// Keeps nestbot.json small by moving old data into the archive
+// Keeps the data files small by moving old data into the archive
 // (src/data/archive/). Nothing is removed unless it was archived first.
 // Runs at startup and then every hour, independent of any channel settings.
 const db = require('../utils/db');
@@ -79,7 +79,7 @@ function runCleanup() {
     console.error('[Cleanup] Watchlist cleanup failed:', e);
   }
 
-  // NestWord's "recently used words" list in wordlist.json. Every past word
+  // NestWord's "recently used words" list in games/wordlist.json. Every past word
   // is already kept in the nestword archive, so old entries are just removed.
   let words = 0;
   try {

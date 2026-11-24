@@ -47,7 +47,7 @@ User types /drinks order
   → events/interactionCreate.js finds the command by name
   → commands/drinks.js reads the options and builds the reply
   → services/drinks.js does the work (check limits, take coins, record the drink)
-  → utils/db.js saves the change to data/nestbot.json
+  → utils/db.js saves the change (data/drinks/coffee.json, data/economy/nestcoins.json)
   → services/achievements.js checks for new achievements and announces them
 ```
 
@@ -75,7 +75,8 @@ which matters for things like the movie calendar that stay up for days.
   belongs in a service, so other commands can reuse it.
 - **All data goes through `utils/db.js`.** Use `db.read(data => …)` to look
   something up and `db.perform(data => …)` to change something. Never write
-  `data/nestbot.json` directly.
+  the files in `data/` directly. Which key lands in which data folder:
+  `utils/dataLayout.js`.
 - **Dates use `utils/time.js`** (server time zone from `.env`), never `new Date()`
   for "today".
 - **Background jobs use `runEvery` from `utils/schedule.js`.**

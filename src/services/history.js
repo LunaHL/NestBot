@@ -1,4 +1,4 @@
-// Combines recent data (nestbot.json) with archived data (data/archive/),
+// Combines recent data (the db) with archived data (data/archive/),
 // so commands see the full history regardless of what cleanup has moved.
 const db = require('../utils/db');
 const archive = require('./archive');
